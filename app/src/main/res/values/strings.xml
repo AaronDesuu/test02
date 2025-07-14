@@ -100,6 +100,69 @@
     <string name="time_hours_ago">%1$d hours ago</string>
     <string name="time_days_ago">%1$d days ago</string>
 
+    <!-- File Upload Strings -->
+    <string name="file_upload_title">File Upload</string>
+    <string name="upload_required_files">Upload Required Files</string>
+    <string name="upload_description">Please upload the following 3 required CSV files for the system to function properly:</string>
+
+    <!-- Required Files -->
+    <string name="meter_csv_file">Meter CSV File</string>
+    <string name="printer_csv_file">Printer CSV File</string>
+    <string name="rate_csv_file">Rate CSV File</string>
+
+    <!-- File Upload Actions -->
+    <string name="select_file">Select File</string>
+    <string name="upload_file">Upload File</string>
+    <string name="remove_file">Remove File</string>
+    <string name="retry_upload">Retry Upload</string>
+
+    <!-- File Upload Status -->
+    <string name="file_selected">File Selected: %1$s</string>
+    <string name="no_file_selected">No file selected</string>
+    <string name="uploading_file">Uploading %1$s...</string>
+    <string name="upload_progress">Upload Progress: %1$d%%</string>
+    <string name="upload_success">File uploaded successfully!</string>
+    <string name="upload_failed">Upload failed. Please try again.</string>
+    <string name="file_upload_complete">File upload complete: %1$s</string>
+
+    <!-- File Validation -->
+    <string name="invalid_file_type">Invalid file type. Please select a CSV file.</string>
+    <string name="file_too_large">File is too large. Maximum size is %1$dMB.</string>
+    <string name="file_empty">Selected file is empty or corrupted.</string>
+    <string name="duplicate_file">This file has already been uploaded.</string>
+
+    <!-- Upload Warnings -->
+    <string name="upload_warning_title">Upload Warning</string>
+    <string name="missing_files_warning">Missing Required Files</string>
+    <string name="incomplete_upload_message">You must upload all 3 required files before proceeding:</string>
+    <string name="missing_meter_file">• Meter CSV file is missing</string>
+    <string name="missing_printer_file">• Printer CSV file is missing</string>
+    <string name="missing_rate_file">• Rate CSV file is missing</string>
+    <string name="upload_all_files_first">Please upload all required files first.</string>
+    <string name="system_not_ready">System is not ready. Missing %1$d required file(s).</string>
+
+    <!-- Upload Progress -->
+    <string name="upload_progress_title">Upload Progress</string>
+    <string name="files_uploaded">Files Uploaded: %1$d of 3</string>
+    <string name="all_files_uploaded">All required files uploaded successfully!</string>
+    <string name="ready_to_proceed">System is ready. You can now proceed to use the application.</string>
+
+    <!-- File Management -->
+    <string name="manage_files">Manage Files</string>
+    <string name="uploaded_files">Uploaded Files</string>
+    <string name="file_size">Size: %1$s</string>
+    <string name="upload_date">Uploaded: %1$s</string>
+    <string name="replace_file">Replace File</string>
+    <string name="delete_file">Delete File</string>
+    <string name="confirm_delete_file">Are you sure you want to delete this file?</string>
+    <string name="confirm_replace_file">Are you sure you want to replace this file?</string>
+
+    <!-- Storage Permissions -->
+    <string name="storage_permission_title">Storage Permission Required</string>
+    <string name="storage_permission_message">This app needs storage permission to upload and save files.</string>
+    <string name="grant_permission">Grant Permission</string>
+    <string name="permission_denied">Permission denied. Cannot access files.</string>
+
     <!-- General -->
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
@@ -111,4 +174,9 @@
     <string name="more">More</string>
     <string name="less">Less</string>
     <string name="view_details">View Details</string>
+    <string name="continue_action">Continue</string>
+    <string name="back">Back</string>
+    <string name="done">Done</string>
+    <string name="skip">Skip</string>
+    <string name="next">Next</string>
 </resources>

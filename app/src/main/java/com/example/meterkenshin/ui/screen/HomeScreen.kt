@@ -34,7 +34,8 @@ import androidx.core.graphics.toColorInt
 @Composable
 fun HomeScreen(
     sessionManager: SessionManager,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onNavigateToFileUpload: () -> Unit = {}
 ) {
     val session = sessionManager.getSession()
 
@@ -70,48 +71,30 @@ fun HomeScreen(
                     Text(
                         text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date()),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                    )
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = { /* TODO: Menu */ }) {
-                    Icon(
-                        imageVector = Icons.Default.Menu,
-                        contentDescription = "Menu"
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
             actions = {
-                // Notification Badge
-                BadgedBox(
-                    badge = {
-                        if (alerts.count { !it.isRead } > 0) {
-                            Badge {
-                                Text("${alerts.count { !it.isRead }}")
-                            }
-                        }
-                    }
+                // Add File Upload Navigation Button
+                IconButton(
+                    onClick = onNavigateToFileUpload
                 ) {
-                    IconButton(onClick = { /* TODO: Show notifications */ }) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Notifications"
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.CloudUpload,
+                        contentDescription = "File Upload",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
 
+                // Your existing logout button
                 IconButton(onClick = { showLogoutDialog = true }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                         contentDescription = stringResource(R.string.logout_button)
                     )
                 }
-            },
-            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            }
         )
 
         // Main Content

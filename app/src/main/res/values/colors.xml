@@ -80,6 +80,48 @@
     <color name="admin_user_accent">#F57C00</color>
     <color name="reader_user_accent">#388E3C</color>
 
+    <!-- File Upload Colors -->
+    <color name="upload_progress_background">#E3F2FD</color>
+    <color name="upload_progress_foreground">#1976D2</color>
+    <color name="upload_success_background">#E8F5E8</color>
+    <color name="upload_success_foreground">#2E7D32</color>
+    <color name="upload_error_background">#FFEBEE</color>
+    <color name="upload_error_foreground">#C62828</color>
+    <color name="upload_warning_background">#FFF3E0</color>
+    <color name="upload_warning_foreground">#F57C00</color>
+
+    <!-- File Status Colors -->
+    <color name="file_selected_background">#F3E5F5</color>
+    <color name="file_selected_border">#9C27B0</color>
+    <color name="file_uploaded_background">#E8F5E8</color>
+    <color name="file_uploaded_border">#4CAF50</color>
+    <color name="file_pending_background">#FFF8E1</color>
+    <color name="file_pending_border">#FF9800</color>
+    <color name="file_error_background">#FFEBEE</color>
+    <color name="file_error_border">#F44336</color>
+
+    <!-- Upload Card Colors -->
+    <color name="upload_card_background">#FAFAFA</color>
+    <color name="upload_card_border">#E0E0E0</color>
+    <color name="upload_card_shadow">#40000000</color>
+
+    <!-- Progress Indicator Colors -->
+    <color name="progress_track">#E0E0E0</color>
+    <color name="progress_indicator">#1976D2</color>
+    <color name="progress_success">#4CAF50</color>
+    <color name="progress_error">#F44336</color>
+
+    <!-- File Type Icon Colors -->
+    <color name="csv_file_icon">#4CAF50</color>
+    <color name="excel_file_icon">#0F7B0F</color>
+    <color name="generic_file_icon">#757575</color>
+
+    <!-- Drag and Drop Colors -->
+    <color name="drop_zone_normal">#F5F5F5</color>
+    <color name="drop_zone_active">#E3F2FD</color>
+    <color name="drop_zone_border">#BDBDBD</color>
+    <color name="drop_zone_border_active">#2196F3</color>
+
     <!-- Basic Colors -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
