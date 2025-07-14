@@ -28,6 +28,7 @@ import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.*
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.core.graphics.toColorInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -277,7 +278,7 @@ private fun WelcomeCard(
                 // Sync Status Indicator
                 Card(
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(android.graphics.Color.parseColor(systemOverview.syncStatus.colorHex))
+                        containerColor = Color(systemOverview.syncStatus.colorHex.toColorInt())
                     )
                 ) {
                     Icon(
@@ -829,11 +830,11 @@ private fun AlertItem(alert: Alert) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(android.graphics.Color.parseColor(alert.severity.colorHex)).copy(alpha = 0.08f)
+            containerColor = Color(alert.severity.colorHex.toColorInt()).copy(alpha = 0.08f)
         ),
         border = androidx.compose.foundation.BorderStroke(
             1.dp,
-            Color(android.graphics.Color.parseColor(alert.severity.colorHex)).copy(alpha = 0.3f)
+            Color(alert.severity.colorHex.toColorInt()).copy(alpha = 0.3f)
         )
     ) {
         Row(
@@ -850,7 +851,7 @@ private fun AlertItem(alert: Alert) {
                     AlertType.WARNING -> Icons.Default.Warning
                 },
                 contentDescription = null,
-                tint = Color(android.graphics.Color.parseColor(alert.severity.colorHex)),
+                tint = Color(alert.severity.colorHex.toColorInt()),
                 modifier = Modifier.size(24.dp)
             )
 
@@ -881,7 +882,7 @@ private fun AlertItem(alert: Alert) {
                     modifier = Modifier
                         .size(8.dp)
                         .background(
-                            Color(android.graphics.Color.parseColor(alert.severity.colorHex)),
+                            Color(alert.severity.colorHex.toColorInt()),
                             CircleShape
                         )
                 )
