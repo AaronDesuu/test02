@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.screen
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +32,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.graphics.toColorInt
 
+private const val TAG = "HomeScreen"
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -38,6 +41,8 @@ fun HomeScreen(
     onLogout: () -> Unit,
     onNavigateToFileUpload: () -> Unit = {}
 ) {
+    Log.d(TAG, "HomeScreen composing with navigation callback: $onNavigateToFileUpload")
+
     val session = sessionManager.getSession()
 
     if (session == null) {
@@ -77,7 +82,6 @@ fun HomeScreen(
                 }
             },
             actions = {
-
                 // logout button
                 IconButton(onClick = { showLogoutDialog = true }) {
                     Icon(
@@ -101,7 +105,10 @@ fun HomeScreen(
 
             // Quick Actions
             item {
-                QuickActionsSection(userRole = session.role)
+                QuickActionsSection(
+                    userRole = session.role,
+                    onNavigateToFileUpload = onNavigateToFileUpload
+                )
             }
 
             // System Overview Statistics
@@ -234,7 +241,6 @@ private fun WelcomeCard(
                         }.copy(alpha = 0.8f)
                     )
                 }
-
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -253,7 +259,12 @@ private fun WelcomeCard(
 }
 
 @Composable
-private fun QuickActionsSection(userRole: UserRole) {
+private fun QuickActionsSection(
+    userRole: UserRole,
+    onNavigateToFileUpload: () -> Unit
+) {
+    Log.d(TAG, "QuickActionsSection composing with navigation callback: $onNavigateToFileUpload")
+
     Column {
         Text(
             text = stringResource(R.string.quick_actions),
@@ -266,17 +277,39 @@ private fun QuickActionsSection(userRole: UserRole) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 4.dp)
         ) {
-            items(getQuickActions(userRole)) { action ->
-                QuickActionCard(action = action)
+            val quickActions = getQuickActions(userRole)
+            Log.d(TAG, "Quick actions: ${quickActions.map { it.title }}")
+
+            items(quickActions) { action ->
+                QuickActionCard(
+                    action = action,
+                    onNavigateToFileUpload = onNavigateToFileUpload
+                )
             }
         }
     }
 }
 
 @Composable
-private fun QuickActionCard(action: QuickAction) {
+private fun QuickActionCard(
+    action: QuickAction,
+    onNavigateToFileUpload: () -> Unit
+) {
+    Log.d(TAG, "QuickActionCard for: ${action.title}")
+
     Card(
-        onClick = { /* TODO: Handle action */ },
+        onClick = {
+            Log.d(TAG, "QuickActionCard clicked: ${action.title}")
+            when (action.title) {
+                "Import Data" -> {
+                    Log.d(TAG, "Navigating to FileUpload")
+                    onNavigateToFileUpload()
+                }
+                else -> {
+                    Log.d(TAG, "No handler for action: ${action.title}")
+                }
+            }
+        },
         modifier = Modifier
             .width(120.dp)
             .height(100.dp),
@@ -418,142 +451,6 @@ private fun StatCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-    }
-}
-
-@Composable
-private fun ConsumptionStatsSection(
-    consumptionSummary: ConsumptionSummary,
-    selectedTimeRange: String,
-    onTimeRangeChange: (String) -> Unit
-) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.consumption_stats),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            // Time Range Selector
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    listOf("Today", "Week", "Month").forEach { range ->
-                        FilterChip(
-                            onClick = { onTimeRangeChange(range) },
-                            label = { Text(range) },
-                            selected = selectedTimeRange == range,
-                            modifier = Modifier.padding(horizontal = 2.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
-            )
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp)
-            ) {
-                // Main consumption display
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = when (selectedTimeRange) {
-                                "Today" -> String.format("%.1f", consumptionSummary.dailyAverage)
-                                "Week" -> String.format("%.1f", consumptionSummary.weeklyTotal)
-                                else -> String.format("%.1f", consumptionSummary.monthlyTotal)
-                            },
-                            style = MaterialTheme.typography.displaySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = stringResource(R.string.kwh_unit),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Bolt,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.padding(12.dp).size(32.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Additional stats
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    ConsumptionStatItem(
-                        label = stringResource(R.string.daily_average),
-                        value = "${String.format("%.1f", consumptionSummary.dailyAverage)} kWh"
-                    )
-                    ConsumptionStatItem(
-                        label = stringResource(R.string.peak_usage),
-                        value = "${String.format("%.1f", consumptionSummary.peakUsage)} kWh"
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ConsumptionStatItem(
-    label: String,
-    value: String
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
@@ -705,7 +602,6 @@ private fun ReadingItem(
     }
 }
 
-
 // Data classes for quick actions
 data class QuickAction(
     val title: String,
@@ -717,7 +613,6 @@ private fun getQuickActions(userRole: UserRole): List<QuickAction> {
     val userPermissions = userRole.getPermissions()
 
     return listOf(
-
         QuickAction(
             title = "Meter Reading",
             icon = Icons.Default.ElectricBolt,

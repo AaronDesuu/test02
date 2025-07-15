@@ -47,15 +47,20 @@ fun FileUploadScreen(
         uri?.let { viewModel.selectFile(it, context) }
     }
 
+    // Remove the automatic navigation LaunchedEffect (keeping it commented for reference)
+    /*
     LaunchedEffect(uploadState.allFilesUploaded) {
         if (uploadState.allFilesUploaded) {
             onUploadComplete()
         }
     }
+    */
 
+    // Add system bar padding to avoid overlapping with taskbar
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.systemBars) // Add system bar padding
             .padding(16.dp)
     ) {
         // Header
@@ -87,7 +92,7 @@ fun FileUploadScreen(
         FileUploadActions(
             allFilesUploaded = uploadState.allFilesUploaded,
             hasIncompleteUploads = uploadState.hasIncompleteUploads,
-            onProceed = onUploadComplete,
+            onProceed = onUploadComplete, // Only manual navigation via button
             onShowWarning = { showWarningDialog = true }
         )
     }
@@ -137,8 +142,6 @@ private fun UploadProgressIndicator(
     uploadedCount: Int,
     totalCount: Int
 ) {
-    val progress = uploadedCount.toFloat() / totalCount.toFloat()
-
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -148,13 +151,13 @@ private fun UploadProgressIndicator(
             Text(
                 text = stringResource(R.string.files_uploaded, uploadedCount),
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
-                text = "${(progress * 100).toInt()}%",
+                text = "$uploadedCount/$totalCount",
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
             )
         }
@@ -162,41 +165,17 @@ private fun UploadProgressIndicator(
         Spacer(modifier = Modifier.height(8.dp))
 
         LinearProgressIndicator(
-            progress = { progress },
+            progress = { if (totalCount > 0) uploadedCount.toFloat() / totalCount else 0f },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(8.dp),
+                .height(6.dp),
             color = if (uploadedCount == totalCount) {
-                colorResource(R.color.progress_success)
+                colorResource(R.color.upload_success_foreground)
             } else {
-                colorResource(R.color.progress_indicator)
+                MaterialTheme.colorScheme.primary
             },
-            trackColor = colorResource(R.color.progress_track),
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
-
-        if (uploadedCount == totalCount) {
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = colorResource(R.color.progress_success),
-                    modifier = Modifier.size(16.dp)
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = stringResource(R.string.all_files_uploaded),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colorResource(R.color.progress_success),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
     }
 }
 
@@ -207,32 +186,28 @@ private fun RequiredFileCard(
     onUploadFile: () -> Unit,
     onRemoveFile: () -> Unit
 ) {
-    val backgroundColor = when (file.status) {
-        FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_background)
-        FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_background)
-        FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_background)
-        FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_background)
-        FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_background)
-    }
-
-    val borderColor = when (file.status) {
-        FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_border)
-        FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
-        FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
-        FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_border)
-        FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_border)
-    }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                color = borderColor,
+                color = when (file.status) {
+                    FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_border)
+                    FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
+                    FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
+                    FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_border)
+                    FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_border)
+                },
                 shape = RoundedCornerShape(12.dp)
             ),
         colors = CardDefaults.cardColors(
-            containerColor = backgroundColor
+            containerColor = when (file.status) {
+                FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_background)
+                FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_background)
+                FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_background)
+                FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_background)
+                FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_background)
+            }
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -245,24 +220,50 @@ private fun RequiredFileCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = file.displayName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FileStatusIcon(status = file.status)
 
-                    Text(
-                        text = file.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column {
+                        Text(
+                            text = file.displayName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Text(
+                            text = file.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
 
-                FileStatusIcon(status = file.status)
+                // Status Text
+                Text(
+                    text = when (file.status) {
+                        FileUploadState.FileStatus.PENDING -> "Required"
+                        FileUploadState.FileStatus.SELECTED -> "Selected"
+                        FileUploadState.FileStatus.UPLOADING -> "Uploading..."
+                        FileUploadState.FileStatus.UPLOADED -> "Uploaded"
+                        FileUploadState.FileStatus.ERROR -> "Error"
+                    },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = when (file.status) {
+                        FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_border)
+                        FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
+                        FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
+                        FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_border)
+                        FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_border)
+                    }
+                )
             }
 
-            // Selected File Info
+            // Selected File Name
             if (file.selectedFileName != null) {
                 Spacer(modifier = Modifier.height(12.dp))
 
