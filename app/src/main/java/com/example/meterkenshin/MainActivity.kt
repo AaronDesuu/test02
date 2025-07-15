@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.example.meterkenshin.manager.SessionManager
-import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
@@ -65,14 +64,6 @@ fun MeterKenshinApp(sessionManager: SessionManager) {
                         isLoggedIn = false
                         currentScreen = "home"
                     },
-                    onNavigateToFileUpload = {
-                        currentScreen = "fileUpload"
-                    }
-                )
-                "fileUpload" -> FileUploadScreen(
-                    onUploadComplete = {
-                        currentScreen = "home"
-                    }
                 )
             }
         } else {

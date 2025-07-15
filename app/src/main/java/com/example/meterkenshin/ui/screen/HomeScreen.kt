@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.*
+import com.example.meterkenshin.ui.screen.FileUploadScreen
 import java.text.SimpleDateFormat
 import java.util.*
 import androidx.core.graphics.toColorInt
@@ -118,26 +119,12 @@ fun HomeScreen(
                 SystemOverviewSection(overview = systemOverview)
             }
 
-            // Consumption Statistics
-            item {
-                ConsumptionStatsSection(
-                    consumptionSummary = consumptionSummary,
-                    selectedTimeRange = selectedTimeRange,
-                    onTimeRangeChange = { selectedTimeRange = it }
-                )
-            }
-
             // Recent Readings
             item {
                 RecentReadingsSection(
                     readings = recentReadings.take(5),
                     meters = meters
                 )
-            }
-
-            // Alerts Section
-            item {
-                AlertsSection(alerts = alerts.take(3))
             }
 
             // Add some bottom padding
@@ -746,133 +733,6 @@ private fun ReadingItem(
     }
 }
 
-@Composable
-private fun AlertsSection(alerts: List<Alert>) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.alerts_title),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            if (alerts.isNotEmpty()) {
-                TextButton(onClick = { /* TODO: Navigate to all alerts */ }) {
-                    Text("View All")
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (alerts.isEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = stringResource(R.string.no_alerts),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                }
-            }
-        } else {
-            alerts.forEach { alert ->
-                AlertItem(alert = alert)
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun AlertItem(alert: Alert) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(alert.severity.colorHex.toColorInt()).copy(alpha = 0.08f)
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            Color(alert.severity.colorHex.toColorInt()).copy(alpha = 0.3f)
-        )
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = when (alert.type) {
-                    AlertType.HIGH_CONSUMPTION -> Icons.AutoMirrored.Filled.TrendingUp
-                    AlertType.METER_OFFLINE -> Icons.Default.WifiOff
-                    AlertType.READING_OVERDUE -> Icons.Default.Schedule
-                    AlertType.SYSTEM_MAINTENANCE -> Icons.Default.Build
-                    AlertType.ERROR -> Icons.Default.Error
-                    AlertType.WARNING -> Icons.Default.Warning
-                },
-                contentDescription = null,
-                tint = Color(alert.severity.colorHex.toColorInt()),
-                modifier = Modifier.size(24.dp)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = alert.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = alert.message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(alert.timestamp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (!alert.isRead) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(
-                            Color(alert.severity.colorHex.toColorInt()),
-                            CircleShape
-                        )
-                )
-            }
-        }
-    }
-}
 
 // Data classes for quick actions
 data class QuickAction(
@@ -885,29 +745,20 @@ private fun getQuickActions(userRole: UserRole): List<QuickAction> {
     val userPermissions = userRole.getPermissions()
 
     return listOf(
+
         QuickAction(
-            title = "Manual Reading",
+            title = "Meter Reading",
+            icon = Icons.Default.ElectricBolt,
+            requiredPermission = Permission.READ_DASHBOARD
+        ),
+        QuickAction(
+            title = "Import Data",
+            icon = Icons.Default.FileUpload,
+            requiredPermission = Permission.VIEW_REPORTS
+        ),
+        QuickAction(
+            title = "Receipt Template",
             icon = Icons.Default.Edit,
-            requiredPermission = Permission.READ_DASHBOARD
-        ),
-        QuickAction(
-            title = "Scan Meter",
-            icon = Icons.Default.QrCodeScanner,
-            requiredPermission = Permission.READ_DASHBOARD
-        ),
-        QuickAction(
-            title = "Export Data",
-            icon = Icons.Default.FileDownload,
-            requiredPermission = Permission.VIEW_REPORTS
-        ),
-        QuickAction(
-            title = "Generate Report",
-            icon = Icons.Default.Assessment,
-            requiredPermission = Permission.VIEW_REPORTS
-        ),
-        QuickAction(
-            title = "Sync Data",
-            icon = Icons.Default.Sync,
             requiredPermission = Permission.READ_DASHBOARD
         ),
         QuickAction(
@@ -920,11 +771,6 @@ private fun getQuickActions(userRole: UserRole): List<QuickAction> {
             icon = Icons.Default.Settings,
             requiredPermission = Permission.SYSTEM_SETTINGS
         ),
-        QuickAction(
-            title = "Backup",
-            icon = Icons.Default.Backup,
-            requiredPermission = Permission.ROOT_ACCESS
-        )
     ).filter { action ->
         action.requiredPermission == null || userPermissions.contains(action.requiredPermission)
     }
