@@ -77,18 +77,8 @@ fun HomeScreen(
                 }
             },
             actions = {
-                // Add File Upload Navigation Button
-                IconButton(
-                    onClick = onNavigateToFileUpload
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CloudUpload,
-                        contentDescription = "File Upload",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
 
-                // Your existing logout button
+                // logout button
                 IconButton(onClick = { showLogoutDialog = true }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ExitToApp,
@@ -245,24 +235,6 @@ private fun WelcomeCard(
                     )
                 }
 
-                // Sync Status Indicator
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(systemOverview.syncStatus.colorHex.toColorInt())
-                    )
-                ) {
-                    Icon(
-                        imageVector = when (systemOverview.syncStatus) {
-                            SyncStatus.SYNCED -> Icons.Default.CloudDone
-                            SyncStatus.SYNCING -> Icons.Default.CloudSync
-                            SyncStatus.FAILED -> Icons.Default.CloudOff
-                            SyncStatus.PENDING -> Icons.Default.CloudQueue
-                        },
-                        contentDescription = systemOverview.syncStatus.displayName,
-                        tint = Color.White,
-                        modifier = Modifier.padding(8.dp)
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
