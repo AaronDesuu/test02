@@ -4,258 +4,290 @@ import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
-import com.example.meterkenshin.R
-import com.example.meterkenshin.model.FileUploadResult
+import androidx.annotation.WorkerThread
 import com.example.meterkenshin.model.RequiredFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
+import java.io.*
 import java.security.MessageDigest
 
 /**
- * Manages file upload operations including validation, copying, and storage
+ * Utility class for managing file operations including copying, validation, and storage management
  */
-class FileUploadManager {
+class FileManager private constructor() {
 
     companion object {
-        private const val TAG = "FileUploadManager"
+        private const val TAG = "FileManager"
+        private const val APP_FILES_FOLDER = "app_files"
         private const val BUFFER_SIZE = 8192
         private const val MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024 // 10MB
+
+        @Volatile
+        private var INSTANCE: FileManager? = null
+
+        fun getInstance(): FileManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: FileManager().also { INSTANCE = it }
+            }
+        }
     }
 
     /**
-     * Uploads a file from URI to the app's external files directory
+     * Get the app files directory, creating it if necessary
      */
-    suspend fun uploadFile(
-        context: Context,
-        uri: Uri,
-        targetFileName: String,
-        onProgress: ((Int) -> Unit)? = null
-    ): FileUploadResult = withContext(Dispatchers.IO) {
-        try {
-            val externalFilesDir = context.getExternalFilesDir(null)
-            if (externalFilesDir == null) {
-                Log.e(TAG, "External storage not available")
-                return@withContext FileUploadResult(
-                    success = false,
-                    errorMessage = context.getString(R.string.upload_failed)
-                )
-            }
+    fun getAppFilesDirectory(context: Context): File {
+        val externalFilesDir = context.getExternalFilesDir(null)
+        val appFilesDir = if (externalFilesDir != null) {
+            File(externalFilesDir, APP_FILES_FOLDER)
+        } else {
+            // Fallback to internal storage
+            File(context.filesDir, APP_FILES_FOLDER)
+        }
 
-            val targetFile = File(externalFilesDir, targetFileName)
+        if (!appFilesDir.exists()) {
+            appFilesDir.mkdirs()
+            Log.d(TAG, "Created app files directory: ${appFilesDir.absolutePath}")
+        }
 
-            // Get file size for progress calculation
-            val fileSize = getFileSize(context, uri)
-            if (fileSize <= 0) {
-                return@withContext FileUploadResult(
-                    success = false,
-                    errorMessage = context.getString(R.string.file_empty)
-                )
-            }
+        return appFilesDir
+    }
 
-            // Validate file size
-            if (fileSize > MAX_FILE_SIZE_BYTES) {
-                return@withContext FileUploadResult(
-                    success = false,
-                    errorMessage = context.getString(R.string.file_too_large, MAX_FILE_SIZE_BYTES / (1024 * 1024))
-                )
-            }
+    /**
+     * Check if a file exists in the app storage
+     */
+    fun fileExists(context: Context, fileName: String): Boolean {
+        val appFilesDir = getAppFilesDirectory(context)
+        val file = File(appFilesDir, fileName)
+        return file.exists() && file.isFile()
+    }
 
-            // Copy file with progress tracking
-            val success = copyFileWithProgress(context, uri, targetFile, fileSize, onProgress)
+    /**
+     * Get file information for an existing file in app storage
+     */
+    fun getFileInfo(context: Context, fileName: String): FileInfo? {
+        val appFilesDir = getAppFilesDirectory(context)
+        val file = File(appFilesDir, fileName)
 
-            if (success) {
-                Log.i(TAG, "File uploaded successfully: ${targetFile.absolutePath}")
-                FileUploadResult(
-                    success = true,
-                    fileName = targetFileName,
-                    uploadedFilePath = targetFile.absolutePath
-                )
-            } else {
-                FileUploadResult(
-                    success = false,
-                    errorMessage = context.getString(R.string.upload_failed)
-                )
-            }
-
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception during file upload", e)
-            FileUploadResult(
-                success = false,
-                errorMessage = context.getString(R.string.permission_denied)
+        return if (file.exists() && file.isFile()) {
+            FileInfo(
+                name = file.name,
+                size = file.length(),
+                lastModified = file.lastModified(),
+                path = file.absolutePath
             )
-        } catch (e: IOException) {
-            Log.e(TAG, "IO exception during file upload", e)
-            FileUploadResult(
-                success = false,
-                errorMessage = context.getString(R.string.upload_failed)
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected exception during file upload", e)
-            FileUploadResult(
-                success = false,
-                errorMessage = e.localizedMessage ?: context.getString(R.string.upload_failed)
-            )
-        }
-    }
-
-    /**
-     * Validates a file before upload
-     */
-    fun validateFile(context: Context, uri: Uri, fileName: String?): ValidationResult {
-        if (fileName == null || fileName.isEmpty()) {
-            return ValidationResult(false, context.getString(R.string.invalid_file_type))
-        }
-
-        // Check file extension
-        if (!fileName.lowercase().endsWith(".csv")) {
-            return ValidationResult(false, context.getString(R.string.invalid_file_type))
-        }
-
-        // Check file size
-        val fileSize = getFileSize(context, uri)
-        if (fileSize <= 0) {
-            return ValidationResult(false, context.getString(R.string.file_empty))
-        }
-
-        if (fileSize > MAX_FILE_SIZE_BYTES) {
-            return ValidationResult(
-                false,
-                context.getString(R.string.file_too_large, MAX_FILE_SIZE_BYTES / (1024 * 1024))
-            )
-        }
-
-        return ValidationResult(true)
-    }
-
-    /**
-     * Checks if all required files are uploaded
-     */
-    fun areAllFilesUploaded(context: Context, requiredFileNames: List<String>): Boolean {
-        val externalFilesDir = context.getExternalFilesDir(null) ?: return false
-
-        return requiredFileNames.all { fileName ->
-            val file = File(externalFilesDir, fileName)
-            file.exists() && file.length() > 0
-        }
-    }
-
-    /**
-     * Gets the list of missing files
-     */
-    fun getMissingFiles(context: Context, requiredFiles: List<RequiredFile>): List<RequiredFile> {
-        val externalFilesDir = context.getExternalFilesDir(null) ?: return requiredFiles
-
-        return requiredFiles.filter { requiredFile ->
-            val file = File(externalFilesDir, requiredFile.fileName)
-            !file.exists() || file.length() == 0L
-        }
-    }
-
-    /**
-     * Deletes an uploaded file
-     */
-    suspend fun deleteFile(context: Context, fileName: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return@withContext false
-            val file = File(externalFilesDir, fileName)
-
-            if (file.exists()) {
-                val deleted = file.delete()
-                if (deleted) {
-                    Log.i(TAG, "File deleted successfully: $fileName")
-                } else {
-                    Log.w(TAG, "Failed to delete file: $fileName")
-                }
-                deleted
-            } else {
-                Log.w(TAG, "File does not exist for deletion: $fileName")
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error deleting file: $fileName", e)
-            false
-        }
-    }
-
-    /**
-     * Gets file information from URI
-     */
-    fun getFileInfo(context: Context, uri: Uri): FileInfo? {
-        return try {
-            val fileName = getFileName(context, uri)
-            val fileSize = getFileSize(context, uri)
-            val mimeType = context.contentResolver.getType(uri)
-
-            if (fileName != null) {
-                FileInfo(
-                    name = fileName,
-                    size = fileSize,
-                    mimeType = mimeType,
-                    extension = getFileExtension(fileName)
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error getting file info", e)
+        } else {
             null
         }
     }
 
     /**
-     * Copies file from URI to target file with progress tracking
+     * Copy a file from URI to app storage with progress callback
      */
-    private suspend fun copyFileWithProgress(
+    @WorkerThread
+    suspend fun copyFileToAppStorage(
         context: Context,
         sourceUri: Uri,
-        targetFile: File,
-        totalSize: Long,
-        onProgress: ((Int) -> Unit)?
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                FileOutputStream(targetFile).use { outputStream ->
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var totalBytesRead = 0L
-                    var bytesRead: Int
+        targetFileName: String,
+        onProgress: ((Int) -> Unit)? = null
+    ): CopyResult {
+        return withContext(Dispatchers.IO) {
+            try {
+                val appFilesDir = getAppFilesDirectory(context)
+                val targetFile = File(appFilesDir, targetFileName)
 
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        totalBytesRead += bytesRead
+                // Get source file size for progress calculation
+                val sourceSize = getFileSize(context, sourceUri)
 
-                        // Update progress
-                        onProgress?.let { callback ->
-                            val progress = ((totalBytesRead.toDouble() / totalSize.toDouble()) * 100).toInt()
-                            withContext(Dispatchers.Main) {
-                                callback(progress)
+                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                    BufferedInputStream(inputStream).use { bufferedInput ->
+                        FileOutputStream(targetFile).use { outputStream ->
+                            BufferedOutputStream(outputStream).use { bufferedOutput ->
+                                val buffer = ByteArray(BUFFER_SIZE)
+                                var bytesRead: Int
+                                var totalBytesRead = 0L
+
+                                while (bufferedInput.read(buffer).also { bytesRead = it } != -1) {
+                                    bufferedOutput.write(buffer, 0, bytesRead)
+                                    totalBytesRead += bytesRead
+
+                                    // Report progress
+                                    if (sourceSize > 0 && onProgress != null) {
+                                        val progress = (totalBytesRead * 100 / sourceSize).toInt()
+                                        withContext(Dispatchers.Main) {
+                                            onProgress(progress.coerceIn(0, 100))
+                                        }
+                                    }
+                                }
+                                bufferedOutput.flush()
                             }
                         }
                     }
-
-                    outputStream.flush()
-                    true
                 }
-            } ?: false
-        } catch (e: Exception) {
-            Log.e(TAG, "Error copying file", e)
-            false
+
+                // Verify the copy was successful
+                if (targetFile.exists() && targetFile.length() > 0) {
+                    val fileInfo = FileInfo(
+                        name = targetFile.name,
+                        size = targetFile.length(),
+                        lastModified = targetFile.lastModified(),
+                        path = targetFile.absolutePath
+                    )
+                    Log.i(TAG, "File copied successfully: ${targetFile.absolutePath} (${formatFileSize(targetFile.length())})")
+                    CopyResult.Success(fileInfo)
+                } else {
+                    Log.e(TAG, "File copy verification failed: ${targetFile.absolutePath}")
+                    CopyResult.Error("File copy verification failed")
+                }
+
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Security exception during file copy", e)
+                CopyResult.Error("Permission denied: ${e.localizedMessage}")
+            } catch (e: IOException) {
+                Log.e(TAG, "IO exception during file copy", e)
+                CopyResult.Error("File copy failed: ${e.localizedMessage}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Unexpected exception during file copy", e)
+                CopyResult.Error("Unexpected error: ${e.localizedMessage}")
+            }
         }
     }
 
     /**
-     * Gets file name from URI
+     * Delete a file from app storage
      */
-    private fun getFileName(context: Context, uri: Uri): String? {
+    @WorkerThread
+    suspend fun deleteFile(context: Context, fileName: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val appFilesDir = getAppFilesDirectory(context)
+                val file = File(appFilesDir, fileName)
+
+                if (file.exists()) {
+                    val deleted = file.delete()
+                    if (deleted) {
+                        Log.i(TAG, "File deleted successfully: ${file.absolutePath}")
+                    } else {
+                        Log.w(TAG, "Failed to delete file: ${file.absolutePath}")
+                    }
+                    deleted
+                } else {
+                    Log.d(TAG, "File does not exist, considering deletion successful: ${file.absolutePath}")
+                    true
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting file: $fileName", e)
+                false
+            }
+        }
+    }
+
+    /**
+     * Get all files in the app storage directory
+     */
+    fun getAllAppFiles(context: Context): List<FileInfo> {
+        val appFilesDir = getAppFilesDirectory(context)
+
+        return try {
+            appFilesDir.listFiles()
+                ?.filter { it.isFile() }
+                ?.map { file ->
+                    FileInfo(
+                        name = file.name,
+                        size = file.length(),
+                        lastModified = file.lastModified(),
+                        path = file.absolutePath
+                    )
+                }
+                ?.sortedBy { it.name }
+                ?: emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error listing app files", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Clean up old or invalid files
+     */
+    @WorkerThread
+    suspend fun cleanupFiles(context: Context, validFileNames: Set<String>): Int {
+        return withContext(Dispatchers.IO) {
+            var deletedCount = 0
+            try {
+                val appFilesDir = getAppFilesDirectory(context)
+                val allFiles = appFilesDir.listFiles()?.filter { it.isFile() } ?: emptyList()
+
+                for (file in allFiles) {
+                    if (file.name !in validFileNames) {
+                        if (file.delete()) {
+                            deletedCount++
+                            Log.d(TAG, "Cleaned up invalid file: ${file.name}")
+                        } else {
+                            Log.w(TAG, "Failed to delete invalid file: ${file.name}")
+                        }
+                    }
+                }
+
+                Log.i(TAG, "Cleanup completed: $deletedCount files deleted")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during file cleanup", e)
+            }
+            deletedCount
+        }
+    }
+
+    /**
+     * Validate file from URI
+     */
+    fun validateFile(context: Context, uri: Uri): ValidationResult {
+        try {
+            val fileName = getFileName(context, uri)
+            if (fileName == null) {
+                return ValidationResult(false, "Could not determine file name")
+            }
+
+            if (!fileName.endsWith(".csv", ignoreCase = true)) {
+                return ValidationResult(false, "Only CSV files are supported")
+            }
+
+            val fileSize = getFileSize(context, uri)
+            if (fileSize <= 0) {
+                return ValidationResult(false, "File is empty or size could not be determined")
+            }
+
+            if (fileSize > MAX_FILE_SIZE_BYTES) {
+                return ValidationResult(false, "File size exceeds ${MAX_FILE_SIZE_BYTES / (1024 * 1024)}MB limit")
+            }
+
+            // Check if file is accessible
+            context.contentResolver.openInputStream(uri)?.use {
+                // Try to read a small amount to verify file is readable
+                val buffer = ByteArray(1024)
+                it.read(buffer)
+            }
+
+            return ValidationResult(true)
+
+        } catch (e: SecurityException) {
+            return ValidationResult(false, "Permission denied to access file")
+        } catch (e: IOException) {
+            return ValidationResult(false, "File could not be read")
+        } catch (e: Exception) {
+            return ValidationResult(false, "File validation failed: ${e.localizedMessage}")
+        }
+    }
+
+    /**
+     * Get file name from URI
+     */
+    fun getFileName(context: Context, uri: Uri): String? {
         var fileName: String? = null
 
         if (uri.scheme == "content") {
             context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                    if (nameIndex != -1) {
+                    if (nameIndex >= 0) {
                         fileName = cursor.getString(nameIndex)
                     }
                 }
@@ -263,12 +295,9 @@ class FileUploadManager {
         }
 
         if (fileName == null) {
-            val path = uri.path
-            if (path != null) {
+            fileName = uri.path?.let { path ->
                 val cut = path.lastIndexOf('/')
-                if (cut != -1) {
-                    fileName = path.substring(cut + 1)
-                }
+                if (cut != -1) path.substring(cut + 1) else path
             }
         }
 
@@ -276,81 +305,159 @@ class FileUploadManager {
     }
 
     /**
-     * Gets file size from URI
+     * Get file size from URI
      */
-    private fun getFileSize(context: Context, uri: Uri): Long {
-        var fileSize = 0L
+    fun getFileSize(context: Context, uri: Uri): Long {
+        var size = 0L
 
         if (uri.scheme == "content") {
             context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                 if (cursor.moveToFirst()) {
                     val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
-                    if (sizeIndex != -1) {
-                        fileSize = cursor.getLong(sizeIndex)
+                    if (sizeIndex >= 0) {
+                        size = cursor.getLong(sizeIndex)
                     }
                 }
             }
         }
 
-        return fileSize
+        return size
     }
 
     /**
-     * Gets file extension from filename
+     * Format file size for display
      */
-    private fun getFileExtension(fileName: String): String? {
-        val lastDotIndex = fileName.lastIndexOf('.')
-        return if (lastDotIndex > 0 && lastDotIndex < fileName.length - 1) {
-            fileName.substring(lastDotIndex + 1).lowercase()
-        } else {
-            null
+    fun formatFileSize(bytes: Long): String {
+        return when {
+            bytes < 1024 -> "${bytes} B"
+            bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+            else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
         }
     }
 
     /**
-     * Calculates MD5 hash of a file for integrity checking
+     * Calculate MD5 hash of a file
      */
-    suspend fun calculateFileHash(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
-        try {
-            val digest = MessageDigest.getInstance("MD5")
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                val buffer = ByteArray(BUFFER_SIZE)
-                var bytesRead: Int
+    @WorkerThread
+    suspend fun calculateFileHash(context: Context, fileName: String): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val appFilesDir = getAppFilesDirectory(context)
+                val file = File(appFilesDir, fileName)
 
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    digest.update(buffer, 0, bytesRead)
+                if (!file.exists()) return@withContext null
+
+                val md5 = MessageDigest.getInstance("MD5")
+                FileInputStream(file).use { fis ->
+                    BufferedInputStream(fis).use { bis ->
+                        val buffer = ByteArray(BUFFER_SIZE)
+                        var bytesRead: Int
+                        while (bis.read(buffer).also { bytesRead = it } != -1) {
+                            md5.update(buffer, 0, bytesRead)
+                        }
+                    }
                 }
 
-                digest.digest().joinToString("") { "%02x".format(it) }
+                val hashBytes = md5.digest()
+                hashBytes.joinToString("") { "%02x".format(it) }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error calculating file hash for: $fileName", e)
+                null
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error calculating file hash", e)
-            null
         }
     }
 
     /**
-     * Data class for file information
+     * Determine file type based on filename
      */
-    data class FileInfo(
-        val name: String,
-        val size: Long,
-        val mimeType: String?,
-        val extension: String?
-    ) {
-        val formattedSize: String
-            get() = when {
-                size < 1024 -> "${size} B"
-                size < 1024 * 1024 -> "${size / 1024} KB"
-                else -> String.format("%.1f MB", size / (1024.0 * 1024.0))
-            }
+    fun determineFileType(fileName: String?): RequiredFile.FileType? {
+        if (fileName == null) return null
+
+        return when {
+            fileName.contains("meter", ignoreCase = true) -> RequiredFile.FileType.METER
+            fileName.contains("printer", ignoreCase = true) -> RequiredFile.FileType.PRINTER
+            fileName.contains("rate", ignoreCase = true) -> RequiredFile.FileType.RATE
+            else -> null
+        }
     }
 
     /**
-     * Data class for validation results
+     * Get storage space information
      */
-    data class ValidationResult(
-        val isValid: Boolean,
-        val errorMessage: String? = null
-    )
+    fun getStorageInfo(context: Context): StorageInfo {
+        val appFilesDir = getAppFilesDirectory(context)
+
+        return try {
+            val totalSpace = appFilesDir.totalSpace
+            val freeSpace = appFilesDir.freeSpace
+            val usedSpace = totalSpace - freeSpace
+
+            StorageInfo(
+                totalSpace = totalSpace,
+                freeSpace = freeSpace,
+                usedSpace = usedSpace,
+                isLowOnSpace = freeSpace < (50 * 1024 * 1024) // Less than 50MB
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting storage info", e)
+            StorageInfo(0, 0, 0, false)
+        }
+    }
+
+    /**
+     * Check if there's enough space for a file
+     */
+    fun hasEnoughSpace(context: Context, requiredBytes: Long): Boolean {
+        val storageInfo = getStorageInfo(context)
+        return storageInfo.freeSpace > (requiredBytes + (10 * 1024 * 1024)) // Add 10MB buffer
+    }
+}
+
+/**
+ * Data class representing file information
+ */
+data class FileInfo(
+    val name: String,
+    val size: Long,
+    val lastModified: Long,
+    val path: String
+) {
+    val formattedSize: String
+        get() = FileManager.getInstance().formatFileSize(size)
+}
+
+/**
+ * Sealed class representing the result of a file copy operation
+ */
+sealed class CopyResult {
+    data class Success(val fileInfo: FileInfo) : CopyResult()
+    data class Error(val message: String) : CopyResult()
+}
+
+/**
+ * Data class representing file validation result
+ */
+data class ValidationResult(
+    val isValid: Boolean,
+    val errorMessage: String? = null
+)
+
+/**
+ * Data class representing storage information
+ */
+data class StorageInfo(
+    val totalSpace: Long,
+    val freeSpace: Long,
+    val usedSpace: Long,
+    val isLowOnSpace: Boolean
+) {
+    val formattedTotalSpace: String
+        get() = FileManager.getInstance().formatFileSize(totalSpace)
+
+    val formattedFreeSpace: String
+        get() = FileManager.getInstance().formatFileSize(freeSpace)
+
+    val formattedUsedSpace: String
+        get() = FileManager.getInstance().formatFileSize(usedSpace)
 }

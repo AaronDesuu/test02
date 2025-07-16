@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -13,16 +14,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
+import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var sessionManager: SessionManager
+    private val fileUploadViewModel: FileUploadViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Install splash screen
@@ -34,16 +39,30 @@ class MainActivity : ComponentActivity() {
         // Initialize session manager
         sessionManager = SessionManager.getInstance(this)
 
+        // Initialize file checking on app start (only if logged in)
+        lifecycleScope.launch {
+            if (sessionManager.isLoggedIn()) {
+                fileUploadViewModel.checkExistingFiles(this@MainActivity)
+            }
+        }
+
         setContent {
             MeterKenshinTheme {
-                MeterKenshinApp(sessionManager = sessionManager)
+                MeterKenshinApp(
+                    sessionManager = sessionManager,
+                    fileUploadViewModel = fileUploadViewModel
+                )
             }
         }
     }
 }
 
 @Composable
-fun MeterKenshinApp(sessionManager: SessionManager) {
+fun MeterKenshinApp(
+    sessionManager: SessionManager,
+    fileUploadViewModel: FileUploadViewModel
+) {
+    val context = LocalContext.current
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
     var currentScreen by remember { mutableStateOf("home") }
 
@@ -51,6 +70,14 @@ fun MeterKenshinApp(sessionManager: SessionManager) {
     LaunchedEffect(key1 = isLoggedIn) {
         if (isLoggedIn && !sessionManager.isLoggedIn()) {
             isLoggedIn = false
+            currentScreen = "home"
+        }
+    }
+
+    // Check for existing files when user logs in
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            fileUploadViewModel.checkExistingFiles(context)
         }
     }
 
@@ -70,15 +97,21 @@ fun MeterKenshinApp(sessionManager: SessionManager) {
                         currentScreen = "fileUpload"
                     },
                     onNavigateToReceiptTemplate = {
-                        currentScreen = "receiptTemplate"
+                        currentScreen = "receipt"
                     }
                 )
                 "fileUpload" -> FileUploadScreen(
+                    viewModel = fileUploadViewModel,
                     onUploadComplete = {
+                        // Manual navigation to receipt screen
+                        currentScreen = "receipt"
+                    },
+                    onBackPressed = {
                         currentScreen = "home"
                     }
                 )
-                "receiptTemplate" -> ReceiptScreen(
+                "receipt" -> ReceiptScreen(
+                    fileUploadViewModel = fileUploadViewModel,
                     onBackPressed = {
                         currentScreen = "home"
                     },

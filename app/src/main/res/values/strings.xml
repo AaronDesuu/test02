@@ -100,36 +100,6 @@
     <string name="time_hours_ago">%1$d hours ago</string>
     <string name="time_days_ago">%1$d days ago</string>
 
-    <!-- File Upload Strings -->
-    <string name="file_upload_title">File Upload</string>
-    <string name="upload_required_files">Upload Required Files</string>
-    <string name="upload_description">Please upload the following 3 required CSV files for the system to function properly:</string>
-
-    <!-- Required Files -->
-    <string name="meter_csv_file">Meter CSV File</string>
-    <string name="printer_csv_file">Printer CSV File</string>
-    <string name="rate_csv_file">Rate CSV File</string>
-
-    <!-- File Upload Actions -->
-    <string name="select_file">Select File</string>
-    <string name="upload_file">Upload File</string>
-    <string name="remove_file">Remove File</string>
-    <string name="retry_upload">Retry Upload</string>
-
-    <!-- File Upload Status -->
-    <string name="file_selected">File Selected: %1$s</string>
-    <string name="no_file_selected">No file selected</string>
-    <string name="uploading_file">Uploading %1$s...</string>
-    <string name="upload_progress">Upload Progress: %1$d%%</string>
-    <string name="upload_success">File uploaded successfully!</string>
-    <string name="upload_failed">Upload failed. Please try again.</string>
-    <string name="file_upload_complete">File upload complete: %1$s</string>
-
-    <!-- File Validation -->
-    <string name="invalid_file_type">Invalid file type. Please select a CSV file.</string>
-    <string name="file_too_large">File is too large. Maximum size is %1$dMB.</string>
-    <string name="file_empty">Selected file is empty or corrupted.</string>
-    <string name="duplicate_file">This file has already been uploaded.</string>
 
     <!-- Upload Warnings -->
     <string name="upload_warning_title">Upload Warning</string>
@@ -138,7 +108,7 @@
     <string name="missing_meter_file">• Meter CSV file is missing</string>
     <string name="missing_printer_file">• Printer CSV file is missing</string>
     <string name="missing_rate_file">• Rate CSV file is missing</string>
-    <string name="upload_all_files_first">Please upload all required files first.</string>
+    <string name="upload_required_files">Please upload all required files first.</string>
     <string name="system_not_ready">System is not ready. Missing %1$d required file(s).</string>
 
     <!-- Upload Progress -->
@@ -147,15 +117,148 @@
     <string name="all_files_uploaded">All required files uploaded successfully!</string>
     <string name="ready_to_proceed">System is ready. You can now proceed to use the application.</string>
 
-    <!-- File Management -->
-    <string name="manage_files">Manage Files</string>
-    <string name="uploaded_files">Uploaded Files</string>
-    <string name="file_size">Size: %1$s</string>
-    <string name="upload_date">Uploaded: %1$s</string>
+    <!-- File Upload Screen -->
+    <string name="file_upload_title">File Upload</string>
+    <string name="file_upload_subtitle">Upload required CSV files</string>
+    <string name="upload_instructions">Select and upload the required CSV files to configure the application</string>
+    <string name="file_upload_complete">All files uploaded successfully</string>
+    <string name="file_upload_incomplete">Please upload all required files</string>
+
+    <!-- File Upload Actions -->
+    <string name="select_file">Select File</string>
+    <string name="upload_file">Upload File</string>
     <string name="replace_file">Replace File</string>
-    <string name="delete_file">Delete File</string>
-    <string name="confirm_delete_file">Are you sure you want to delete this file?</string>
-    <string name="confirm_replace_file">Are you sure you want to replace this file?</string>
+    <string name="remove_file">Remove File</string>
+    <string name="view_file">View File</string>
+    <string name="file_selected">File Selected</string>
+    <string name="file_uploaded">File Uploaded</string>
+    <string name="file_upload_in_progress">Uploading…</string>
+
+    <!-- File Upload Status -->
+    <string name="upload_pending">Upload Pending</string>
+    <string name="upload_in_progress">Uploading… %1$d%%</string>
+    <string name="upload_complete">Upload Complete</string>
+    <string name="upload_failed">Upload Failed</string>
+    <string name="upload_success">File uploaded successfully</string>
+    <string name="upload_cancelled">Upload cancelled</string>
+
+    <!-- File Upload Errors -->
+    <string name="file_validation_failed">File validation failed</string>
+    <string name="file_type_not_recognized">File type could not be determined. Please ensure the filename contains \'meter\', \'printer\', or \'rate\'</string>
+    <string name="file_selection_failed">Failed to select file</string>
+    <string name="no_file_selected">No file selected for upload</string>
+    <string name="failed_to_delete_existing_file">Failed to delete existing file</string>
+    <string name="file_replacement_failed">Failed to replace file</string>
+    <string name="file_removal_failed">Failed to remove file</string>
+    <string name="invalid_file_name">Invalid file name</string>
+    <string name="empty_file">File is empty</string>
+    <string name="file_too_large">File size exceeds %1$d MB limit</string>
+    <string name="invalid_file_type">Only CSV files are supported</string>
+    <string name="external_storage_unavailable">External storage is not available</string>
+    <string name="file_copy_failed">Failed to copy file to app storage</string>
+    <string name="file_already_exists">File already exists. Replace existing file?</string>
+
+    <!-- File Information -->
+    <string name="file_size">File Size: %1$s</string>
+    <string name="uploaded_at">Uploaded: %1$s</string>
+    <string name="file_last_modified">Modified: %1$s</string>
+    <string name="file_exists_in_storage">File exists in app storage</string>
+    <string name="file_missing_from_storage">File missing from app storage</string>
+
+    <!-- File Types -->
+    <string name="meter_file_display_name">Meter CSV File</string>
+    <string name="meter_file_description">Contains meter configuration and metadata</string>
+    <string name="printer_file_display_name">Printer CSV File</string>
+    <string name="printer_file_description">Contains printer settings and configurations</string>
+    <string name="rate_file_display_name">Rate CSV File</string>
+    <string name="rate_file_description">Contains rate tables and calculation parameters</string>
+
+    <!-- Dialogs -->
+    <string name="replace_file_title">Replace File</string>
+    <string name="replace_file_message">A file with this name already exists. Do you want to replace it?</string>
+    <string name="delete_file_title">Delete File</string>
+    <string name="delete_file_message">Are you sure you want to delete this file?</string>
+    <string name="file_validation_title">File Validation Error</string>
+
+    <!-- File Management -->
+    <string name="file_management_title">File Management</string>
+    <string name="app_storage_title">App Storage</string>
+    <string name="file_operations_title">File Operations</string>
+    <string name="storage_info_title">Storage Information</string>
+    <string name="total_space">Total Space: %1$s</string>
+    <string name="free_space">Free Space: %1$s</string>
+    <string name="used_space">Used Space: %1$s</string>
+    <string name="low_storage_warning">Low storage space available</string>
+    <string name="storage_health_good">Storage health: Good</string>
+    <string name="storage_health_warning">Storage health: Warning</string>
+    <string name="storage_health_critical">Storage health: Critical</string>
+
+    <!-- File Validation -->
+    <string name="validating_file_content">Validating file content…</string>
+    <string name="file_validation_passed">File validation passed</string>
+    <string name="file_content_valid">File content is valid</string>
+    <string name="file_content_invalid">File content is invalid</string>
+    <string name="csv_format_error">CSV format error detected</string>
+    <string name="csv_headers_missing">Required CSV headers are missing</string>
+    <string name="csv_data_invalid">CSV data contains invalid values</string>
+
+    <!-- File Hash Verification -->
+    <string name="calculating_file_hash">Calculating file hash…</string>
+    <string name="file_hash_calculated">File hash: %1$s</string>
+    <string name="file_verification_success">File verification successful</string>
+    <string name="file_verification_failed">File verification failed</string>
+    <string name="file_integrity_check">Checking file integrity…</string>
+
+    <!-- Copy Operations -->
+    <string name="copying_file_progress">Copying file… %1$d%%</string>
+    <string name="copy_operation_started">Copy operation started</string>
+    <string name="copy_operation_completed">Copy operation completed</string>
+    <string name="copy_operation_failed">Copy operation failed</string>
+    <string name="file_copied_successfully">File copied successfully to app storage</string>
+    <string name="insufficient_storage_space">Insufficient storage space for this file</string>
+    <string name="estimated_space_needed">Estimated space needed: %1$s</string>
+
+    <!-- File Cleanup -->
+    <string name="cleanup_title">Cleanup Files</string>
+    <string name="cleanup_description">Remove unused or invalid files from app storage</string>
+    <string name="cleanup_in_progress">Cleanup in progress…</string>
+    <string name="cleanup_completed">Cleanup completed: %1$d files removed</string>
+    <string name="cleanup_failed">Cleanup operation failed</string>
+    <string name="no_files_to_cleanup">No files need to be cleaned up</string>
+
+    <!-- File Information -->
+    <string name="file_details_title">File Details</string>
+    <string name="file_path">Path: %1$s</string>
+    <string name="file_created">Created: %1$s</string>
+    <string name="file_hash">Hash: %1$s</string>
+    <string name="file_permissions">Permissions: %1$s</string>
+    <string name="file_readable">Readable</string>
+    <string name="file_writable">Writable</string>
+    <string name="file_not_readable">Not readable</string>
+    <string name="file_not_writable">Not writable</string>
+
+    <!-- Error Recovery -->
+    <string name="error_recovery_title">Error Recovery</string>
+    <string name="retry_operation">Retry Operation</string>
+    <string name="reset_file_state">Reset File State</string>
+    <string name="clear_cache">Clear Cache</string>
+    <string name="repair_corrupted_file">Repair Corrupted File</string>
+    <string name="restore_backup">Restore from Backup</string>
+
+    <!-- Backup and Restore -->
+    <string name="backup_files">Backup Files</string>
+    <string name="restore_files">Restore Files</string>
+    <string name="backup_created">Backup created successfully</string>
+    <string name="backup_failed">Backup creation failed</string>
+    <string name="restore_completed">Files restored successfully</string>
+    <string name="restore_failed">File restoration failed</string>
+    <string name="no_backup_available">No backup available</string>
+
+    <!-- Accessibility -->
+    <string name="file_upload_progress_description">File upload progress: %1$d percent</string>
+    <string name="file_status_description">File status: %1$s</string>
+    <string name="file_size_description">File size: %1$s</string>
+    <string name="storage_usage_description">Storage usage: %1$s of %2$s used</string>
 
     <!-- Storage Permissions -->
     <string name="storage_permission_title">Storage Permission Required</string>
@@ -238,4 +341,6 @@
     <string name="done">Done</string>
     <string name="skip">Skip</string>
     <string name="next">Next</string>
+    <string name="delete">Delete</string>
+    <string name="retry">Retry</string>
 </resources>

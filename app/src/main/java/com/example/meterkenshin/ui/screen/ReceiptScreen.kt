@@ -3,7 +3,6 @@ package com.example.meterkenshin.ui.screen
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,7 +33,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -78,7 +76,8 @@ import java.util.Locale
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     onBackPressed: () -> Unit = {},
-    onNavigateToFileUpload: () -> Unit = {}
+    onNavigateToFileUpload: () -> Unit = {},
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -118,23 +117,16 @@ fun ReceiptScreen(
             if (isRateCsvUploaded) {
                 val rates = loadRateDataFromFile(context, rateCsvFile.fileName)
                 rateData = rates
-                Log.d("Receipt", "Loaded ${rates?.size ?: 0} rate values from uploaded CSV")
-            } else {
-                // Use default rates if no file is uploaded
-                rateData = getDefaultRates()
-                Log.d("Receipt", "Using default rate values")
+                Log.d("Receipt", "Loaded ${rates?.size ?: 0} rate values")
             }
         } catch (e: Exception) {
-            errorMessage = "Error loading rate data: ${e.message}"
-            rateData = getDefaultRates()
             Log.e("Receipt", "Error loading rate data", e)
+            errorMessage = "Error loading rate data: ${e.localizedMessage}"
         }
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colorResource(R.color.background_light))
+        modifier = modifier.fillMaxSize()
     ) {
         // Top App Bar
         CenterAlignedTopAppBar(
@@ -154,7 +146,7 @@ fun ReceiptScreen(
                 }
             },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = colorResource(R.color.surface_light)
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
 
@@ -168,12 +160,15 @@ fun ReceiptScreen(
         ) {
             // Upload Rate CSV Section
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = colorResource(R.color.surface_light)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    containerColor = if (isRateCsvUploaded)
+                        colorResource(R.color.rate_loaded_background)
+                    else
+                        colorResource(R.color.rate_upload_background)
+                )
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),

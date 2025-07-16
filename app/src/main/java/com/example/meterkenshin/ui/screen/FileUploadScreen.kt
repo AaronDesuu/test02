@@ -1,44 +1,87 @@
 package com.example.meterkenshin.ui.screen
 
-import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ProgressIndicatorDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
-import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
-import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.model.FileUploadState
+import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileUploadScreen(
     viewModel: FileUploadViewModel = viewModel(),
-    onUploadComplete: () -> Unit = {}
+    onUploadComplete: () -> Unit = {},
+    modifier: Modifier = Modifier,
+    onBackPressed: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val uploadState by viewModel.uploadState.collectAsState()
-    var showWarningDialog by remember { mutableStateOf(false) }
+    var showReplaceDialog by remember { mutableStateOf<RequiredFile.FileType?>(null) }
+    var showDeleteDialog by remember { mutableStateOf<RequiredFile.FileType?>(null) }
+
+    // Check for existing files when screen loads
+    LaunchedEffect(Unit) {
+        viewModel.checkExistingFiles(context)
+    }
 
     // File picker launcher
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -47,605 +90,468 @@ fun FileUploadScreen(
         uri?.let { viewModel.selectFile(it, context) }
     }
 
-    // Remove the automatic navigation LaunchedEffect (keeping it commented for reference)
-    /*
-    LaunchedEffect(uploadState.allFilesUploaded) {
-        if (uploadState.allFilesUploaded) {
-            onUploadComplete()
-        }
-    }
-    */
-
-    // Add system bar padding to avoid overlapping with taskbar
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars) // Add system bar padding
-            .padding(16.dp)
-    ) {
-        // Header
-        FileUploadHeader(
-            uploadedCount = uploadState.uploadedFilesCount,
-            totalCount = uploadState.requiredFiles.size
+    Column(modifier = Modifier.fillMaxSize()) {
+        // TOP APP BAR WITH BACK BUTTON - ADD THIS SECTION
+        CenterAlignedTopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.file_upload_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBackPressed) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Required Files List
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.weight(1f)
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(16.dp)
         ) {
-            items(uploadState.requiredFiles) { file ->
-                RequiredFileCard(
-                    file = file,
-                    onSelectFile = { filePickerLauncher.launch("*/*") },
-                    onUploadFile = { viewModel.uploadFile(file.type, context) },
-                    onRemoveFile = { viewModel.removeFile(file.type) }
+            // Header
+            Text(
+                text = stringResource(R.string.file_upload_title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Text(
+                text = stringResource(R.string.upload_instructions),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 24.dp)
+            )
+
+            // Upload status summary
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (uploadState.allFilesUploaded)
+                        colorResource(R.color.upload_success_background)
+                    else
+                        MaterialTheme.colorScheme.surfaceVariant
                 )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (uploadState.allFilesUploaded) Icons.Default.CheckCircle else Icons.Default.Upload,
+                            contentDescription = null,
+                            tint = if (uploadState.allFilesUploaded)
+                                colorResource(R.color.upload_success_foreground)
+                            else
+                                MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+
+                        Text(
+                            text = if (uploadState.allFilesUploaded)
+                                stringResource(R.string.file_upload_complete)
+                            else
+                                stringResource(R.string.file_upload_incomplete),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Text(
+                        text = "${uploadState.uploadedFilesCount} of ${uploadState.requiredFiles.size} files uploaded",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+            }
+
+            // File list
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(uploadState.requiredFiles) { file ->
+                    FileUploadCard(
+                        file = file,
+                        onSelectFile = { filePickerLauncher.launch("*/*") },
+                        onUploadFile = { viewModel.uploadFile(file.type, context) },
+                        onReplaceFile = {
+                            if (file.isUploaded) {
+                                showReplaceDialog = file.type
+                            } else {
+                                filePickerLauncher.launch("*/*")
+                            }
+                        },
+                        onRemoveFile = { showDeleteDialog = file.type },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Action Buttons
-        FileUploadActions(
-            allFilesUploaded = uploadState.allFilesUploaded,
-            hasIncompleteUploads = uploadState.hasIncompleteUploads,
-            onProceed = onUploadComplete, // Only manual navigation via button
-            onShowWarning = { showWarningDialog = true }
-        )
-    }
-
-    // Warning Dialog
-    if (showWarningDialog) {
-        IncompleteUploadWarningDialog(
-            missingFiles = uploadState.missingFiles,
-            onDismiss = { showWarningDialog = false }
-        )
-    }
-}
-
-@Composable
-private fun FileUploadHeader(
-    uploadedCount: Int,
-    totalCount: Int
-) {
-    Column {
-        Text(
-            text = stringResource(R.string.file_upload_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = stringResource(R.string.upload_description),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Progress Indicator
-        UploadProgressIndicator(
-            uploadedCount = uploadedCount,
-            totalCount = totalCount
-        )
-    }
-}
-
-@Composable
-private fun UploadProgressIndicator(
-    uploadedCount: Int,
-    totalCount: Int
-) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.files_uploaded, uploadedCount),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Text(
-                text = "$uploadedCount/$totalCount",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.primary
+        // Replace file confirmation dialog
+        showReplaceDialog?.let { fileType ->
+            AlertDialog(
+                onDismissRequest = { showReplaceDialog = null },
+                title = { Text(stringResource(R.string.replace_file_title)) },
+                text = { Text(stringResource(R.string.replace_file_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            filePickerLauncher.launch("*/*")
+                            showReplaceDialog = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.ok))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showReplaceDialog = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        // Delete file confirmation dialog
+        showDeleteDialog?.let { fileType ->
+            AlertDialog(
+                onDismissRequest = { showDeleteDialog = null },
+                title = { Text(stringResource(R.string.delete_file_title)) },
+                text = { Text(stringResource(R.string.delete_file_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.removeFile(fileType, context)
+                            showDeleteDialog = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.delete))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteDialog = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
 
-        LinearProgressIndicator(
-            progress = { if (totalCount > 0) uploadedCount.toFloat() / totalCount else 0f },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(6.dp),
-            color = if (uploadedCount == totalCount) {
-                colorResource(R.color.upload_success_foreground)
-            } else {
-                MaterialTheme.colorScheme.primary
-            },
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        // Removed automatic navigation - users can stay on this screen even when files are uploaded
     }
 }
 
 @Composable
-private fun RequiredFileCard(
+fun FileUploadCard(
     file: RequiredFile,
     onSelectFile: () -> Unit,
     onUploadFile: () -> Unit,
-    onRemoveFile: () -> Unit
+    onReplaceFile: () -> Unit,
+    onRemoveFile: () -> Unit,
+    modifier: Modifier
 ) {
+    val cardColors = when (file.status) {
+        FileUploadState.FileStatus.PENDING -> CardDefaults.cardColors(
+            containerColor = colorResource(R.color.file_pending_background)
+        )
+
+        FileUploadState.FileStatus.SELECTED -> CardDefaults.cardColors(
+            containerColor = colorResource(R.color.file_selected_background)
+        )
+
+        FileUploadState.FileStatus.UPLOADING -> CardDefaults.cardColors(
+            containerColor = colorResource(R.color.upload_progress_background)
+        )
+
+        FileUploadState.FileStatus.UPLOADED -> CardDefaults.cardColors(
+            containerColor = colorResource(R.color.file_uploaded_background)
+        )
+
+        FileUploadState.FileStatus.ERROR -> CardDefaults.cardColors(
+            containerColor = colorResource(R.color.file_error_background)
+        )
+    }
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = when (file.status) {
-                    FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_border)
-                    FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
-                    FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
-                    FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_border)
-                    FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_border)
-                },
-                shape = RoundedCornerShape(12.dp)
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = when (file.status) {
-                FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_background)
-                FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_background)
-                FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_background)
-                FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_background)
-                FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_background)
+        modifier = modifier,
+        colors = cardColors,
+        border = BorderStroke(
+            width = 1.dp,
+            color = when (file.status) {
+                FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_border)
+                FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
+                FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
+                FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_border)
+                FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_border)
             }
-        ),
-        shape = RoundedCornerShape(12.dp)
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // File Header
+            // File header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FileStatusIcon(status = file.status)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = file.displayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = file.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                // Status icon
+                Icon(
+                    imageVector = when (file.status) {
+                        FileUploadState.FileStatus.PENDING -> Icons.Default.CloudUpload
+                        FileUploadState.FileStatus.SELECTED -> Icons.Default.Description
+                        FileUploadState.FileStatus.UPLOADING -> Icons.Default.CloudUpload
+                        FileUploadState.FileStatus.UPLOADED -> Icons.Default.CheckCircle
+                        FileUploadState.FileStatus.ERROR -> Icons.Default.Error
+                    },
+                    contentDescription = null,
+                    tint = when (file.status) {
+                        FileUploadState.FileStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
+                        FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
+                        FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
+                        FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.upload_success_foreground)
+                        FileUploadState.FileStatus.ERROR -> colorResource(R.color.upload_error_foreground)
+                    }
+                )
+            }
 
-                    Column {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // File information
+            if (file.selectedFileName != null || file.isUploaded) {
+                Column {
+                    if (file.selectedFileName != null) {
                         Text(
-                            text = file.displayName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "File: ${file.selectedFileName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
                         )
+                    }
 
+                    if (file.fileSize > 0) {
                         Text(
-                            text = file.description,
+                            text = stringResource(R.string.file_size, file.formattedFileSize),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (file.uploadedAt != null) {
+                        val dateFormat =
+                            SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+                        Text(
+                            text = stringResource(
+                                R.string.uploaded_at,
+                                dateFormat.format(Date(file.uploadedAt))
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                // Status Text
-                Text(
-                    text = when (file.status) {
-                        FileUploadState.FileStatus.PENDING -> "Required"
-                        FileUploadState.FileStatus.SELECTED -> "Selected"
-                        FileUploadState.FileStatus.UPLOADING -> "Uploading..."
-                        FileUploadState.FileStatus.UPLOADED -> "Uploaded"
-                        FileUploadState.FileStatus.ERROR -> "Error"
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                    color = when (file.status) {
-                        FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_border)
-                        FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
-                        FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
-                        FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_border)
-                        FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_border)
-                    }
-                )
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Selected File Name
-            if (file.selectedFileName != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Description,
-                        contentDescription = null,
-                        tint = colorResource(R.color.csv_file_icon),
-                        modifier = Modifier.size(16.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = file.selectedFileName,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
-            // Upload Progress
-            if (file.status == FileUploadState.FileStatus.UPLOADING && file.uploadProgress > 0) {
-                Spacer(modifier = Modifier.height(12.dp))
-
+            // Upload progress
+            if (file.status == FileUploadState.FileStatus.UPLOADING) {
                 Column {
-                    Text(
-                        text = stringResource(R.string.upload_progress, file.uploadProgress),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(
+                                R.string.upload_in_progress,
+                                file.uploadProgress
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "${file.uploadProgress}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(4.dp))
 
                     LinearProgressIndicator(
                         progress = { file.uploadProgress / 100f },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         color = colorResource(R.color.upload_progress_foreground),
-                        trackColor = Color.White.copy(alpha = 0.3f)
+                        trackColor = colorResource(R.color.progress_track),
+                        strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                     )
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Error Message
+            // Error message
             if (file.status == FileUploadState.FileStatus.ERROR && file.errorMessage != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Error,
-                        contentDescription = null,
-                        tint = colorResource(R.color.upload_error_foreground),
-                        modifier = Modifier.size(16.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = file.errorMessage,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colorResource(R.color.upload_error_foreground)
-                    )
-                }
+                Text(
+                    text = file.errorMessage,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colorResource(R.color.upload_error_foreground),
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Action Buttons
-            FileActionButtons(
-                file = file,
-                onSelectFile = onSelectFile,
-                onUploadFile = onUploadFile,
-                onRemoveFile = onRemoveFile
-            )
-        }
-    }
-}
-
-@Composable
-private fun FileStatusIcon(status: FileUploadState.FileStatus) {
-    val (icon, tint) = when (status) {
-        FileUploadState.FileStatus.PENDING -> Icons.Default.CloudUpload to colorResource(R.color.file_pending_border)
-        FileUploadState.FileStatus.SELECTED -> Icons.Default.FilePresent to colorResource(R.color.file_selected_border)
-        FileUploadState.FileStatus.UPLOADING -> Icons.Default.CloudSync to colorResource(R.color.upload_progress_foreground)
-        FileUploadState.FileStatus.UPLOADED -> Icons.Default.CheckCircle to colorResource(R.color.file_uploaded_border)
-        FileUploadState.FileStatus.ERROR -> Icons.Default.Error to colorResource(R.color.file_error_border)
-    }
-
-    Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = tint,
-        modifier = Modifier.size(24.dp)
-    )
-}
-
-@Composable
-private fun FileActionButtons(
-    file: RequiredFile,
-    onSelectFile: () -> Unit,
-    onUploadFile: () -> Unit,
-    onRemoveFile: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        when (file.status) {
-            FileUploadState.FileStatus.PENDING -> {
-                Button(
-                    onClick = onSelectFile,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.select_file))
-                }
-            }
-
-            FileUploadState.FileStatus.SELECTED -> {
-                Button(
-                    onClick = onUploadFile,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(R.color.upload_progress_foreground)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CloudUpload,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.upload_file))
-                }
-
-                OutlinedButton(
-                    onClick = onRemoveFile,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.remove_file))
-                }
-            }
-
-            FileUploadState.FileStatus.UPLOADING -> {
-                Button(
-                    onClick = { },
-                    enabled = false,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.uploading_file, file.displayName))
-                }
-            }
-
-            FileUploadState.FileStatus.UPLOADED -> {
-                OutlinedButton(
-                    onClick = onSelectFile,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = colorResource(R.color.file_uploaded_border)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.replace_file),
-                        color = colorResource(R.color.file_uploaded_border)
-                    )
-                }
-            }
-
-            FileUploadState.FileStatus.ERROR -> {
-                Button(
-                    onClick = onUploadFile,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorResource(R.color.upload_error_foreground)
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.retry_upload))
-                }
-
-                OutlinedButton(
-                    onClick = onSelectFile,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FolderOpen,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.select_file))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun FileUploadActions(
-    allFilesUploaded: Boolean,
-    hasIncompleteUploads: Boolean,
-    onProceed: () -> Unit,
-    onShowWarning: () -> Unit
-) {
-    Column {
-        if (allFilesUploaded) {
-            Card(
+            // Action buttons
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = colorResource(R.color.upload_success_background)
-                ),
-                shape = RoundedCornerShape(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = colorResource(R.color.upload_success_foreground),
-                        modifier = Modifier.size(24.dp)
-                    )
+                when (file.status) {
+                    FileUploadState.FileStatus.PENDING -> {
+                        Button(
+                            onClick = onSelectFile,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.select_file))
+                        }
+                    }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    FileUploadState.FileStatus.SELECTED -> {
+                        Button(
+                            onClick = onUploadFile,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.upload_file))
+                        }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.all_files_uploaded),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colorResource(R.color.upload_success_foreground)
-                        )
+                        OutlinedButton(
+                            onClick = onSelectFile,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.replace_file))
+                        }
+                    }
 
-                        Text(
-                            text = stringResource(R.string.ready_to_proceed),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorResource(R.color.upload_success_foreground)
-                        )
+                    FileUploadState.FileStatus.UPLOADING -> {
+                        Button(
+                            onClick = { },
+                            enabled = false,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.file_upload_in_progress))
+                        }
+                    }
+
+                    FileUploadState.FileStatus.UPLOADED -> {
+                        OutlinedButton(
+                            onClick = onReplaceFile,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.replace_file))
+                        }
+
+                        OutlinedButton(
+                            onClick = onRemoveFile,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = colorResource(R.color.upload_error_foreground)
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.remove_file))
+                        }
+                    }
+
+                    FileUploadState.FileStatus.ERROR -> {
+                        Button(
+                            onClick = onUploadFile,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.retry))
+                        }
+
+                        OutlinedButton(
+                            onClick = onSelectFile,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.select_file))
+                        }
                     }
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onProceed,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colorResource(R.color.upload_success_foreground)
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.continue_action),
-                    style = MaterialTheme.typography.titleMedium
-                )
-            }
-        } else {
-            Button(
-                onClick = onShowWarning,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colorResource(R.color.upload_warning_foreground)
-                )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.upload_all_files_first))
-            }
         }
     }
 }
 
-@Composable
-private fun IncompleteUploadWarningDialog(
-    missingFiles: List<String>,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Warning,
-                contentDescription = null,
-                tint = colorResource(R.color.upload_warning_foreground),
-                modifier = Modifier.size(48.dp)
-            )
-        },
-        title = {
-            Text(
-                text = stringResource(R.string.missing_files_warning),
-                textAlign = TextAlign.Center
-            )
-        },
-        text = {
-            Column {
-                Text(
-                    text = stringResource(R.string.incomplete_upload_message),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                missingFiles.forEach { missingFile ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Circle,
-                            contentDescription = null,
-                            tint = colorResource(R.color.upload_error_foreground),
-                            modifier = Modifier.size(8.dp)
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        Text(
-                            text = missingFile,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colorResource(R.color.upload_error_foreground)
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = colorResource(R.color.upload_warning_foreground)
-                )
-            ) {
-                Text(stringResource(R.string.ok))
-            }
-        }
-    )
-}
