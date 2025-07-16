@@ -34,15 +34,16 @@ import androidx.core.graphics.toColorInt
 
 private const val TAG = "HomeScreen"
 
+// Update the HomeScreen composable function signature to include the new navigation parameter
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     sessionManager: SessionManager,
     onLogout: () -> Unit,
-    onNavigateToFileUpload: () -> Unit = {}
+    onNavigateToFileUpload: () -> Unit = {},
+    onNavigateToReceiptTemplate: () -> Unit = {} // Add this parameter
 ) {
-    Log.d(TAG, "HomeScreen composing with navigation callback: $onNavigateToFileUpload")
-
     val session = sessionManager.getSession()
 
     if (session == null) {
@@ -103,11 +104,12 @@ fun HomeScreen(
                 WelcomeCard(session = session, systemOverview = systemOverview)
             }
 
-            // Quick Actions
+            // Quick Actions - Updated to pass navigation parameters
             item {
                 QuickActionsSection(
                     userRole = session.role,
-                    onNavigateToFileUpload = onNavigateToFileUpload
+                    onNavigateToFileUpload = onNavigateToFileUpload,
+                    onNavigateToReceiptTemplate = onNavigateToReceiptTemplate // Pass the navigation function
                 )
             }
 
@@ -261,9 +263,12 @@ private fun WelcomeCard(
 @Composable
 private fun QuickActionsSection(
     userRole: UserRole,
-    onNavigateToFileUpload: () -> Unit
+    onNavigateToFileUpload: () -> Unit,
+    onNavigateToReceiptTemplate: () -> Unit = {} // Add this parameter
 ) {
-    Log.d(TAG, "QuickActionsSection composing with navigation callback: $onNavigateToFileUpload")
+    Log.d(TAG, "QuickActionsSection composing with navigation callbacks")
+    Log.d(TAG, "FileUpload callback: $onNavigateToFileUpload")
+    Log.d(TAG, "ReceiptTemplate callback: $onNavigateToReceiptTemplate")
 
     Column {
         Text(
@@ -283,7 +288,8 @@ private fun QuickActionsSection(
             items(quickActions) { action ->
                 QuickActionCard(
                     action = action,
-                    onNavigateToFileUpload = onNavigateToFileUpload
+                    onNavigateToFileUpload = onNavigateToFileUpload,
+                    onNavigateToReceiptTemplate = onNavigateToReceiptTemplate // Pass the new navigation function
                 )
             }
         }
@@ -293,20 +299,24 @@ private fun QuickActionsSection(
 @Composable
 private fun QuickActionCard(
     action: QuickAction,
-    onNavigateToFileUpload: () -> Unit
+    onNavigateToFileUpload: () -> Unit,
+    onNavigateToReceiptTemplate: () -> Unit = {} // Add this parameter
 ) {
-    Log.d(TAG, "QuickActionCard for: ${action.title}")
-
     Card(
         onClick = {
-            Log.d(TAG, "QuickActionCard clicked: ${action.title}")
+            // Handle navigation based on action title
             when (action.title) {
                 "Import Data" -> {
-                    Log.d(TAG, "Navigating to FileUpload")
+                    Log.d(TAG, "Navigating to File Upload")
                     onNavigateToFileUpload()
                 }
+                "Receipt Template" -> {
+                    Log.d(TAG, "Navigating to Receipt Template")
+                    onNavigateToReceiptTemplate()
+                }
                 else -> {
-                    Log.d(TAG, "No handler for action: ${action.title}")
+                    Log.d(TAG, "Action '${action.title}' not implemented yet")
+                    // Handle other actions as needed
                 }
             }
         },

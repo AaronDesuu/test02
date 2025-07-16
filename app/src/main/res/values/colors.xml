@@ -132,4 +132,33 @@
     <color name="outline_dark">#8E9099</color>
     <color name="outline_variant_light">#C4C6D0</color>
     <color name="outline_variant_dark">#44474E</color>
+
+
+    <!-- Receipt Template Colors -->
+    <color name="receipt_background">#FFFFFF</color>
+    <color name="receipt_text">#000000</color>
+    <color name="receipt_border">#CCCCCC</color>
+    <color name="receipt_header_background">#F5F5F5</color>
+    <color name="receipt_section_divider">#DDDDDD</color>
+
+    <!-- Receipt Preview Colors -->
+    <color name="preview_card_background">#FAFAFA</color>
+    <color name="preview_card_border">#E0E0E0</color>
+    <color name="preview_text_primary">#212121</color>
+    <color name="preview_text_secondary">#757575</color>
+
+    <!-- Rate Upload Colors -->
+    <color name="rate_upload_background">#F8F9FA</color>
+    <color name="rate_upload_border">#DEE2E6</color>
+    <color name="rate_loaded_background">#D4EDDA</color>
+    <color name="rate_loaded_border">#C3E6CB</color>
+    <color name="rate_loaded_text">#155724</color>
+
+    <!-- CSV Processing Colors -->
+    <color name="csv_success_background">#E8F5E8</color>
+    <color name="csv_success_foreground">#2E7D32</color>
+    <color name="csv_error_background">#FFEBEE</color>
+    <color name="csv_error_foreground">#C62828</color>
+    <color name="csv_warning_background">#FFF3E0</color>
+    <color name="csv_warning_foreground">#F57C00</color>
 </resources>

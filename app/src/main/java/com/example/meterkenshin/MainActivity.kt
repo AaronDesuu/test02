@@ -17,6 +17,7 @@ import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.ui.screen.FileUploadScreen
+import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
 
 class MainActivity : ComponentActivity() {
@@ -44,7 +45,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MeterKenshinApp(sessionManager: SessionManager) {
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
-    var currentScreen by remember { mutableStateOf("home") } // Add screen state
+    var currentScreen by remember { mutableStateOf("home") }
 
     // Check session validity periodically
     LaunchedEffect(key1 = isLoggedIn) {
@@ -67,11 +68,22 @@ fun MeterKenshinApp(sessionManager: SessionManager) {
                     },
                     onNavigateToFileUpload = {
                         currentScreen = "fileUpload"
+                    },
+                    onNavigateToReceiptTemplate = {
+                        currentScreen = "receiptTemplate"
                     }
                 )
                 "fileUpload" -> FileUploadScreen(
                     onUploadComplete = {
                         currentScreen = "home"
+                    }
+                )
+                "receiptTemplate" -> ReceiptScreen(
+                    onBackPressed = {
+                        currentScreen = "home"
+                    },
+                    onNavigateToFileUpload = {
+                        currentScreen = "fileUpload"
                     }
                 )
             }

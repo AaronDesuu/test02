@@ -163,6 +163,65 @@
     <string name="grant_permission">Grant Permission</string>
     <string name="permission_denied">Permission denied. Cannot access files.</string>
 
+    <!-- Receipt Screen -->
+    <string name="receipt_title">Receipt Review</string>
+    <string name="receipt_upload_rates">Upload Rate CSV</string>
+    <string name="receipt_upload_new_rates">Upload New Rate CSV</string>
+    <string name="receipt_upload_rate_files">Upload Rate Files</string>
+    <string name="receipt_manage_rate_files">Manage Rate Files</string>
+    <string name="receipt_upload_description">Upload a CSV file containing billing rate data to preview how the receipt will be calculated with your custom rates.</string>
+    <string name="receipt_rates_loaded"> Rate data loaded successfully (%1$d values)</string>
+    <string name="receipt_csv_error">Error parsing CSV: %1$s</string>
+    <string name="receipt_preview">Receipt Preview</string>
+    <string name="receipt_rate_data_title">Loaded Rate Data</string>
+    <string name="receipt_rate_csv_uploaded"> Rate CSV file uploaded successfully</string>
+    <string name="receipt_rate_csv_missing"> Rate CSV file not uploaded</string>
+    <string name="receipt_rate_csv_status_uploaded">Uploaded</string>
+    <string name="receipt_rate_csv_status_missing">Missing</string>
+    <string name="receipt_rate_data_preview">Rate Data Preview</string>
+    <string name="receipt_rate_data_description">Current rate values being used for receipt calculations. These rates are loaded from your uploaded rate.csv file.</string>
+    <string name="receipt_view_all_rates">View All</string>
+
+    <!-- Receipt Content -->
+    <string name="receipt_sample_receipt">SAMPLE RECEIPT</string>
+    <string name="receipt_company_address">           H.V Dela Costa St Salcedo Village Makati 1227,\n          Metro Manila Philippines</string>
+    <string name="receipt_company_name">        Electric Philippines Inc.</string>
+    <string name="receipt_company_phone">                TEL:000-000-0000</string>
+    <string name="receipt_payment_note">NOTE:Please pay this electric bill on or before DUE DATE otherwise,\n     we will be forced to discontinue serving your electric needs.</string>
+    <string name="receipt_disclaimer">This is not an Official Receipt. Payment of this bill does not mean \npayment of previous delinquencies if any.</string>
+    <string name="receipt_present_statement">             **PLEASE PRESENT THIS STATEMENT UPON PAYMENT**</string>
+
+    <!-- Billing Categories -->
+    <string name="receipt_gen_trans_charges">GEN/TRANS CHARGES</string>
+    <string name="receipt_distribution_charges">DISTRIBUTION CHARGES</string>
+    <string name="receipt_sustainable_capex">REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX</string>
+    <string name="receipt_other_charges">OTHER CHARGES</string>
+    <string name="receipt_universal_charges">UNIVERSAL CHARGES</string>
+    <string name="receipt_value_added_tax">VALUE ADDED TAX</string>
+
+    <!-- Charge Details -->
+    <string name="receipt_generation_system_charge">Generation System Charge</string>
+    <string name="receipt_transmission_demand_charge">Transmission Demand Charge</string>
+    <string name="receipt_system_loss_charge">System Loss Charge</string>
+    <string name="receipt_distribution_demand_charge">Distribution Demand Charge</string>
+    <string name="receipt_supply_fix_charge">Supply Fix Charge</string>
+    <string name="receipt_metering_fix_charge">Metering Fix Charge</string>
+    <string name="receipt_reinvestment_fund_capex">Reinvestment Fund for CAPEX</string>
+    <string name="receipt_members_capex_contribution">Member\'s CAPEX Contribution</string>
+    <string name="receipt_lifeline_discount_subsidy">Lifeline Discount/Subsidy</string>
+    <string name="receipt_senior_citizen_subsidy">Senior Citizen Subsidy</string>
+    <string name="receipt_missionary_elec_npc_spug">Missionary Elec(NPC-SPUG)</string>
+    <string name="receipt_missionary_elec_red">Missionary Elec(RED)</string>
+    <string name="receipt_environmental_charge">Environmental Charge</string>
+    <string name="receipt_feed_in_tariff_allowance">Feed In Tariff Allowance</string>
+    <string name="receipt_npc_stranded_contract">NPC Stranded Contract</string>
+    <string name="receipt_npc_stranded_debts">NPC Stranded Debts</string>
+    <string name="receipt_generation_vat">Generation VAT</string>
+    <string name="receipt_transmission_vat">Transmission VAT</string>
+    <string name="receipt_system_loss_vat">System Loss VAT</string>
+    <string name="receipt_distribution_vat">Distribution VAT</string>
+    <string name="receipt_other_vat">Other VAT</string>
+
     <!-- General -->
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
