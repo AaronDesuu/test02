@@ -2,7 +2,7 @@ package com.example.meterkenshin.ui.screen
 
 import android.content.Context
 import android.util.Log
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileUpload
@@ -33,8 +33,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -76,8 +76,7 @@ import java.util.Locale
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     onBackPressed: () -> Unit = {},
-    onNavigateToFileUpload: () -> Unit = {},
-    modifier: Modifier = Modifier
+    onNavigateToFileUpload: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -114,19 +113,26 @@ fun ReceiptScreen(
     LaunchedEffect(isRateCsvUploaded) {
         try {
             errorMessage = null
-            if (isRateCsvUploaded) {
+            if (isRateCsvUploaded && rateCsvFile != null) {
                 val rates = loadRateDataFromFile(context, rateCsvFile.fileName)
                 rateData = rates
-                Log.d("Receipt", "Loaded ${rates?.size ?: 0} rate values")
+                Log.d("Receipt", "Loaded ${rates?.size ?: 0} rate values from uploaded CSV")
+            } else {
+                // Use default rates if no file is uploaded
+                rateData = getDefaultRates()
+                Log.d("Receipt", "Using default rate values")
             }
         } catch (e: Exception) {
+            errorMessage = "Error loading rate data: ${e.message}"
+            rateData = getDefaultRates()
             Log.e("Receipt", "Error loading rate data", e)
-            errorMessage = "Error loading rate data: ${e.localizedMessage}"
         }
     }
 
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(colorResource(R.color.background_light))
     ) {
         // Top App Bar
         CenterAlignedTopAppBar(
@@ -140,13 +146,13 @@ fun ReceiptScreen(
             navigationIcon = {
                 IconButton(onClick = onBackPressed) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.Default.ArrowBack,
                         contentDescription = stringResource(R.string.back)
                     )
                 }
             },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                containerColor = colorResource(R.color.surface_light)
             )
         )
 
@@ -155,20 +161,17 @@ fun ReceiptScreen(
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .padding(16.dp)
-                .padding(bottom = 32.dp),
+                .padding(bottom = 32.dp), // Add extra bottom padding here
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Upload Rate CSV Section
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (isRateCsvUploaded)
-                        colorResource(R.color.rate_loaded_background)
-                    else
-                        colorResource(R.color.rate_upload_background)
-                )
+                    containerColor = colorResource(R.color.surface_light)
+                ),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -439,7 +442,7 @@ fun ReceiptScreen(
                             containerColor = Color.White
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(
+                        border = androidx.compose.foundation.BorderStroke(
                             1.dp,
                             colorResource(R.color.outline_light)
                         )
@@ -512,10 +515,10 @@ private fun ReceiptPreview(
             modifier = Modifier.fillMaxWidth()
         )
 
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+        Divider(
+            color = Color.Black,
             thickness = 1.dp,
-            color = Color.Black
+            modifier = Modifier.padding(vertical = 8.dp)
         )
 
         // Billing Information
@@ -552,10 +555,10 @@ private fun ReceiptPreview(
             )
         )
 
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+        Divider(
+            color = Color.Black,
             thickness = 1.dp,
-            color = Color.Black
+            modifier = Modifier.padding(vertical = 8.dp)
         )
 
         // Charges breakdown using actual rates
@@ -596,10 +599,10 @@ private fun ReceiptPreview(
             16..20
         )
 
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+        Divider(
+            color = Color.Black,
             thickness = 1.dp,
-            color = Color.Black
+            modifier = Modifier.padding(vertical = 8.dp)
         )
 
         // Total amounts
@@ -614,10 +617,10 @@ private fun ReceiptPreview(
             fontFamily = FontFamily.Monospace
         )
 
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+        Divider(
+            color = Color.Black,
             thickness = 1.dp,
-            color = Color.Black
+            modifier = Modifier.padding(vertical = 8.dp)
         )
 
         // Payment terms
@@ -908,7 +911,7 @@ private fun RateDataPreviewTable(
             containerColor = colorResource(R.color.preview_card_background)
         ),
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(
+        border = androidx.compose.foundation.BorderStroke(
             1.dp,
             colorResource(R.color.outline_light)
         )
@@ -943,10 +946,10 @@ private fun RateDataPreviewTable(
                 )
             }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
+            Divider(
+                color = colorResource(R.color.outline_light),
                 thickness = 1.dp,
-                color = colorResource(R.color.outline_light)
+                modifier = Modifier.padding(vertical = 8.dp)
             )
 
             // Rate categories
@@ -1205,7 +1208,7 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
         val reader = BufferedReader(FileReader(rateFile))
 
         var isFirstLine = true
-        var columnHeaders: List<String>?
+        var columnHeaders: List<String>? = null
 
         reader.useLines { lines ->
             lines.forEach { line ->
@@ -1216,14 +1219,14 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
                         isFirstLine = false
 
                         // Check if first line contains headers or data
-                        val firstCell = columnHeaders.firstOrNull()?.trim()
+                        val firstCell = columnHeaders?.firstOrNull()?.trim()
                         if (firstCell != null) {
                             try {
                                 // If we can parse the first cell as float, treat this line as data
                                 val firstRate = firstCell.toFloat()
                                 rates.add(firstRate)
                                 // Continue parsing rest of the line
-                                columnHeaders.drop(1).forEach { cell ->
+                                columnHeaders?.drop(1)?.forEach { cell ->
                                     try {
                                         rates.add(cell.toFloat())
                                     } catch (e: NumberFormatException) {
