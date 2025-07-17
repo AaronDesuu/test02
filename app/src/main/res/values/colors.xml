@@ -161,4 +161,17 @@
     <color name="csv_error_foreground">#C62828</color>
     <color name="csv_warning_background">#FFF3E0</color>
     <color name="csv_warning_foreground">#F57C00</color>
+
+    <!-- Printer Status Colors -->
+    <color name="printer_connected">#4CAF50</color>
+    <color name="printer_disconnected">#F44336</color>
+    <color name="printer_connecting">#FF9800</color>
+    <color name="printer_status_background">#F5F5F5</color>
+    <color name="printer_card_background">#FFFFFF</color>
+    <color name="printer_card_border">#E0E0E0</color>
+
+    <!-- Print Button Colors -->
+    <color name="print_button_background">#2196F3</color>
+    <color name="print_button_text">#FFFFFF</color>
+    <color name="print_button_disabled">#CCCCCC</color>
 </resources>

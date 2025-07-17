@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.screen
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
@@ -30,7 +32,9 @@ import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.ElectricMeter
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
@@ -38,6 +42,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -47,6 +52,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -61,21 +67,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.livedata.observeAsState
 import com.example.meterkenshin.R
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.Permission
+import com.example.meterkenshin.model.PrinterConnectionState
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.model.UserSession
 import com.example.meterkenshin.model.getPermissions
+import com.example.meterkenshin.permissions.BluetoothPermissionHandler
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -98,7 +112,7 @@ enum class ReadingQuality(val displayName: String) {
     POOR("Poor")
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun HomeScreen(
     sessionManager: SessionManager,
@@ -111,6 +125,37 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
+
+    // Add printer ViewModel
+    val printerViewModel: PrinterViewModel = viewModel()
+
+    // Bluetooth permissions handling
+    val requiredBluetoothPermissions = BluetoothPermissionHandler.getRequiredBluetoothPermissions()
+    val bluetoothPermissionsState = rememberMultiplePermissionsState(
+        permissions = requiredBluetoothPermissions
+    )
+
+    var showBluetoothPermissionDialog by remember { mutableStateOf(false) }
+
+    // Initialize printer manager with permission checking
+    LaunchedEffect(bluetoothPermissionsState.allPermissionsGranted) {
+        try {
+            if (bluetoothPermissionsState.allPermissionsGranted) {
+                printerViewModel.initializePrinterManager(context)
+                // Add a small delay to ensure initialization completes
+                kotlinx.coroutines.delay(1000)
+                if (printerViewModel.isInitialized()) {
+                    printerViewModel.autoConnectPrinter()
+                }
+            } else {
+                // Show permission dialog after a short delay
+                kotlinx.coroutines.delay(2000)
+                showBluetoothPermissionDialog = true
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HomeScreen", "Error initializing printer", e)
+        }
+    }
 
     if (session == null) {
         onLogout()
@@ -190,6 +235,15 @@ fun HomeScreen(
                 )
             }
 
+            // Printer Status Card - NEW ADDITION
+            item {
+                PrinterStatusCard(
+                    printerViewModel = printerViewModel,
+                    hasBluetoothPermissions = bluetoothPermissionsState.allPermissionsGranted,
+                    onRequestPermissions = { showBluetoothPermissionDialog = true }
+                )
+            }
+
             // Quick Actions
             item {
                 QuickActionsSection(
@@ -240,6 +294,72 @@ fun HomeScreen(
         }
     }
 
+    // Bluetooth Permission Dialog
+    if (showBluetoothPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showBluetoothPermissionDialog = false },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Bluetooth,
+                        contentDescription = null,
+                        tint = colorResource(R.color.primary_light),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Bluetooth Permissions")
+                }
+            },
+            text = {
+                Column {
+                    Text("MeterKenshin needs Bluetooth permissions to connect to your Woosim printer for receipt printing.")
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Required permissions:",
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    requiredBluetoothPermissions.forEach { permission ->
+                        val permissionName = when (permission) {
+                            android.Manifest.permission.BLUETOOTH_CONNECT -> "• Bluetooth Connect"
+                            android.Manifest.permission.BLUETOOTH_SCAN -> "• Bluetooth Scan"
+                            android.Manifest.permission.BLUETOOTH -> "• Bluetooth"
+                            android.Manifest.permission.BLUETOOTH_ADMIN -> "• Bluetooth Admin"
+                            android.Manifest.permission.ACCESS_FINE_LOCATION -> "• Fine Location"
+                            android.Manifest.permission.ACCESS_COARSE_LOCATION -> "• Coarse Location"
+                            else -> "• $permission"
+                        }
+                        Text(
+                            text = permissionName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colorResource(R.color.on_surface_variant_light)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showBluetoothPermissionDialog = false
+                        bluetoothPermissionsState.launchMultiplePermissionRequest()
+                    }
+                ) {
+                    Text("Grant Permissions")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showBluetoothPermissionDialog = false }
+                ) {
+                    Text("Later")
+                }
+            }
+        )
+    }
+
     // Logout Confirmation Dialog
     if (showLogoutDialog) {
         AlertDialog(
@@ -263,6 +383,148 @@ fun HomeScreen(
                 }
             }
         )
+    }
+}
+
+// NEW PRINTER STATUS CARD COMPOSABLE
+@Composable
+private fun PrinterStatusCard(
+    printerViewModel: PrinterViewModel,
+    hasBluetoothPermissions: Boolean,
+    onRequestPermissions: () -> Unit
+) {
+    // Safe observation with fallback states
+    val connectionState by printerViewModel.connectionState.observeAsState(PrinterConnectionState.DISCONNECTED)
+    val toastMessage by printerViewModel.toastMessage.observeAsState()
+    val isInitialized = printerViewModel.isInitialized()
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isInitialized) {
+                colorResource(R.color.printer_card_background)
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant
+            }
+        ),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Print,
+                    contentDescription = null,
+                    tint = if (isInitialized) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    },
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.printer_status),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Status indicator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(12.dp)
+                            .background(
+                                color = if (!isInitialized) {
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                } else {
+                                    when (connectionState) {
+                                        PrinterConnectionState.CONNECTED -> colorResource(R.color.printer_connected)
+                                        PrinterConnectionState.CONNECTING -> colorResource(R.color.printer_connecting)
+                                        PrinterConnectionState.DISCONNECTED -> colorResource(R.color.printer_disconnected)
+                                        else -> colorResource(R.color.printer_disconnected)
+                                    }
+                                },
+                                shape = CircleShape
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (!isInitialized) {
+                            "Initializing..."
+                        } else {
+                            when (connectionState) {
+                                PrinterConnectionState.CONNECTED -> stringResource(R.string.printer_connected)
+                                PrinterConnectionState.CONNECTING -> stringResource(R.string.printer_connecting)
+                                PrinterConnectionState.DISCONNECTED -> stringResource(R.string.printer_disconnected)
+                                else -> stringResource(R.string.printer_disconnected)
+                            }
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Action buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        if (isInitialized) {
+                            printerViewModel.reconnectPrinter()
+                        }
+                    },
+                    enabled = isInitialized,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        disabledContainerColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isInitialized) {
+                            stringResource(R.string.printer_reconnect)
+                        } else {
+                            "Initializing..."
+                        }
+                    )
+                }
+
+                if (isInitialized && connectionState == PrinterConnectionState.CONNECTED) {
+                    OutlinedButton(
+                        onClick = { printerViewModel.printSampleReceipt() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Receipt,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.print_sample))
+                    }
+                }
+            }
+        }
     }
 }
 

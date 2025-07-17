@@ -470,4 +470,33 @@
     <string name="read_date_placeholder">Read date:</string>
     <string name="meter_offline">Offline</string>
     <string name="meter_online">Online</string>
+
+    <!-- Printer Strings -->
+    <string name="printer_title">Printer</string>
+    <string name="printer_status">Printer Status</string>
+    <string name="printer_connected">Connected</string>
+    <string name="printer_disconnected">Disconnected</string>
+    <string name="printer_connecting">Connecting...</string>
+    <string name="printer_reconnect">Reconnect</string>
+    <string name="printer_refresh">Refresh</string>
+    <string name="printer_auto_connect">Auto Connect</string>
+    <string name="printer_manual_connect">Manual Connect</string>
+    <string name="printer_disconnect">Disconnect</string>
+    <string name="printer_connection_failed">Printer connection failed</string>
+    <string name="printer_not_found">Printer not found</string>
+    <string name="printer_bluetooth_disabled">Bluetooth is disabled</string>
+    <string name="printer_csv_not_found">Printer CSV file not found</string>
+
+    <!-- Printing -->
+    <string name="print_receipt">Print Receipt</string>
+    <string name="print_sample">Print Sample</string>
+    <string name="print_meter_reading">Print Meter Reading</string>
+    <string name="printing">Printing...</string>
+    <string name="print_success">Print successful</string>
+    <string name="print_failed">Print failed</string>
+    <string name="print_not_connected">Printer not connected</string>
+
+    <!-- Sample Receipt -->
+    <string name="sample_receipt_title">Sample Receipt</string>
+    <string name="sample_receipt_description">Print a sample receipt to test printer functionality</string>
 </resources>
