@@ -325,6 +325,67 @@
     <string name="receipt_distribution_vat">Distribution VAT</string>
     <string name="receipt_other_vat">Other VAT</string>
 
+    <!-- Meter Reading Screen -->
+    <string name="meter_reading_title">Meter Reading</string>
+    <string name="search_meters">Search meters…</string>
+    <string name="meters_found">%1$d of %2$d meters</string>
+    <string name="loading_meters">Loading meters…</string>
+    <string name="error_loading_meters">Error Loading Meters</string>
+    <string name="no_meters_found">No Meters Found</string>
+    <string name="no_meters_found_message">The meter CSV file contains no valid meter data.</string>
+
+    <!-- Meter File Upload Messages -->
+    <string name="meter_file_not_uploaded_title">Meter File Required</string>
+    <string name="meter_file_not_uploaded_message">Please upload a meter.csv file to view meter data.</string>
+    <string name="upload_meter_file">Upload Meter File</string>
+
+    <!-- Meter Card Labels -->
+    <string name="meter_account_label">Account</string>
+    <string name="meter_key_label">Key</string>
+    <string name="meter_logical_label">Logical</string>
+    <string name="meter_rank_label">Rank:</string>
+
+    <!-- Meter Data Labels -->
+    <string name="meter_details">Meter Details</string>
+    <string name="meter_info">Meter Information</string>
+    <string name="meter_configuration">Configuration</string>
+    <string name="meter_metadata">Metadata</string>
+
+    <!-- Meter Actions -->
+    <string name="view_meter_details">View Details</string>
+    <string name="edit_meter">Edit Meter</string>
+    <string name="delete_meter">Delete Meter</string>
+    <string name="connect_meter">Connect to Meter</string>
+    <string name="read_meter">Read Meter</string>
+
+    <!-- Meter Status -->
+    <string name="meter_status_online">Online</string>
+    <string name="meter_status_offline">Offline</string>
+    <string name="meter_status_unknown">Unknown</string>
+    <string name="meter_last_reading">Last Reading: %1$s</string>
+    <string name="meter_connection_status">Connection Status</string>
+
+    <!-- CSV Processing Messages -->
+    <string name="csv_parsing_error">Error parsing CSV file</string>
+    <string name="csv_invalid_format">Invalid CSV format</string>
+    <string name="csv_missing_columns">Missing required columns</string>
+    <string name="csv_empty_file">CSV file is empty</string>
+    <string name="csv_file_corrupted">CSV file appears to be corrupted</string>
+
+    <!-- Search and Filter -->
+    <string name="filter_meters">Filter Meters</string>
+    <string name="sort_meters">Sort Meters</string>
+    <string name="clear_search">Clear Search</string>
+    <string name="search_results">Search Results</string>
+    <string name="no_search_results">No meters match your search</string>
+
+    <!-- Meter Export -->
+    <string name="export_meter_list">Export Meter List</string>
+    <string name="export_selected_meters">Export Selected</string>
+    <string name="select_all_meters">Select All</string>
+    <string name="deselect_all_meters">Deselect All</string>
+
+
     <!-- General -->
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>
@@ -343,4 +404,70 @@
     <string name="next">Next</string>
     <string name="delete">Delete</string>
     <string name="retry">Retry</string>
+
+
+    <!-- Add these strings to app/src/main/res/values/strings.xml -->
+
+    <!-- Meter Detail Screen -->
+    <string name="meter_detail_title">Meter Details</string>
+    <string name="serial_id">SerialID: %1$s</string>
+    <string name="meter_status_connected">Connected</string>
+    <string name="meter_status_disconnected">Disconnected</string>
+    <string name="signal_strength">Signal Strength: %1$s dBm</string>
+
+    <!-- DLMS Functions -->
+    <string name="dlms_functions">DLMS Functions</string>
+    <string name="dlms_registration">Registration</string>
+    <string name="dlms_read_data">Read data</string>
+    <string name="dlms_load_profile">Load profile</string>
+    <string name="dlms_event_log">Event log</string>
+    <string name="dlms_billing_data">Billing data</string>
+    <string name="dlms_set_clock">Set Clock</string>
+
+    <!-- Meter Information Labels -->
+    <string name="meter_account">Account</string>
+    <string name="meter_security_key">Security Key</string>
+    <string name="meter_logical_address">Logical Address</string>
+    <string name="meter_rank">Rank</string>
+    <string name="meter_communication">Communication</string>
+    <string name="meter_protocol">Protocol</string>
+    <string name="meter_next_schedule">Next Schedule</string>
+
+    <!-- Status Values -->
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_unknown">Unknown</string>
+    <string name="communication_dlms">DLMS/COSEM</string>
+    <string name="protocol_iec">IEC 62056</string>
+    <string name="no_data">No data</string>
+    <string name="not_set">Not set</string>
+
+    <!-- DLMS Function Descriptions -->
+    <string name="registration_description">Register and authenticate with the meter</string>
+    <string name="read_data_description">Read current meter data and measurements</string>
+    <string name="load_profile_description">Download load profile data from meter</string>
+    <string name="event_log_description">View meter event logs and alarms</string>
+    <string name="billing_data_description">Retrieve billing and tariff data</string>
+    <string name="set_clock_description">Synchronize meter clock with system time</string>
+
+    <!-- Connection Status -->
+    <string name="connection_status">Connection Status</string>
+    <string name="rssi_value">RSSI: %1$d</string>
+    <string name="connection_quality_excellent">Excellent</string>
+    <string name="connection_quality_good">Good</string>
+    <string name="connection_quality_fair">Fair</string>
+    <string name="connection_quality_poor">Poor</string>
+
+    <!-- Action Messages -->
+    <string name="function_not_implemented">This function will be implemented for DLMS communication</string>
+    <string name="connecting_to_meter">Connecting to meter…</string>
+    <string name="meter_communication_error">Communication error with meter</string>
+    <string name="operation_successful">Operation completed successfully</string>
+    <string name="operation_failed">Operation failed</string>
+
+    <!-- Simplified Meter List -->
+    <string name="imp_kwh_placeholder">Imp [kWh]:------</string>
+    <string name="read_date_placeholder">Read date:</string>
+    <string name="meter_offline">Offline</string>
+    <string name="meter_online">Online</string>
 </resources>

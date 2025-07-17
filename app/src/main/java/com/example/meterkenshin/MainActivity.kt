@@ -20,14 +20,19 @@ import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
+import com.example.meterkenshin.ui.screen.MeterReadingScreen
+import com.example.meterkenshin.ui.screen.MeterDetailScreen
+import com.example.meterkenshin.ui.screen.Meter
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var sessionManager: SessionManager
     private val fileUploadViewModel: FileUploadViewModel by viewModels()
+    private val meterReadingViewModel: MeterReadingViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Install splash screen
@@ -50,7 +55,8 @@ class MainActivity : ComponentActivity() {
             MeterKenshinTheme {
                 MeterKenshinApp(
                     sessionManager = sessionManager,
-                    fileUploadViewModel = fileUploadViewModel
+                    fileUploadViewModel = fileUploadViewModel,
+                    meterReadingViewModel = meterReadingViewModel
                 )
             }
         }
@@ -60,24 +66,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MeterKenshinApp(
     sessionManager: SessionManager,
-    fileUploadViewModel: FileUploadViewModel
+    fileUploadViewModel: FileUploadViewModel,
+    meterReadingViewModel: MeterReadingViewModel
 ) {
     val context = LocalContext.current
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
     var currentScreen by remember { mutableStateOf("home") }
+    var selectedMeter by remember { mutableStateOf<Meter?>(null) } // Add state for selected meter
 
-    // Check session validity periodically
-    LaunchedEffect(key1 = isLoggedIn) {
-        if (isLoggedIn && !sessionManager.isLoggedIn()) {
-            isLoggedIn = false
-            currentScreen = "home"
-        }
-    }
-
-    // Check for existing files when user logs in
-    LaunchedEffect(isLoggedIn) {
+    // Check login state on app start
+    LaunchedEffect(Unit) {
+        isLoggedIn = sessionManager.isLoggedIn()
         if (isLoggedIn) {
-            fileUploadViewModel.checkExistingFiles(context)
+            currentScreen = "home"
+        } else {
+            currentScreen = "login"
         }
     }
 
@@ -85,49 +88,106 @@ fun MeterKenshinApp(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        if (isLoggedIn) {
-            when (currentScreen) {
-                "home" -> HomeScreen(
+        when {
+            !isLoggedIn || currentScreen == "login" -> {
+                LoginScreen(
+                    sessionManager = sessionManager,
+                    onLoginSuccess = {
+                        isLoggedIn = true
+                        currentScreen = "home"
+
+                        // Initialize file checking after successful login
+                        fileUploadViewModel.checkExistingFiles(context)
+                    }
+                )
+            }
+            currentScreen == "home" -> {
+                HomeScreen(
                     sessionManager = sessionManager,
                     onLogout = {
                         isLoggedIn = false
-                        currentScreen = "home"
+                        currentScreen = "login"
                     },
                     onNavigateToFileUpload = {
-                        currentScreen = "fileUpload"
+                        currentScreen = "file_upload"
                     },
                     onNavigateToReceiptTemplate = {
                         currentScreen = "receipt"
-                    }
-                )
-                "fileUpload" -> FileUploadScreen(
-                    viewModel = fileUploadViewModel,
-                    onUploadComplete = {
-                        // Manual navigation to receipt screen
-                        currentScreen = "receipt"
                     },
+                    onNavigateToMeterReading = {
+                        currentScreen = "meter_reading"
+                    },
+                    fileUploadViewModel = fileUploadViewModel,
+                    meterReadingViewModel = meterReadingViewModel
+                )
+            }
+            currentScreen == "file_upload" -> {
+                FileUploadScreen(
                     onBackPressed = {
                         currentScreen = "home"
                     }
                 )
-                "receipt" -> ReceiptScreen(
+            }
+            currentScreen == "receipt" -> {
+                ReceiptScreen(
                     fileUploadViewModel = fileUploadViewModel,
                     onBackPressed = {
                         currentScreen = "home"
                     },
                     onNavigateToFileUpload = {
-                        currentScreen = "fileUpload"
+                        currentScreen = "file_upload"
                     }
                 )
             }
-        } else {
-            LoginScreen(
-                sessionManager = sessionManager,
-                onLoginSuccess = {
-                    isLoggedIn = true
-                    currentScreen = "home"
-                }
-            )
+            currentScreen == "meter_reading" -> {
+                MeterReadingScreen(
+                    fileUploadViewModel = fileUploadViewModel,
+                    meterReadingViewModel = meterReadingViewModel,
+                    onBackPressed = {
+                        currentScreen = "home"
+                    },
+                    onNavigateToFileUpload = {
+                        currentScreen = "file_upload"
+                    },
+                    onNavigateToMeterDetail = { meter -> // Add navigation to meter detail
+                        selectedMeter = meter
+                        currentScreen = "meter_detail"
+                    }
+                )
+            }
+            currentScreen == "meter_detail" && selectedMeter != null -> { // Add meter detail screen
+                MeterDetailScreen(
+                    meter = selectedMeter!!,
+                    onBackPressed = {
+                        selectedMeter = null
+                        currentScreen = "meter_reading"
+                    },
+                    onRegistration = {
+                        // TODO: Implement DLMS Registration function
+                        // This will be connected to DLMS communication later
+                    },
+                    onReadData = {
+                        // TODO: Implement DLMS Read Data function
+                        // This will be connected to DLMS communication later
+                    },
+                    onLoadProfile = {
+                        // TODO: Implement DLMS Load Profile function
+                        // This will be connected to DLMS communication later
+                    },
+                    onEventLog = {
+                        // TODO: Implement DLMS Event Log function
+                        // This will be connected to DLMS communication later
+                    },
+                    onBillingData = {
+                        // TODO: Implement DLMS Billing Data function
+                        // This will be connected to DLMS communication later
+                    },
+                    onSetClock = {
+                        // TODO: Implement DLMS Set Clock function
+                        // This will be connected to DLMS communication later
+                    }
+                )
+            }
         }
     }
 }
