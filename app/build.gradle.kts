@@ -99,6 +99,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
+    // JSON parsing
     implementation("com.google.code.gson:gson:2.10.1")
 
     // Bluetooth permissions and support
@@ -107,9 +108,23 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.compose.runtime:runtime-livedata:1.7.5")
 
-    // Coroutines
+    // Coroutines for asynchronous operations
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     // Permission handling
     implementation("com.google.accompanist:accompanist-permissions:0.32.0")
+
+    // CSV parsing (if needed for printer.csv)
+    implementation("com.opencsv:opencsv:5.8")
+
+    // Bluetooth and networking
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.1.0")
+
+    // Additional lifecycle components
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-common-java8:2.8.7")
+
+    // State management
+    implementation("androidx.compose.runtime:runtime-tracing:1.0.0-beta01")
 }

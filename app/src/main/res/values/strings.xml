@@ -471,32 +471,47 @@
     <string name="meter_offline">Offline</string>
     <string name="meter_online">Online</string>
 
-    <!-- Printer Strings -->
-    <string name="printer_title">Printer</string>
-    <string name="printer_status">Printer Status</string>
-    <string name="printer_connected">Connected</string>
-    <string name="printer_disconnected">Disconnected</string>
-    <string name="printer_connecting">Connecting...</string>
-    <string name="printer_reconnect">Reconnect</string>
-    <string name="printer_refresh">Refresh</string>
-    <string name="printer_auto_connect">Auto Connect</string>
-    <string name="printer_manual_connect">Manual Connect</string>
-    <string name="printer_disconnect">Disconnect</string>
-    <string name="printer_connection_failed">Printer connection failed</string>
-    <string name="printer_not_found">Printer not found</string>
-    <string name="printer_bluetooth_disabled">Bluetooth is disabled</string>
-    <string name="printer_csv_not_found">Printer CSV file not found</string>
+    <!-- Add these strings to app/src/main/res/values/strings.xml -->
 
-    <!-- Printing -->
-    <string name="print_receipt">Print Receipt</string>
-    <string name="print_sample">Print Sample</string>
-    <string name="print_meter_reading">Print Meter Reading</string>
-    <string name="printing">Printing...</string>
-    <string name="print_success">Print successful</string>
-    <string name="print_failed">Print failed</string>
-    <string name="print_not_connected">Printer not connected</string>
+    <!-- Bluetooth Connection Strings -->
+    <string name="bluetooth_enabled">Bluetooth enabled</string>
+    <string name="bluetooth_required">Bluetooth is required for printer connectivity</string>
+    <string name="bluetooth_not_supported">Bluetooth is not supported on this device</string>
+    <string name="bluetooth_permissions_required">Bluetooth permissions are required to connect to the printer</string>
+    <string name="bluetooth_permission_explanation">This app needs Bluetooth permissions to connect to the Woosim printer for receipt printing</string>
 
-    <!-- Sample Receipt -->
-    <string name="sample_receipt_title">Sample Receipt</string>
-    <string name="sample_receipt_description">Print a sample receipt to test printer functionality</string>
+    <!-- Bluetooth Status Messages -->
+    <string name="bluetooth_initializing">Initializing Bluetooth connection...</string>
+    <string name="bluetooth_connecting_woosim">Connecting to Woosim printer...</string>
+    <string name="bluetooth_connected_woosim">Connected to Woosim printer</string>
+    <string name="bluetooth_connection_failed">Failed to connect to printer</string>
+    <string name="bluetooth_reconnecting">Reconnecting to printer...</string>
+    <string name="bluetooth_auto_connect_failed">Auto-connect failed after multiple attempts</string>
+
+    <!-- MAC Address Related -->
+    <string name="bluetooth_mac_address">MAC Address: %1$s</string>
+    <string name="bluetooth_device_info">Device: %1$s (%2$s)</string>
+    <string name="bluetooth_hardcoded_mac">Using hardcoded Woosim MAC address</string>
+    <string name="bluetooth_csv_mac">Using MAC address from printer.csv</string>
+
+    <!-- Connection State Messages -->
+    <string name="connection_state_disconnected">Disconnected</string>
+    <string name="connection_state_connecting">Connecting</string>
+    <string name="connection_state_connected">Connected</string>
+    <string name="connection_state_error">Connection Error</string>
+
+    <!-- Auto-connect Messages -->
+    <string name="auto_connect_starting">Starting automatic connection...</string>
+    <string name="auto_connect_attempt">Connection attempt %1$d of %2$d</string>
+    <string name="auto_connect_success">Automatically connected to printer</string>
+    <string name="auto_connect_scanning">Scanning for Woosim devices...</string>
+    <string name="auto_connect_no_devices">No Woosim devices found</string>
+
+    <!-- Printer Configuration -->
+    <string name="printer_config_title">Printer Configuration</string>
+    <string name="printer_config_hardcoded">Hardcoded MAC: %1$s</string>
+    <string name="printer_config_csv_active">CSV Active: %1$s</string>
+    <string name="printer_config_csv_mac">CSV MAC: %1$s</string>
+    <string name="printer_config_not_uploaded">Printer CSV not uploaded</string>
+    <string name="printer_config_invalid">Invalid printer configuration</string>
 </resources>

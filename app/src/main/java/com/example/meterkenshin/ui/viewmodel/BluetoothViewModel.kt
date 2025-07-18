@@ -3,7 +3,6 @@ package com.example.meterkenshin.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.bluetooth.BluetoothManager
@@ -14,6 +13,7 @@ import kotlinx.coroutines.launch
 
 /**
  * ViewModel for managing Bluetooth connection state in Compose UI
+ * Enhanced with better state management and error handling
  */
 class BluetoothViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -35,6 +35,12 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     private val _isInitialized = MutableStateFlow(false)
     val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
+    private val _printerConfigInfo = MutableStateFlow<String?>(null)
+    val printerConfigInfo: StateFlow<String?> = _printerConfigInfo.asStateFlow()
+
+    private val _isAutoConnecting = MutableStateFlow(false)
+    val isAutoConnecting: StateFlow<Boolean> = _isAutoConnecting.asStateFlow()
+
     /**
      * Initialize the Bluetooth manager
      */
@@ -45,23 +51,41 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
 
         // Observe LiveData and convert to StateFlow
         viewModelScope.launch {
-            manager.connectionState.asLiveData().observeForever { state ->
+            // Connection state observer
+            manager.connectionState.observeForever { state: BluetoothManager.ConnectionState? ->
                 _connectionState.value = state
+                _isAutoConnecting.value = state == BluetoothManager.ConnectionState.CONNECTING
             }
 
-            manager.isBluetoothEnabled.asLiveData().observeForever { enabled ->
+            // Bluetooth enabled state observer
+            manager.isBluetoothEnabled.observeForever { enabled: Boolean ->
                 _isBluetoothEnabled.value = enabled
             }
 
-            manager.connectedDevice.asLiveData().observeForever { device ->
+            // Connected device observer
+            manager.connectedDevice.observeForever { device: android.bluetooth.BluetoothDevice? ->
                 _connectedDevice.value = device
             }
 
-            manager.statusMessage.asLiveData().observeForever { message ->
+            // Status message observer
+            manager.statusMessage.observeForever { message: String? ->
                 _statusMessage.value = message
             }
 
+            // Update printer configuration info
+            updatePrinterConfigInfo()
+
             _isInitialized.value = true
+        }
+    }
+
+    /**
+     * Connect to the specific Woosim device using hardcoded MAC address
+     */
+    fun connectToWoosimDevice() {
+        viewModelScope.launch {
+            _isAutoConnecting.value = true
+            bluetoothManager?.connectToSpecificDevice()
         }
     }
 
@@ -69,7 +93,10 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
      * Start auto-connection process
      */
     fun startAutoConnect() {
-        bluetoothManager?.startAutoConnect()
+        viewModelScope.launch {
+            _isAutoConnecting.value = true
+            bluetoothManager?.startAutoConnect()
+        }
     }
 
     /**
@@ -84,6 +111,13 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
      */
     fun disconnect() {
         bluetoothManager?.disconnect()
+    }
+
+    /**
+     * Ensure the correct device is connected
+     */
+    fun ensureCorrectDeviceConnected() {
+        bluetoothManager?.ensureCorrectDeviceConnected()
     }
 
     /**
@@ -110,6 +144,86 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
      */
     fun isBluetoothSupported(): Boolean {
         return bluetoothManager?.isBluetoothSupported() == true
+    }
+
+    /**
+     * Check if printer configuration is valid
+     */
+    fun isPrinterConfigurationValid(): Boolean {
+        return bluetoothManager?.isPrinterConfigurationValid() == true
+    }
+
+    /**
+     * Get the configured printer MAC address
+     */
+    fun getConfiguredPrinterMacAddress(): String? {
+        return bluetoothManager?.getConfiguredPrinterMacAddress()
+    }
+
+    /**
+     * Update printer configuration information
+     */
+    private fun updatePrinterConfigInfo() {
+        _printerConfigInfo.value = bluetoothManager?.getPrinterConfigInfo()
+    }
+
+    /**
+     * Refresh printer configuration info
+     */
+    fun refreshPrinterConfigInfo() {
+        updatePrinterConfigInfo()
+    }
+
+    /**
+     * Get connection status as a user-friendly string
+     */
+    fun getConnectionStatusString(): String {
+        return when (_connectionState.value) {
+            BluetoothManager.ConnectionState.CONNECTED -> {
+                val deviceInfo = try {
+                    val device = _connectedDevice.value
+                    device?.name ?: device?.address ?: "Unknown Device"
+                } catch (e: SecurityException) {
+                    _connectedDevice.value?.address ?: "Unknown Device"
+                }
+                "Connected to $deviceInfo"
+            }
+            BluetoothManager.ConnectionState.CONNECTING -> "Connecting..."
+            BluetoothManager.ConnectionState.DISCONNECTED -> "Disconnected"
+            BluetoothManager.ConnectionState.ERROR -> "Connection Error"
+            null -> "Unknown Status"
+        }
+    }
+
+    /**
+     * Check if currently trying to connect
+     */
+    fun isConnecting(): Boolean {
+        return _connectionState.value == BluetoothManager.ConnectionState.CONNECTING
+    }
+
+    /**
+     * Check if there's a connection error
+     */
+    fun hasConnectionError(): Boolean {
+        return _connectionState.value == BluetoothManager.ConnectionState.ERROR
+    }
+
+    /**
+     * Retry connection after error
+     */
+    fun retryConnection() {
+        if (hasConnectionError()) {
+            startAutoConnect()
+        }
+    }
+
+    /**
+     * Print sample data to test printer connection
+     */
+    fun printSampleData(): Boolean {
+        val sampleData = "Sample Print Test\n\nWoosim Printer Connected\n\n\n\n".toByteArray()
+        return writeData(sampleData)
     }
 
     override fun onCleared() {
