@@ -499,4 +499,51 @@
     <!-- Sample Receipt -->
     <string name="sample_receipt_title">Sample Receipt</string>
     <string name="sample_receipt_description">Print a sample receipt to test printer functionality</string>
+
+    <!-- Add these strings to your app/src/main/res/values/strings.xml file -->
+
+    <!-- Bluetooth Connection Strings -->
+    <string name="bluetooth_not_supported">Bluetooth is not supported on this device</string>
+    <string name="bluetooth_permissions_granted">Bluetooth permissions granted</string>
+    <string name="bluetooth_permissions_required">Bluetooth permissions are required for printer functionality</string>
+    <string name="bluetooth_enabled_successfully">Bluetooth enabled successfully</string>
+    <string name="bluetooth_required_for_printer">Bluetooth is required for printer functionality</string>
+    <string name="bluetooth_not_enabled">Bluetooth is not enabled</string>
+    <string name="bluetooth_permission_required">Bluetooth permissions required</string>
+
+    <!-- Printer Connection Strings -->
+    <string name="printer_manager_initialized">Printer manager initialized</string>
+    <string name="printer_manager_not_initialized">Printer manager not initialized</string>
+    <string name="printer_not_connected">Printer not connected</string>
+    <string name="printer_not_ready">Printer not ready</string>
+    <string name="printer_reconnecting">Reconnecting to printer...</string>
+
+    <!-- Connection Status Messages -->
+    <string name="connection_failed">Connection failed: %1$s</string>
+    <string name="disconnect_failed">Disconnect failed: %1$s</string>
+    <string name="reconnect_failed">Reconnect failed: %1$s</string>
+    <string name="auto_connect_failed">Auto-connect failed: %1$s</string>
+    <string name="failed_to_initialize_printer">Failed to initialize printer: %1$s</string>
+
+    <!-- Print Operation Strings -->
+    <string name="printing_test_page">Printing test page...</string>
+    <string name="printing_meter_receipt">Printing meter receipt...</string>
+    <string name="failed_to_print_test_page">Failed to print test page: %1$s</string>
+    <string name="failed_to_print_receipt">Failed to print: %1$s</string>
+
+    <!-- Printer Address Strings -->
+    <string name="no_printer_address_found">No printer address found in CSV</string>
+    <string name="printer_csv_file_not_found">Printer CSV file not found</string>
+    <string name="error_reading_printer_csv">Error reading printer CSV</string>
+
+    <!-- General Bluetooth Error Messages -->
+    <string name="bt_not_enabled_leaving">Bluetooth is not enabled. Some features may not work.</string>
+    <string name="unable_to_connect_device">Unable to connect device</string>
+    <string name="device_connection_lost">Device connection was lost</string>
+    <string name="connected_to_device">Connected to %1$s</string>
+
+    <!-- CSV Table References (these should match your existing string resources) -->
+    <string name="table2_col3">Bluetooth ID</string>
+    <string name="table2_key">Key</string>
+    <string name="unknown_error">unknown error occured</string>
 </resources>
