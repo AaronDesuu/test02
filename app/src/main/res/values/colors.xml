@@ -174,4 +174,23 @@
     <color name="print_button_background">#2196F3</color>
     <color name="print_button_text">#FFFFFF</color>
     <color name="print_button_disabled">#CCCCCC</color>
+
+    <!-- Bluetooth Status Colors - ADD THESE -->
+    <color name="bluetooth_connected_background">#E8F5E8</color>
+    <color name="bluetooth_connected_foreground">#2E7D32</color>
+    <color name="bluetooth_connected_border">#4CAF50</color>
+    <color name="bluetooth_connecting_background">#FFF3E0</color>
+    <color name="bluetooth_connecting_foreground">#F57C00</color>
+    <color name="bluetooth_connecting_border">#FF9800</color>
+    <color name="bluetooth_disconnected_background">#FFEBEE</color>
+    <color name="bluetooth_disconnected_foreground">#C62828</color>
+    <color name="bluetooth_disconnected_border">#F44336</color>
+    <color name="bluetooth_error_background">#FFEBEE</color>
+    <color name="bluetooth_error_foreground">#D32F2F</color>
+    <color name="bluetooth_error_border">#E53935</color>
+    <color name="bluetooth_disabled_background">#F5F5F5</color>
+    <color name="bluetooth_disabled_foreground">#757575</color>
+    <color name="bluetooth_disabled_border">#BDBDBD</color>
+    <color name="bluetooth_card_background">#FFFFFF</color>
+    <color name="bluetooth_icon_tint">#1976D2</color>
 </resources>

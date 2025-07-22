@@ -48,11 +48,6 @@ object WoosimCmd {
      * Set text style command
      */
     fun setTextStyle(bold: Boolean, italic: Boolean, underline: Boolean, widthMagnification: Int, heightMagnification: Int): ByteArray {
-        var style = 0
-        if (bold) style = style or 0x08
-        if (italic) style = style or 0x02
-        if (underline) style = style or 0x80
-
         val cmd = mutableListOf<Byte>()
 
         // Set emphasis (bold)

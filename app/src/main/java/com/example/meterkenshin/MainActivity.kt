@@ -31,6 +31,7 @@ import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.ui.screen.Meter
 import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
+import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
 import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -232,10 +233,11 @@ fun MeterKenshinApp(
                     currentScreen = "login"
                 },
                 onNavigateToFileUpload = { currentScreen = "file_upload" },
+                onNavigateToReceiptTemplate = { currentScreen = "receipt" }, // ADD THIS LINE
                 onNavigateToMeterReading = { currentScreen = "meter_reading" },
                 fileUploadViewModel = fileUploadViewModel,
                 meterReadingViewModel = meterReadingViewModel,
-                bluetoothViewModel = bluetoothViewModel // Add this parameter
+                bluetoothViewModel = bluetoothViewModel
             )
         }
         currentScreen == "file_upload" -> {
@@ -268,6 +270,13 @@ fun MeterKenshinApp(
                     onBackPressed = { currentScreen = "meter_reading" }
                 )
             }
+        }
+        currentScreen == "receipt" -> {
+            ReceiptScreen(
+                fileUploadViewModel = fileUploadViewModel,
+                bluetoothViewModel = bluetoothViewModel,
+                onBackPressed = { currentScreen = "home" }
+            )
         }
     }
 }

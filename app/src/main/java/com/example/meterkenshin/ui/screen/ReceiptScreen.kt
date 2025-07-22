@@ -70,11 +70,16 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.example.meterkenshin.ui.component.ReceiptPrintButton
+import com.example.meterkenshin.ui.component.createSampleReceiptData
+import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
+import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
+    bluetoothViewModel: BluetoothViewModel = viewModel(),
     onBackPressed: () -> Unit = {},
     onNavigateToFileUpload: () -> Unit = {}
 ) {
@@ -83,6 +88,10 @@ fun ReceiptScreen(
 
     // Observe upload state from FileUploadViewModel
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
+
+    val bluetoothConnectionState by bluetoothViewModel.connectionState.collectAsState()
+    val isBluetoothEnabled by bluetoothViewModel.isBluetoothEnabled.collectAsState()
+
 
     var rateData by remember { mutableStateOf<FloatArray?>(null) }
     var showRateDialog by remember { mutableStateOf(false) }
@@ -418,6 +427,26 @@ fun ReceiptScreen(
                         )
 
                         Spacer(modifier = Modifier.weight(1f))
+
+                        ReceiptPrintButton(
+                            receiptData = if (rateData != null) {
+                                // Use calculated data when rate.csv is available
+                                val calculatedData = calculateBillingData(billingData, rateData!!)
+                                createReceiptDataFromBilling(billingData, calculatedData)
+                            } else {
+                                // Use sample data with random numbers when no rate.csv
+                                createSampleReceiptData(
+                                    period = billingData.period,
+                                    serialID = billingData.serialID,
+                                    reader = billingData.reader
+                                )
+                            },
+                            bluetoothViewModel = bluetoothViewModel,
+                            bluetoothConnectionState = bluetoothConnectionState,
+                            isBluetoothEnabled = isBluetoothEnabled
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         // Show rate data button
                         rateData?.let { rates ->

@@ -76,6 +76,8 @@ import com.example.meterkenshin.model.UserSession
 import com.example.meterkenshin.model.getPermissions
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.ui.component.BluetoothStatusComponent
+import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -107,7 +109,8 @@ fun HomeScreen(
     onNavigateToReceiptTemplate: () -> Unit = {},
     onNavigateToMeterReading: () -> Unit = {},
     fileUploadViewModel: FileUploadViewModel = viewModel(),
-    meterReadingViewModel: MeterReadingViewModel = viewModel()
+    meterReadingViewModel: MeterReadingViewModel = viewModel(),
+    bluetoothViewModel: BluetoothViewModel
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
@@ -120,6 +123,10 @@ fun HomeScreen(
     // Observe real data from ViewModels
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
     val meterUiState by meterReadingViewModel.uiState.collectAsState()
+    val bluetoothConnectionState by bluetoothViewModel.connectionState.collectAsState()
+    val isBluetoothEnabled by bluetoothViewModel.isBluetoothEnabled.collectAsState()
+    val connectedDevice by bluetoothViewModel.connectedDevice.collectAsState()
+    val bluetoothStatusMessage by bluetoothViewModel.statusMessage.collectAsState()
 
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
@@ -209,7 +216,16 @@ fun HomeScreen(
                     isMeterDataLoaded = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty()
                 )
             }
-
+            // Bluetooth Status Card
+            item {
+                BluetoothStatusComponent(
+                    connectionState = bluetoothConnectionState,
+                    isBluetoothEnabled = isBluetoothEnabled,
+                    connectedDevice = connectedDevice,
+                    statusMessage = bluetoothStatusMessage,
+                    bluetoothViewModel = bluetoothViewModel
+                )
+            }
             // Recent Readings
             item {
                 RecentReadingsSection(
@@ -441,6 +457,7 @@ private fun QuickActionCard(
 ) {
     val isEnabled = when (action.title) {
         "Meter Reading" -> isMeterDataAvailable
+        "Receipt Template" -> isMeterDataAvailable  // Enable only when meter data is available
         else -> true
     }
 
@@ -452,8 +469,12 @@ private fun QuickActionCard(
                     onNavigateToFileUpload()
                 }
                 "Receipt Template" -> {
-                    Log.d(TAG, "Navigating to Receipt Template")
-                    onNavigateToReceiptTemplate()
+                    if (isMeterDataAvailable) {
+                        Log.d(TAG, "Navigating to Receipt Template")
+                        onNavigateToReceiptTemplate()
+                    } else {
+                        Log.d(TAG, "Receipt Template unavailable - no meter data")
+                    }
                 }
                 "Meter Reading" -> {
                     if (isMeterDataAvailable) {
