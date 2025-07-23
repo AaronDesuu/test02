@@ -135,7 +135,7 @@ fun HomeScreen(
     // Load meter data when CSV is uploaded
     LaunchedEffect(isMeterCsvUploaded) {
         if (isMeterCsvUploaded) {
-            meterReadingViewModel.loadMeterData(context, meterCsvFile.fileName)
+            meterReadingViewModel.loadMeters(context, meterCsvFile.fileName)
         }
     }
 
@@ -795,7 +795,7 @@ private fun RecentReadingsSection(
                 ) {
                     Column {
                         readings.forEachIndexed { index, reading ->
-                            val meter = meters.find { it.uid == reading.meterId }
+                            val meter = meters.find { it.account == reading.meterId }
                             ReadingItem(
                                 reading = reading,
                                 meter = meter,
@@ -825,7 +825,7 @@ private fun ReadingItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "S/N : ${meter?.serialNo ?: reading.meterId}",
+                    text = "S/N : ${meter?.logical ?: reading.meterId}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -998,7 +998,7 @@ data class QuickAction(
 
 // Helper functions for real data processing
 private fun calculateSystemOverview(meters: List<Meter>): SystemOverview {
-    val rankDistribution = meters.groupBy { it.activate }.mapValues { it.value.size }
+    val rankDistribution = meters.groupBy { it.rank }.mapValues { it.value.size }
 
     return SystemOverview(
         totalMeters = meters.size,
@@ -1018,7 +1018,7 @@ private fun generateSampleReadings(meters: List<Meter>): List<MeterReading> {
     val random = Random()
     return meters.take(5).map { meter ->
         MeterReading(
-            meterId = meter.uid,
+            meterId = meter.account,
             reading = 100f + random.nextFloat() * 500f,
             timestamp = Date(System.currentTimeMillis() - random.nextLong() % (24 * 60 * 60 * 1000)),
             quality = ReadingQuality.entries[random.nextInt(ReadingQuality.entries.size)]
@@ -1069,5 +1069,5 @@ data class SystemOverview(
     val totalConsumption: Float,
     val pendingExports: Int,
     val lastSyncSuccess: Boolean,
-    val rankDistribution: Map<Int, Int> = emptyMap()
+    val rankDistribution: Map<String, Int> = emptyMap()
 )

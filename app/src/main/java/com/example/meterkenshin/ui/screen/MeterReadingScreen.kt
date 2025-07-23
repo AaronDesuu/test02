@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,8 +29,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.NetworkCell
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -41,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -68,58 +64,28 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
-import com.example.meterkenshin.DLMS.DLMS
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.random.Random
 
 /**
  * Data class representing a meter from the CSV file
- * Updated to match actual meter.csv structure:
- * UID,Activate,Serial NO.,Bluetooth ID,Fixed date,Imp [kWh],Exp [kWh],ImpMaxDemand [kW],ExpMaxDemand [kW],MinVolt [V],Alert,Read date
  */
 data class Meter(
-    val uid: String,                    // UID
-    val activate: Int,                  // Activate (0/1)
-    val serialNo: String,               // Serial NO.
-    val bluetoothId: String,            // Bluetooth ID (MAC address)
-    val fixedDate: String? = null,      // Fixed date
-    val impKwh: Float? = null,          // Imp [kWh]
-    val expKwh: Float? = null,          // Exp [kWh]
-    val impMaxDemand: Float? = null,    // ImpMaxDemand [kW]
-    val expMaxDemand: Float? = null,    // ExpMaxDemand [kW]
-    val minVolt: Float? = null,         // MinVolt [V]
-    val alert: Float? = null,           // Alert
-    val readDate: String? = null        // Read date
+    val account: String,    // Meter numbering
+    val key: String,
+    val logical: String,    // Serial number
+    val rank: String
 )
 
 /**
- * Data class for DLMS meter communication status
- */
-data class MeterConnectionStatus(
-    val account: String,
-    val isConnected: Boolean = false,
-    val rssi: Int = -100,
-    val lastReading: Float? = null,
-    val lastReadingDate: String? = null,
-    val connectionQuality: ConnectionQuality = ConnectionQuality.POOR,
-    val dlmsSession: Boolean = false
-)
-
-enum class ConnectionQuality {
-    EXCELLENT, GOOD, FAIR, POOR
-}
-
-/**
- * Enhanced Meter Reading Screen with DLMS Communication
+ * Meter Reading Screen with redesigned UI
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterReadingScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
-    bluetoothViewModel: BluetoothViewModel = viewModel(),
     onBackPressed: () -> Unit = {},
     onNavigateToFileUpload: () -> Unit = {},
     onNavigateToMeterDetail: (Meter) -> Unit = {},
@@ -134,59 +100,42 @@ fun MeterReadingScreen(
     val meterUiState by meterReadingViewModel.uiState.collectAsState()
     val searchQuery by meterReadingViewModel.searchQuery.collectAsState()
 
-    // Observe Bluetooth state
-    val bluetoothState by bluetoothViewModel.connectionState.collectAsState()
-    val isBluetoothEnabled by bluetoothViewModel.isBluetoothEnabled.collectAsState()
-
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
+    val isMeterCsvUploaded = meterCsvFile?.isUploaded == true
 
-    // Load meter data when CSV file is available
-    LaunchedEffect(meterCsvFile?.isUploaded) {
-        if (meterCsvFile?.isUploaded == true && meterCsvFile.fileName != null) {
-            meterReadingViewModel.loadMeterData(context, meterCsvFile.fileName)
+    // Load meter data when meter.csv is uploaded
+    LaunchedEffect(isMeterCsvUploaded) {
+        if (isMeterCsvUploaded) {
+            meterReadingViewModel.loadMeters(context, meterCsvFile.fileName)
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = stringResource(R.string.meter_reading_title),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackPressed) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
-                    }
-                },
-                actions = {
-                    // Bluetooth status indicator
+    Column(
+        modifier = modifier.fillMaxSize()
+    ) {
+        // Modern Top App Bar
+        CenterAlignedTopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.meter_reading_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBackPressed) {
                     Icon(
-                        imageVector = Icons.Default.Bluetooth,
-                        contentDescription = null,
-                        tint = if (isBluetoothEnabled) {
-                            colorResource(R.color.bluetooth_connected_foreground)
-                        } else {
-                            colorResource(R.color.bluetooth_disabled_foreground)
-                        },
-                        modifier = Modifier
-                            .size(24.dp)
-                            .padding(end = 8.dp)
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.back)
                     )
-
-                    // Refresh action
+                }
+            },
+            actions = {
+                if (isMeterCsvUploaded) {
                     IconButton(
                         onClick = {
-                            if (meterCsvFile?.isUploaded == true && meterCsvFile.fileName != null) {
-                                meterReadingViewModel.loadMeterData(context, meterCsvFile.fileName)
-                            }
+                            meterReadingViewModel.refreshMeters(context, meterCsvFile.fileName)
                         }
                     ) {
                         Icon(
@@ -194,153 +143,199 @@ fun MeterReadingScreen(
                             contentDescription = stringResource(R.string.refresh)
                         )
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
-                )
+                }
+            },
+            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.onSurface
             )
-        },
-        modifier = modifier.fillMaxSize()
-    ) { paddingValues ->
+        )
+
+        // Content based on state
         when {
-            // Show upload prompt if meter.csv not uploaded
-            meterCsvFile?.isUploaded != true -> {
+            !isMeterCsvUploaded -> {
                 MeterFileNotUploadedContent(
                     onNavigateToFileUpload = onNavigateToFileUpload,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-
-            // Show loading state
             meterUiState.isLoading -> {
-                LoadingMetersContent(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                LoadingContent(
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-
-            // Show error state
             meterUiState.errorMessage != null -> {
-                ErrorLoadingMetersContent(
+                ErrorContent(
                     errorMessage = meterUiState.errorMessage!!,
                     onRetry = {
-                        if (meterCsvFile?.fileName != null) {
-                            meterReadingViewModel.loadMeterData(context, meterCsvFile.fileName)
-                        }
+                        meterReadingViewModel.refreshMeters(context, meterCsvFile.fileName)
                     },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-
-            // Show empty state
-            meterUiState.filteredMeters.isEmpty() && meterUiState.allMeters.isEmpty() -> {
+            meterUiState.allMeters.isEmpty() -> {
                 EmptyMetersContent(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues)
+                    modifier = Modifier.fillMaxSize()
                 )
             }
-
-            // Show meter list
             else -> {
-                MeterListContent(
-                    meters = meterUiState.filteredMeters,
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = meterReadingViewModel::updateSearchQuery,
-                    onMeterClick = onNavigateToMeterDetail,
-                    bluetoothViewModel = bluetoothViewModel,
-                    meterStatuses = meterReadingViewModel.meterStatuses.collectAsState().value,
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
-                )
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 24.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Search bar with modern design
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { meterReadingViewModel.updateSearchQuery(it) },
+                        label = { Text(stringResource(R.string.search_meters)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.search)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Statistics row
+                    MeterStatisticsRow(
+                        totalMeters = meterUiState.allMeters.size,
+                        filteredMeters = meterUiState.filteredMeters.size,
+                        onlineMeters = (meterUiState.allMeters.size * 0.85).toInt() // Simulate 85% online
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Modern meter list
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(meterUiState.filteredMeters) { meter ->
+                            ModernMeterCard(
+                                meter = meter,
+                                onClick = { onNavigateToMeterDetail(meter) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        // Add bottom padding item like HomeScreen
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * Main content showing the list of meters with DLMS communication features
+ * Statistics row showing meter counts
  */
 @Composable
-private fun MeterListContent(
-    meters: List<Meter>,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onMeterClick: (Meter) -> Unit,
-    bluetoothViewModel: BluetoothViewModel,
-    meterStatuses: Map<String, MeterConnectionStatus> = emptyMap(),
+private fun MeterStatisticsRow(
+    totalMeters: Int,
+    filteredMeters: Int,
+    onlineMeters: Int,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.padding(16.dp)
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        // Search field
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            label = { Text(stringResource(R.string.search_meters)) },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(12.dp)
+        StatisticCard(
+            label = "Total",
+            value = totalMeters.toString(),
+            icon = Icons.Default.Cable,
+            color = MaterialTheme.colorScheme.primary
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Meters count
-        Text(
-            text = stringResource(R.string.meters_found, meters.size, meters.size),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
+        StatisticCard(
+            label = "Showing",
+            value = filteredMeters.toString(),
+            icon = Icons.Default.Search,
+            color = MaterialTheme.colorScheme.secondary
         )
+        StatisticCard(
+            label = "Online",
+            value = onlineMeters.toString(),
+            icon = Icons.Default.NetworkCell,
+            color = Color(0xFF4CAF50)
+        )
+    }
+}
 
-        // Meter list
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+/**
+ * Individual statistic card
+ */
+@Composable
+private fun StatisticCard(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = color.copy(alpha = 0.1f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            items(meters) { meter ->
-                DLMSMeterCard(
-                    meter = meter,
-                    onClick = { onMeterClick(meter) },
-                    bluetoothViewModel = bluetoothViewModel,
-                    meterStatus = meterStatuses[meter.uid]
-                )
-            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
 
 /**
- * Enhanced meter card with DLMS communication status and real data display
+ * Modern redesigned meter card
  */
 @Composable
-private fun DLMSMeterCard(
+private fun ModernMeterCard(
     meter: Meter,
     onClick: () -> Unit,
-    bluetoothViewModel: BluetoothViewModel,
-    meterStatus: MeterConnectionStatus? = null,
     modifier: Modifier = Modifier
 ) {
-    // Use real connection status from DLMS or default to inactive
-    val connectionStatus = meterStatus ?: MeterConnectionStatus(
-        account = meter.uid,
-        isConnected = false,
-        rssi = -100,
-        connectionQuality = ConnectionQuality.POOR,
-        dlmsSession = false
-    )
+    // Generate mock data for demonstration
+    val random = remember { Random(meter.logical.hashCode()) }
+    val rssi = remember { -30 - random.nextInt(70) } // -30 to -100 dBm
+    val isOnline = remember { random.nextBoolean() }
+    val lastReading = remember { 1000f + random.nextFloat() * 5000f }
+    val lastReadDate = remember {
+        SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(
+            Date(System.currentTimeMillis() - random.nextLong() % (7 * 24 * 60 * 60 * 1000))
+        )
+    }
 
     Card(
         onClick = onClick,
@@ -359,336 +354,224 @@ private fun DLMSMeterCard(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left side - UID in circle with connection status
+            // Left side - Meter number in circle
             Box(
                 modifier = Modifier
-                    .size(60.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
                     .background(
-                        when {
-                            meter.activate == 0 -> colorResource(R.color.bluetooth_disabled_background)
-                            connectionStatus.connectionQuality == ConnectionQuality.EXCELLENT -> colorResource(R.color.bluetooth_connected_background)
-                            connectionStatus.connectionQuality == ConnectionQuality.GOOD -> colorResource(R.color.bluetooth_connecting_background)
-                            connectionStatus.connectionQuality == ConnectionQuality.FAIR -> colorResource(R.color.bluetooth_connecting_background)
-                            else -> colorResource(R.color.bluetooth_disconnected_background)
+                        if (isOnline) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
                         }
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = meter.uid,
+                    text = meter.account,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = when {
-                        meter.activate == 0 -> colorResource(R.color.bluetooth_disabled_foreground)
-                        connectionStatus.connectionQuality == ConnectionQuality.EXCELLENT -> colorResource(R.color.bluetooth_connected_foreground)
-                        connectionStatus.connectionQuality == ConnectionQuality.GOOD -> colorResource(R.color.bluetooth_connecting_foreground)
-                        connectionStatus.connectionQuality == ConnectionQuality.FAIR -> colorResource(R.color.bluetooth_connecting_foreground)
-                        else -> colorResource(R.color.bluetooth_disconnected_foreground)
+                    color = if (isOnline) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.error
                     }
                 )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Main content
-            Column(modifier = Modifier.weight(1f)) {
-                // Title row with meter info
+            // Center - Meter information
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                // Serial number (Logical Address) as main title
+                Text(
+                    text = meter.logical,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Reading information
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Serial: ${meter.serialNo}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        text = if (isOnline) {
+                            String.format("%.1f kWh", lastReading)
+                        } else {
+                            "Imp [kWh]:------"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = if (isOnline) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
 
-                    // Real RSSI from DLMS
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (connectionStatus.isConnected) Icons.Default.Wifi else Icons.Default.NetworkCell,
-                            contentDescription = null,
-                            tint = when {
-                                meter.activate == 0 -> colorResource(R.color.bluetooth_disabled_foreground)
-                                connectionStatus.connectionQuality == ConnectionQuality.EXCELLENT -> colorResource(R.color.bluetooth_connected_foreground)
-                                connectionStatus.connectionQuality == ConnectionQuality.GOOD -> colorResource(R.color.bluetooth_connecting_foreground)
-                                connectionStatus.connectionQuality == ConnectionQuality.FAIR -> colorResource(R.color.bluetooth_connecting_foreground)
-                                else -> colorResource(R.color.bluetooth_disconnected_foreground)
-                            },
-                            modifier = Modifier.size(16.dp)
-                        )
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
+                    if (isOnline) {
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "${connectionStatus.rssi}dBm",
+                            text = "•",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = lastReadDate,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Read date:",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Meter details
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "UID: ${meter.uid}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        Text(
-                            text = "Status: ${if (meter.activate == 1) "Active" else "Inactive"}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (meter.activate == 1) {
-                                colorResource(R.color.bluetooth_connected_foreground)
-                            } else {
-                                colorResource(R.color.bluetooth_disabled_foreground)
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Real DLMS data display
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text(
-                            text = if (connectionStatus.lastReading != null) {
-                                "Imp [kWh]: ${String.format("%.3f", connectionStatus.lastReading)}"
-                            } else if (meter.impKwh != null) {
-                                "Imp [kWh]: ${String.format("%.3f", meter.impKwh)}"
-                            } else {
-                                "Imp [kWh]: ------"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (connectionStatus.lastReading != null || meter.impKwh != null) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            fontWeight = if (connectionStatus.lastReading != null || meter.impKwh != null) FontWeight.Medium else FontWeight.Normal
-                        )
-
-                        Text(
-                            text = if (connectionStatus.lastReadingDate != null) {
-                                "Read date: ${connectionStatus.lastReadingDate}"
-                            } else if (meter.readDate != null) {
-                                "Read date: ${meter.readDate}"
-                            } else {
-                                "Read date: Not recorded"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    // Real connection status
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    when {
-                                        meter.activate == 0 -> colorResource(R.color.bluetooth_disabled_foreground)
-                                        connectionStatus.dlmsSession -> colorResource(R.color.bluetooth_connected_foreground)
-                                        connectionStatus.isConnected -> colorResource(R.color.bluetooth_connecting_foreground)
-                                        else -> colorResource(R.color.bluetooth_disconnected_foreground)
-                                    }
-                                )
-                        )
-
-                        Spacer(modifier = Modifier.width(4.dp))
-
-                        Text(
-                            text = when {
-                                meter.activate == 0 -> "Inactive"
-                                connectionStatus.dlmsSession -> "DLMS Connected"
-                                connectionStatus.isConnected -> "BLE Connected"
-                                else -> "Offline"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                Row (
+                    verticalAlignment = Alignment.CenterVertically
+                ){
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Location",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Chevron
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-
-/**
- * Content shown when meters are loading
- */
-@Composable
-private fun LoadingMetersContent(
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(48.dp),
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = stringResource(R.string.loading_meters),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
-/**
- * Content shown when there's an error loading meters
- */
-@Composable
-private fun ErrorLoadingMetersContent(
-    errorMessage: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        Card(
-            modifier = Modifier.padding(24.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
+            // Right side - Signal and status
             Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.End
             ) {
-                Icon(
-                    imageVector = Icons.Default.Error,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.size(48.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = stringResource(R.string.error_loading_meters),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    textAlign = TextAlign.Center
-                )
+                // Signal strength with custom bars
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CustomSignalBars(
+                        rssi = rssi,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${rssi}dBm",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = errorMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Card(
-                    onClick = onRetry,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.error
-                    ),
-                    shape = RoundedCornerShape(8.dp)
+                // Status indicator
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .background(
+                                color = if (isOnline) Color(0xFF4CAF50) else Color(0xFFF44336),
+                                shape = CircleShape
+                            )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = stringResource(R.string.retry),
-                        color = MaterialTheme.colorScheme.onError,
-                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 16.dp)
+                        text = if (isOnline) "Online" else "Offline",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isOnline) Color(0xFF4CAF50) else Color(0xFFF44336)
                     )
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Chevron icon
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = "View details",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
 }
 
 /**
- * Content shown when no meters are found in the CSV
+ * Custom signal bars drawable component
  */
 @Composable
-private fun EmptyMetersContent(
+private fun CustomSignalBars(
+    rssi: Int,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    val signalStrength = when {
+        rssi >= -50 -> 4
+        rssi >= -60 -> 3
+        rssi >= -70 -> 2
+        rssi >= -80 -> 1
+        else -> 0
+    }
+
+    val signalColor = getSignalColor(rssi)
+
+    Row(
         modifier = modifier,
-        contentAlignment = Alignment.Center
+        horizontalArrangement = Arrangement.spacedBy(1.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Cable,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(80.dp)
-            )
+        // Draw 4 signal bars with different heights
+        repeat(4) { index ->
+            val barHeight = when (index) {
+                0 -> 4.dp
+                1 -> 7.dp
+                2 -> 10.dp
+                3 -> 13.dp
+                else -> 4.dp
+            }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = stringResource(R.string.no_meters_found),
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = stringResource(R.string.no_meters_found_message),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+            Box(
+                modifier = Modifier
+                    .width(2.dp)
+                    .height(barHeight)
+                    .background(
+                        color = if (index < signalStrength) {
+                            signalColor
+                        } else {
+                            Color.Gray.copy(alpha = 0.3f)
+                        },
+                        shape = RoundedCornerShape(1.dp)
+                    )
             )
         }
     }
 }
+
+/**
+ * Get signal strength color based on RSSI value
+ */
+private fun getSignalColor(rssi: Int): Color {
+    return when {
+        rssi >= -50 -> Color(0xFF4CAF50) // Excellent - Green
+        rssi >= -60 -> Color(0xFF8BC34A) // Good - Light Green
+        rssi >= -70 -> Color(0xFFFF9800) // Fair - Orange
+        rssi >= -80 -> Color(0xFFFF5722) // Poor - Red Orange
+        else -> Color(0xFFF44336) // Very Poor - Red
+    }
+}
+
+// Keep the existing helper composables (MeterFileNotUploadedContent, LoadingContent, etc.)
+// but with updated styling to match the modern design
 
 /**
  * Content shown when meter.csv is not uploaded
@@ -742,21 +625,161 @@ private fun MeterFileNotUploadedContent(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                Card(
+                androidx.compose.material3.Button(
                     onClick = onNavigateToFileUpload,
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
                         text = stringResource(R.string.upload_meter_file),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+                        modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Loading content with progress indicator
+ */
+@Composable
+private fun LoadingContent(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(56.dp),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 4.dp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = stringResource(R.string.loading_meters),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+/**
+ * Error content with retry option
+ */
+@Composable
+private fun ErrorContent(
+    errorMessage: String,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier.padding(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer
+            ),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(56.dp)
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Text(
+                    text = stringResource(R.string.error_loading_meters),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = errorMessage,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                androidx.compose.material3.Button(
+                    onClick = onRetry,
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.retry),
+                        color = MaterialTheme.colorScheme.onError,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Content shown when no meters are found in the CSV
+ */
+@Composable
+private fun EmptyMetersContent(
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = Icons.Default.Cable,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(80.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = stringResource(R.string.no_meters_found),
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = stringResource(R.string.no_meters_found_message),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
