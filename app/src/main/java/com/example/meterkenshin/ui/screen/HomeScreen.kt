@@ -135,7 +135,7 @@ fun HomeScreen(
     // Load meter data when CSV is uploaded
     LaunchedEffect(isMeterCsvUploaded) {
         if (isMeterCsvUploaded) {
-            meterReadingViewModel.loadMeters(context, meterCsvFile.fileName)
+            meterReadingViewModel.loadMeterData(context, meterCsvFile.fileName)
         }
     }
 

@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
+import com.example.meterkenshin.communication.DLMSCommunicationManager
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.permissions.BluetoothPermissionHandler
 import com.example.meterkenshin.ui.screen.FileUploadScreen
@@ -278,5 +279,70 @@ fun MeterKenshinApp(
                 onBackPressed = { currentScreen = "home" }
             )
         }
+    }
+}
+/**
+ * DLMS Integration Helper Functions
+ * Based on project01 MainActivity DLMS session establishment
+ */
+
+/**
+ * Extension function to connect to meter using DLMS
+ */
+fun DLMSCommunicationManager.connectToMeterWithDLMS(
+    meter: Meter,
+    bluetoothAddress: String,
+    onSuccess: () -> Unit,
+    onError: (String) -> Unit
+) {
+    try {
+        // This would integrate with your existing DLMS.java implementation
+        // Following the pattern from project01 MainActivity:
+
+        // 1. Session establishment (equivalent to sessionEstablish())
+        // 2. Authentication (equivalent to authentication())
+        // 3. Data access preparation (equivalent to accessData())
+
+        connectToMeter(meter, bluetoothAddress)
+        onSuccess()
+    } catch (e: Exception) {
+        onError("DLMS connection failed: ${e.message}")
+    }
+}
+
+/**
+ * Extension function to execute DLMS operations
+ */
+fun DLMSCommunicationManager.executeDLMSOperation(
+    operation: String,
+    meter: Meter,
+    onResult: (List<String>) -> Unit,
+    onError: (String) -> Unit
+) {
+    try {
+        when (operation) {
+            "read_instantaneous" -> {
+                // Equivalent to AccessData(0, IST_INSTANT_PARAMS, 2, true)
+                readInstantaneousData()
+            }
+            "read_billing" -> {
+                // Equivalent to AccessData(0, IST_BILLING_PARAMS, 2, true)
+                readBillingData()
+            }
+            "read_load_profile" -> {
+                // Equivalent to AccessData(0, IST_LOAD_PROFILE, 2, true)
+                readLoadProfile()
+            }
+            "read_event_log" -> {
+                // Equivalent to AccessData(0, IST_EVENT_LOG, 2, true)
+                readEventLog()
+            }
+            "set_clock" -> {
+                // Equivalent to AccessData(1, IST_CLOCK, 2, false)
+                setMeterClock()
+            }
+        }
+    } catch (e: Exception) {
+        onError("DLMS operation failed: ${e.message}")
     }
 }

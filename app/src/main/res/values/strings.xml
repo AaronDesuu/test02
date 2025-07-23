@@ -422,7 +422,6 @@
     <string name="dlms_load_profile">Load profile</string>
     <string name="dlms_event_log">Event log</string>
     <string name="dlms_billing_data">Billing data</string>
-    <string name="dlms_set_clock">Set Clock</string>
 
     <!-- Meter Information Labels -->
     <string name="meter_account">Account</string>
@@ -514,4 +513,184 @@
     <string name="printer_config_csv_mac">CSV MAC: %1$s</string>
     <string name="printer_config_not_uploaded">Printer CSV not uploaded</string>
     <string name="printer_config_invalid">Invalid printer configuration</string>
+
+    <!-- Add these strings to app/src/main/res/values/strings.xml -->
+
+    <!-- DLMS Communication Strings -->
+    <string name="dlms_communication">DLMS Communication</string>
+    <string name="dlms_status">DLMS Status</string>
+    <string name="dlms_ready">DLMS Ready</string>
+    <string name="dlms_connecting">Connecting to meter…</string>
+    <string name="dlms_authenticating">Authenticating…</string>
+    <string name="dlms_reading_data">Reading meter data…</string>
+    <string name="dlms_disconnected">DLMS Disconnected</string>
+    <string name="dlms_error">DLMS Communication Error</string>
+
+    <!-- DLMS Operations -->
+    <string name="dlms_connect">Connect</string>
+    <string name="dlms_disconnect">Disconnect</string>
+    <string name="dlms_authenticate">Authenticate</string>
+    <string name="dlms_read_instant">Read Instant</string>
+    <string name="dlms_read_profile">Read Profile</string>
+    <string name="dlms_read_events">Read Events</string>
+    <string name="dlms_set_clock">Set Clock</string>
+
+    <!-- DLMS Data Labels -->
+    <string name="dlms_active_energy">Active Energy</string>
+    <string name="dlms_reactive_energy">Reactive Energy</string>
+    <string name="dlms_voltage">Voltage</string>
+    <string name="dlms_current">Current</string>
+    <string name="dlms_power_factor">Power Factor</string>
+    <string name="dlms_frequency">Frequency</string>
+    <string name="dlms_max_demand">Max Demand</string>
+    <string name="dlms_temperature">Temperature</string>
+    <string name="dlms_battery_voltage">Battery Voltage</string>
+    <string name="dlms_signal_strength">Signal Strength</string>
+
+    <!-- DLMS Units -->
+    <string name="unit_kwh">kWh</string>
+    <string name="unit_kvarh">kvarh</string>
+    <string name="unit_voltage">V</string>
+    <string name="unit_current">A</string>
+    <string name="unit_power">kW</string>
+    <string name="unit_temperature">°C</string>
+    <string name="unit_frequency">Hz</string>
+    <string name="unit_dbm">dBm</string>
+
+    <!-- DLMS Security Levels -->
+    <string name="dlms_security_public">Public</string>
+    <string name="dlms_security_lls">Low Level Security</string>
+    <string name="dlms_security_hls">High Level Security</string>
+    <string name="dlms_rank_super">Super</string>
+    <string name="dlms_rank_admin">Admin</string>
+    <string name="dlms_rank_power">Power</string>
+    <string name="dlms_rank_reader">Reader</string>
+
+    <!-- DLMS Status Messages -->
+    <string name="dlms_session_established">DLMS session established</string>
+    <string name="dlms_authentication_successful">Authentication successful</string>
+    <string name="dlms_authentication_failed">Authentication failed</string>
+    <string name="dlms_data_read_successful">Data read successful</string>
+    <string name="dlms_data_read_failed">Data read failed</string>
+    <string name="dlms_connection_timeout">Connection timeout</string>
+    <string name="dlms_invalid_response">Invalid response from meter</string>
+    <string name="dlms_communication_timeout">Communication timeout</string>
+
+    <!-- DLMS Error Messages -->
+    <string name="dlms_error_bluetooth_not_connected">Bluetooth not connected</string>
+    <string name="dlms_error_invalid_meter_config">Invalid meter configuration</string>
+    <string name="dlms_error_unsupported_operation">Unsupported operation</string>
+    <string name="dlms_error_security_violation">Security violation</string>
+    <string name="dlms_error_protocol_error">Protocol error</string>
+    <string name="dlms_error_meter_busy">Meter is busy</string>
+    <string name="dlms_error_access_denied">Access denied</string>
+
+    <!-- DLMS Load Profile -->
+    <string name="dlms_load_profile_title">Load Profile Data</string>
+    <string name="dlms_load_profile_interval">Interval: %1$d minutes</string>
+    <string name="dlms_load_profile_records">Records: %1$d</string>
+    <string name="dlms_load_profile_period">Period: %1$s to %2$s</string>
+    <string name="dlms_load_profile_empty">No load profile data available</string>
+
+    <!-- DLMS Event Log -->
+    <string name="dlms_event_log_title">Event Log</string>
+    <string name="dlms_event_power_failure">Power Failure</string>
+    <string name="dlms_event_power_restore">Power Restore</string>
+    <string name="dlms_event_clock_invalid">Clock Invalid</string>
+    <string name="dlms_event_clock_adjusted">Clock Adjusted</string>
+    <string name="dlms_event_cover_opened">Cover Opened</string>
+    <string name="dlms_event_cover_closed">Cover Closed</string>
+    <string name="dlms_event_magnetic_tamper">Magnetic Tamper</string>
+    <string name="dlms_event_voltage_cut">Voltage Cut</string>
+    <string name="dlms_event_voltage_restore">Voltage Restore</string>
+
+    <!-- Meter Connection Quality -->
+    <string name="connection_excellent">Excellent</string>
+    <string name="connection_good">Good</string>
+    <string name="connection_fair">Fair</string>
+    <string name="connection_poor">Poor</string>
+    <string name="connection_no_signal">No Signal</string>
+
+    <!-- DLMS Meter Actions -->
+    <string name="action_read_instantaneous">Read Instantaneous</string>
+    <string name="action_read_load_profile">Read Load Profile</string>
+    <string name="action_read_billing_data">Read Billing Data</string>
+    <string name="action_read_event_log">Read Event Log</string>
+    <string name="action_synchronize_clock">Synchronize Clock</string>
+    <string name="action_disconnect_control">Disconnect Control</string>
+    <string name="action_reconnect_control">Reconnect Control</string>
+
+    <!-- DLMS Communication Progress -->
+    <string name="dlms_progress_connecting">Connecting to meter…</string>
+    <string name="dlms_progress_authenticating">Authenticating with security level %1$s…</string>
+    <string name="dlms_progress_reading_config">Reading meter configuration…</string>
+    <string name="dlms_progress_reading_data">Reading %1$s…</string>
+    <string name="dlms_progress_writing_data">Writing %1$s…</string>
+    <string name="dlms_progress_disconnecting">Disconnecting from meter…</string>
+
+    <!-- DLMS Meter Information -->
+    <string name="meter_manufacturer">Manufacturer: %1$s</string>
+    <string name="meter_model">Model: %1$s</string>
+    <string name="meter_firmware_version">Firmware: %1$s</string>
+    <string name="meter_cosem_logical_device">COSEM Logical Device: %1$s</string>
+    <string name="meter_serial_number">Serial Number: %1$s</string>
+    <string name="meter_installation_date">Installation Date: %1$s</string>
+    <string name="meter_last_calibration">Last Calibration: %1$s</string>
+
+    <!-- DLMS Data Validation -->
+    <string name="data_validation_passed">Data validation passed</string>
+    <string name="data_validation_failed">Data validation failed</string>
+    <string name="data_checksum_error">Data checksum error</string>
+    <string name="data_format_error">Data format error</string>
+    <string name="data_out_of_range">Data out of range</string>
+
+    <!-- DLMS Configuration -->
+    <string name="dlms_config_title">DLMS Configuration</string>
+    <string name="dlms_config_client_id">Client ID: %1$d</string>
+    <string name="dlms_config_server_id">Server ID: %1$d</string>
+    <string name="dlms_config_logical_address">Logical Address: %1$s</string>
+    <string name="dlms_config_security_suite">Security Suite: %1$s</string>
+    <string name="dlms_config_frame_format">Frame Format: %1$s</string>
+
+    <!-- DLMS Notifications -->
+    <string name="notification_dlms_connected">Connected to meter %1$s</string>
+    <string name="notification_dlms_disconnected">Disconnected from meter %1$s</string>
+    <string name="notification_dlms_data_received">Data received from meter %1$s</string>
+    <string name="notification_dlms_error">DLMS communication error: %1$s</string>
+
+    <!-- Quick Actions for DLMS -->
+    <string name="quick_read_all_meters">Read All Meters</string>
+    <string name="quick_sync_all_clocks">Sync All Clocks</string>
+    <string name="quick_collect_events">Collect Events</string>
+    <string name="quick_download_profiles">Download Profiles</string>
+
+    <!-- DLMS Batch Operations -->
+    <string name="batch_operation_title">Batch Operation</string>
+    <string name="batch_reading_progress">Reading meter %1$d of %2$d</string>
+    <string name="batch_operation_completed">Batch operation completed successfully</string>
+    <string name="batch_operation_failed">Batch operation failed: %1$s</string>
+    <string name="batch_operation_cancelled">Batch operation cancelled by user</string>
+
+    <!-- DLMS Advanced Features -->
+    <string name="advanced_features">Advanced Features</string>
+    <string name="push_notification_setup">Push Notification Setup</string>
+    <string name="automatic_reading_schedule">Automatic Reading Schedule</string>
+    <string name="data_encryption_status">Data Encryption: %1$s</string>
+    <string name="connection_keep_alive">Keep Connection Alive</string>
+
+    <!-- DLMS Troubleshooting -->
+    <string name="troubleshooting_title">Troubleshooting</string>
+    <string name="check_bluetooth_connection">Check Bluetooth connection</string>
+    <string name="verify_meter_credentials">Verify meter credentials</string>
+    <string name="check_signal_strength">Check signal strength</string>
+    <string name="restart_communication">Restart communication</string>
+    <string name="reset_dlms_session">Reset DLMS session</string>
+
+    <!-- DLMS Export Options -->
+    <string name="export_dlms_data">Export DLMS Data</string>
+    <string name="export_format_csv">CSV Format</string>
+    <string name="export_format_xml">XML Format</string>
+    <string name="export_format_json">JSON Format</string>
+    <string name="export_include_raw_data">Include raw DLMS frames</string>
+    <string name="export_successful">Data exported successfully to %1$s</string>
 </resources>
