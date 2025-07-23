@@ -76,7 +76,7 @@ fun MeterDetailScreen(
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "S/N: ${meter.logical}", // Changed from SerialID to S/N
+                    text = "S/N: ${meter.serialNo}", // Changed from SerialID to S/N
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -300,10 +300,10 @@ private fun MeterSpecificationsCard(
             // Specification details in modern format
             SpecificationRow(
                 label = "Meter Number",
-                value = meter.account,
+                value = meter.uid,
                 isHighlighted = true
             )
-            SpecificationRow(label = "Serial Number", value = meter.logical)
+            SpecificationRow(label = "Serial Number", value = meter.serialNo)
             SpecificationRow(label = "Location", value = "1st Floor")
             SpecificationRow(label = "Protocol", value = "IEC 62056")
             SpecificationRow(label = "Meter Model", value = "F5LWF")

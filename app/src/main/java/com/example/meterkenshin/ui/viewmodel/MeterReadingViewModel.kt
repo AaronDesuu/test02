@@ -5,8 +5,12 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.communication.DLMSCommunicationManager
+import com.example.meterkenshin.communication.DLMSCommunicationState
+import com.example.meterkenshin.communication.DLMSMeterData
+import com.example.meterkenshin.communication.AutoReadingState
 import com.example.meterkenshin.ui.screen.Meter
-import com.example.meterkenshin.ui.screen.MeterLoadResult
+import com.example.meterkenshin.ui.screen.MeterConnectionStatus
+import com.example.meterkenshin.ui.screen.ConnectionQuality
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,15 +20,18 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
- * Enhanced ViewModel for Meter Reading with DLMS integration
+ * Enhanced ViewModel for Meter Reading with DLMS integration and Automatic Reading
+ * Integrates with project01-style automatic meter reading functionality
  */
 class MeterReadingViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "MeterReadingViewModel"
-        private const val APP_FILES_FOLDER = "MeterKenshin"
+        private const val APP_FILES_FOLDER = "app_files"
     }
 
     // UI State
@@ -45,6 +52,13 @@ class MeterReadingViewModel : ViewModel() {
     // Meter connection statuses
     private val _meterStatuses = MutableStateFlow<Map<String, MeterConnectionStatus>>(emptyMap())
     val meterStatuses: StateFlow<Map<String, MeterConnectionStatus>> = _meterStatuses.asStateFlow()
+
+    // Automatic reading state
+    private val _autoReadingProgress = MutableStateFlow(AutoReadingProgress())
+    val autoReadingProgress: StateFlow<AutoReadingProgress> = _autoReadingProgress.asStateFlow()
+
+    // Date formatter for display
+    private val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
     init {
         // Initialize search functionality
@@ -78,7 +92,7 @@ class MeterReadingViewModel : ViewModel() {
                         isConnected = update.isConnected,
                         rssi = update.rssi,
                         lastReading = update.impKwh,
-                        readingTimestamp = update.readingDate
+                        readingTimestamp = dateFormatter.format(update.readingDate)
                     )
 
                     // Update meter readings if available
@@ -89,7 +103,7 @@ class MeterReadingViewModel : ViewModel() {
                             expKwh = update.expKwh,
                             maxDemand = update.maxDemand,
                             voltage = update.voltage,
-                            readingDate = update.readingDate
+                            readingDate = dateFormatter.format(update.readingDate)
                         )
                     }
 
@@ -97,23 +111,36 @@ class MeterReadingViewModel : ViewModel() {
                 }
             }
         }
+
+        // Observe automatic reading state
+        viewModelScope.launch {
+            dlmsManager?.autoReadingState?.collect { autoState ->
+                updateAutoReadingProgress(autoState)
+            }
+        }
+
+        Log.i(TAG, "DLMS Communication Manager initialized")
     }
 
     /**
-     * Load meter data from CSV file (keeping original method name)
+     * Load meter data from CSV file (keeping original method name for compatibility)
      */
     fun loadMeters(context: Context, fileName: String) {
         loadMeterData(context, fileName)
     }
 
     /**
-     * Load meter data from CSV file
+     * Load meter data from CSV file and start automatic reading
      */
     fun loadMeterData(context: Context, fileName: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             try {
+                // First parse the CSV using the DLMS manager (this will start automatic reading)
+                dlmsManager?.parseMeterCsvFile(fileName)
+
+                // Then load using the existing method for UI state
                 val result = loadMeterDataFromFile(context, fileName)
 
                 when (result) {
@@ -129,6 +156,14 @@ class MeterReadingViewModel : ViewModel() {
                         initializeMeterStatuses(result.meters)
 
                         Log.i(TAG, "Successfully loaded ${result.meters.size} meters")
+
+                        // Log active meters for automatic reading
+                        val activeMeters = result.meters.filter { it.activate == 1 }
+                        Log.i(TAG, "Found ${activeMeters.size} active meters for automatic reading")
+
+                        if (activeMeters.isNotEmpty()) {
+                            Log.i(TAG, "Automatic meter reading will start shortly...")
+                        }
                     }
 
                     is MeterLoadResult.Error -> {
@@ -159,7 +194,7 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     /**
-     * Connect to a specific meter using DLMS
+     * Manually connect to a specific meter using DLMS
      */
     fun connectToMeter(meter: Meter, bluetoothAddress: String? = null) {
         viewModelScope.launch {
@@ -168,13 +203,35 @@ class MeterReadingViewModel : ViewModel() {
             // Update meter status to connecting
             updateMeterStatus(meter.uid) { status ->
                 status.copy(
-                    isConnecting = true,
-                    lastError = null
+                    isConnected = false,
+                    rssi = -100,
+                    connectionQuality = ConnectionQuality.POOR
                 )
             }
 
-            // Use DLMS manager to connect (use bluetoothId from meter)
-            dlmsManager?.connectToMeter(meter, bluetoothAddress ?: meter.bluetoothId)
+            // Use DLMS manager to connect
+            dlmsManager?.connectToMeter(
+                meter = meter,
+                bluetoothAddress = bluetoothAddress ?: meter.bluetoothId,
+                onSuccess = {
+                    Log.i(TAG, "Successfully connected to meter ${meter.uid}")
+                    updateMeterStatus(meter.uid) { status ->
+                        status.copy(
+                            isConnected = true,
+                            dlmsSession = true
+                        )
+                    }
+                },
+                onError = { error ->
+                    Log.e(TAG, "Failed to connect to meter ${meter.uid}: $error")
+                    updateMeterStatus(meter.uid) { status ->
+                        status.copy(
+                            isConnected = false,
+                            dlmsSession = false
+                        )
+                    }
+                }
+            )
         }
     }
 
@@ -189,174 +246,96 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     /**
-     * Execute DLMS function on connected meter
+     * Start automatic reading of all active meters
      */
-    fun executeDLMSFunction(functionId: String, meter: Meter) {
-        viewModelScope.launch {
-            try {
-                updateMeterStatus(meter.uid) { status ->
-                    status.copy(isExecutingOperation = true)
-                }
+    fun startAutomaticReading() {
+        dlmsManager?.startAutomaticReading()
+        Log.i(TAG, "Started automatic meter reading")
 
-                when (functionId) {
-                    "registration" -> {
-                        // Handle registration/authentication
-                        dlmsManager?.executeActionRequest(0, 1, "registration")
-                    }
-                    "read_data" -> {
-                        // Read instantaneous data
-                        dlmsManager?.readInstantaneousData()
-                    }
-                    "load_profile" -> {
-                        // Read load profile data
-                        dlmsManager?.readLoadProfile()
-                    }
-                    "event_log" -> {
-                        // Read event log
-                        dlmsManager?.readEventLog()
-                    }
-                    "billing_data" -> {
-                        // Read billing data
-                        dlmsManager?.readBillingData()
-                    }
-                    "set_clock" -> {
-                        // Set meter clock
-                        dlmsManager?.setMeterClock()
-                    }
-                }
-
-                // Simulate successful operation
-                updateMeterStatus(meter.uid) { status ->
-                    status.copy(
-                        isExecutingOperation = false,
-                        lastOperationTime = System.currentTimeMillis(),
-                        lastOperation = functionId
-                    )
-                }
-
-                Log.i(TAG, "DLMS function '$functionId' executed for meter ${meter.uid}")
-
-            } catch (e: Exception) {
-                updateMeterStatus(meter.uid) { status ->
-                    status.copy(
-                        isExecutingOperation = false,
-                        lastError = "Operation failed: ${e.message}"
-                    )
-                }
-                Log.e(TAG, "DLMS function execution failed", e)
-            }
-        }
-    }
-
-    /**
-     * Update meter status with real DLMS data
-     */
-    fun updateMeterWithDLMSData(
-        uid: String,
-        isConnected: Boolean,
-        rssi: Int,
-        lastReading: Float? = null,
-        readingTimestamp: String? = null,
-        connectionQuality: ConnectionQuality? = null
-    ) {
-        updateMeterStatus(uid) { currentStatus ->
-            currentStatus.copy(
-                isConnected = isConnected,
-                rssi = rssi,
-                lastReading = lastReading,
-                lastReadingDate = readingTimestamp,
-                connectionQuality = connectionQuality ?: calculateConnectionQuality(rssi),
-                dlmsSession = isConnected,
-                connectionTime = if (isConnected) System.currentTimeMillis() else null,
-                lastError = null
-            )
-        }
-    }
-
-    /**
-     * Calculate connection quality based on RSSI
-     */
-    private fun calculateConnectionQuality(rssi: Int): ConnectionQuality {
-        return when {
-            rssi > -50 -> ConnectionQuality.EXCELLENT
-            rssi > -65 -> ConnectionQuality.GOOD
-            rssi > -80 -> ConnectionQuality.FAIR
-            else -> ConnectionQuality.POOR
-        }
-    }
-
-    /**
-     * Update meter readings from DLMS response
-     */
-    fun updateMeterReadings(
-        uid: String,
-        impKwh: Float?,
-        expKwh: Float?,
-        maxDemand: Float?,
-        voltage: Float?,
-        readingDate: String?
-    ) {
-        // Update the meter data in the list
-        val currentState = _uiState.value
-        val updatedMeters = currentState.allMeters.map { meter ->
-            if (meter.uid == uid) {
-                meter.copy(
-                    impKwh = impKwh ?: meter.impKwh,
-                    expKwh = expKwh ?: meter.expKwh,
-                    impMaxDemand = maxDemand ?: meter.impMaxDemand,
-                    minVolt = voltage ?: meter.minVolt,
-                    readDate = readingDate ?: meter.readDate
-                )
-            } else {
-                meter
-            }
-        }
-
-        _uiState.value = currentState.copy(
-            allMeters = updatedMeters,
-            filteredMeters = filterMetersByQuery(updatedMeters, _searchQuery.value)
+        _autoReadingProgress.value = _autoReadingProgress.value.copy(
+            isManuallyStarted = true
         )
-
-        // Update connection status with new reading
-        updateMeterStatus(uid) { status ->
-            status.copy(
-                lastReading = impKwh,
-                lastReadingDate = readingDate,
-                lastOperationTime = System.currentTimeMillis()
-            )
-        }
     }
 
     /**
-     * Handle DLMS connection lost
+     * Stop automatic reading
      */
-    fun onDLMSConnectionLost(uid: String, reason: String) {
-        updateMeterStatus(uid) { status ->
-            status.copy(
-                isConnected = false,
-                dlmsSession = false,
-                lastError = reason,
-                connectionTime = null
-            )
-        }
-    }
+    fun stopAutomaticReading() {
+        dlmsManager?.stopAutomaticReading()
+        Log.i(TAG, "Stopped automatic meter reading")
 
-    /**
-     * Get meter statistics
-     */
-    fun getMeterStatistics(): MeterStatistics {
-        val meters = _uiState.value.allMeters
-        val statuses = _meterStatuses.value
-
-        val connectedCount = statuses.values.count { it.isConnected }
-        val rankCounts = meters.groupBy { it.rank }.mapValues { it.value.size }
-
-        return MeterStatistics(
-            totalCount = meters.size,
-            connectedCount = connectedCount,
-            uniqueRanks = rankCounts.size,
-            rankDistribution = rankCounts
+        _autoReadingProgress.value = _autoReadingProgress.value.copy(
+            isManuallyStarted = false
         )
+    }
+
+    /**
+     * Check if automatic reading is currently active
+     */
+    fun isAutomaticReadingActive(): Boolean {
+        return _autoReadingProgress.value.isActive
+    }
+
+    /**
+     * Get automatic reading statistics
+     */
+    fun getAutomaticReadingStats(): AutoReadingStats {
+        val progress = _autoReadingProgress.value
+        return AutoReadingStats(
+            totalMeters = progress.totalMeters,
+            completedReadings = progress.completedReadings,
+            successfulReadings = progress.successfulReadings,
+            failedReadings = progress.failedReadings,
+            currentMeter = progress.currentMeterUid,
+            isActive = progress.isActive
+        )
+    }
+
+    /**
+     * Execute DLMS read instantaneous data
+     */
+    fun readInstantaneousData(meter: Meter? = null) {
+        val targetMeter = meter ?: _selectedMeter.value
+        targetMeter?.let {
+            dlmsManager?.readInstantaneousValues(it)
+        }
+    }
+
+    /**
+     * Execute DLMS read load profile
+     */
+    fun readLoadProfile(meter: Meter? = null) {
+        val targetMeter = meter ?: _selectedMeter.value
+        targetMeter?.let {
+            dlmsManager?.readLoadProfile(it)
+        }
+    }
+
+    /**
+     * Execute DLMS read billing data
+     */
+    fun readBillingData(meter: Meter? = null) {
+        val targetMeter = meter ?: _selectedMeter.value
+        targetMeter?.let {
+            dlmsManager?.readBillingData(it)
+        }
+    }
+
+    /**
+     * Execute DLMS set clock
+     */
+    fun setMeterClock(meter: Meter? = null) {
+        val targetMeter = meter ?: _selectedMeter.value
+        targetMeter?.let {
+            dlmsManager?.setMeterClock(it)
+        }
+    }
+
+    /**
+     * Read all active meters manually (one-time batch operation)
+     */
+    fun readAllMeters() {
+        dlmsManager?.readAllMeters()
     }
 
     /**
@@ -367,8 +346,22 @@ class MeterReadingViewModel : ViewModel() {
         val statuses = _meterStatuses.value
 
         return meters.filter { meter ->
-            statuses[meter.account]?.isConnected == connected
+            statuses[meter.uid]?.isConnected == connected
         }
+    }
+
+    /**
+     * Get active meters (activate = 1)
+     */
+    fun getActiveMeters(): List<Meter> {
+        return _uiState.value.allMeters.filter { it.activate == 1 }
+    }
+
+    /**
+     * Get connected meters
+     */
+    fun getConnectedMeters(): List<Meter> {
+        return getMetersByConnectionStatus(true)
     }
 
     /**
@@ -391,6 +384,35 @@ class MeterReadingViewModel : ViewModel() {
                     meter.serialNo.lowercase().contains(lowerQuery) ||
                     meter.bluetoothId.lowercase().contains(lowerQuery) ||
                     meter.activate.toString().contains(lowerQuery)
+        }
+    }
+
+    /**
+     * Update automatic reading progress in UI state
+     */
+    private fun updateAutoReadingProgress(autoState: AutoReadingState) {
+        _autoReadingProgress.value = _autoReadingProgress.value.copy(
+            isActive = autoState.isActive,
+            totalMeters = autoState.totalMeters,
+            currentMeterIndex = autoState.currentMeterIndex,
+            completedReadings = autoState.completedReadings,
+            successfulReadings = autoState.successfulReadings,
+            failedReadings = autoState.failedReadings,
+            currentMeterUid = autoState.currentMeterUid,
+            lastOperation = autoState.lastOperation,
+            lastError = autoState.lastError,
+            startTime = autoState.startTime,
+            endTime = autoState.endTime
+        )
+
+        // Log progress updates
+        if (autoState.isActive) {
+            Log.d(TAG, "Auto reading progress: ${autoState.completedReadings}/${autoState.totalMeters} " +
+                    "(Success: ${autoState.successfulReadings}, Failed: ${autoState.failedReadings})")
+
+            if (autoState.currentMeterUid.isNotEmpty()) {
+                Log.d(TAG, "Currently reading: ${autoState.currentMeterUid}")
+            }
         }
     }
 
@@ -452,7 +474,7 @@ class MeterReadingViewModel : ViewModel() {
                                 readDate = fields.getOrNull(11)?.takeIf { it.isNotEmpty() }
                             )
                             meters.add(meter)
-                            Log.d(TAG, "Parsed meter: UID=${meter.uid}, Serial=${meter.serialNo}, BT=${meter.bluetoothId}")
+                            Log.d(TAG, "Parsed meter: UID=${meter.uid}, Serial=${meter.serialNo}, BT=${meter.bluetoothId}, Active=${meter.activate}")
                         } else {
                             Log.w(TAG, "Invalid line $lineNumber: insufficient fields (${fields.size}/12) - $line")
                         }
@@ -466,6 +488,7 @@ class MeterReadingViewModel : ViewModel() {
                 MeterLoadResult.Error("No valid meter data found in CSV file")
             } else {
                 Log.i(TAG, "Successfully loaded ${meters.size} meters from CSV")
+                Log.i(TAG, "Active meters: ${meters.count { it.activate == 1 }}")
                 MeterLoadResult.Success(meters)
             }
 
@@ -490,22 +513,79 @@ class MeterReadingViewModel : ViewModel() {
             )
         }
         _meterStatuses.value = statuses
+        Log.d(TAG, "Initialized meter statuses for ${meters.size} meters")
     }
 
     /**
      * Update meter connection status based on DLMS communication state
      */
-    private fun updateMeterConnectionStatus(dlmsState: com.example.meterkenshin.communication.DLMSCommunicationState) {
+    private fun updateMeterConnectionStatus(dlmsState: DLMSCommunicationState) {
         dlmsState.connectedMeter?.let { meter ->
-            updateMeterStatus(meter.account) { currentStatus ->
+            updateMeterStatus(meter.uid) { currentStatus ->
                 currentStatus.copy(
-                    isConnected = dlmsState.isConnected,
-                    isConnecting = dlmsState.isConnecting,
-                    connectionTime = dlmsState.connectionTime,
-                    lastError = dlmsState.lastError,
-                    isExecutingOperation = dlmsState.isExecutingOperation
+                    isConnected = dlmsState.isConnected
                 )
             }
+        }
+    }
+
+    /**
+     * Update meter with DLMS data
+     */
+    fun updateMeterWithDLMSData(
+        uid: String,
+        isConnected: Boolean,
+        rssi: Int,
+        lastReading: Float?,
+        readingTimestamp: String
+    ) {
+        updateMeterStatus(uid) { currentStatus ->
+            currentStatus.copy(
+                isConnected = isConnected,
+                rssi = rssi,
+                lastReading = lastReading,
+                lastReadingDate = readingTimestamp,
+                connectionQuality = getConnectionQuality(rssi),
+                dlmsSession = isConnected
+            )
+        }
+
+        Log.d(TAG, "Updated meter $uid: Connected=$isConnected, RSSI=$rssi, Reading=$lastReading")
+    }
+
+    /**
+     * Update meter readings
+     */
+    fun updateMeterReadings(
+        uid: String,
+        impKwh: Float?,
+        expKwh: Float?,
+        maxDemand: Float?,
+        voltage: Float?,
+        readingDate: String
+    ) {
+        // Find and update the meter in the allMeters list
+        val currentMeters = _uiState.value.allMeters.toMutableList()
+        val meterIndex = currentMeters.indexOfFirst { it.uid == uid }
+
+        if (meterIndex != -1) {
+            val originalMeter = currentMeters[meterIndex]
+            val updatedMeter = originalMeter.copy(
+                impKwh = impKwh ?: originalMeter.impKwh,
+                expKwh = expKwh ?: originalMeter.expKwh,
+                impMaxDemand = maxDemand ?: originalMeter.impMaxDemand,
+                minVolt = voltage ?: originalMeter.minVolt,
+                readDate = readingDate
+            )
+
+            currentMeters[meterIndex] = updatedMeter
+
+            _uiState.value = _uiState.value.copy(
+                allMeters = currentMeters,
+                filteredMeters = filterMetersByQuery(currentMeters, _searchQuery.value)
+            )
+
+            Log.d(TAG, "Updated readings for meter $uid: ImpKwh=$impKwh, ExpKwh=$expKwh, MaxDemand=$maxDemand, Voltage=$voltage")
         }
     }
 
@@ -533,69 +613,86 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     /**
-     * Get meters by activation status
+     * Get connection quality based on RSSI
      */
-    fun getMetersByActivation(isActive: Boolean): List<Meter> {
-        val activationValue = if (isActive) 1 else 0
-        return _uiState.value.allMeters.filter { it.activate == activationValue }
+    private fun getConnectionQuality(rssi: Int): ConnectionQuality {
+        return when {
+            rssi >= -50 -> ConnectionQuality.EXCELLENT
+            rssi >= -60 -> ConnectionQuality.GOOD
+            rssi >= -70 -> ConnectionQuality.FAIR
+            else -> ConnectionQuality.POOR
+        }
     }
 
     /**
-     * Get unique serial numbers from all meters
+     * Get DLMS manager instance for external access
      */
-    fun getUniqueSerials(): List<String> {
-        return _uiState.value.allMeters.map { it.serialNo }.distinct().sorted()
-    }
+    fun getDLMSManager(): DLMSCommunicationManager? = dlmsManager
 
     override fun onCleared() {
         super.onCleared()
-        // Clean up DLMS manager
-        dlmsManager?.disconnect()
+        // Clean up DLMS resources
+        dlmsManager?.let { manager ->
+            viewModelScope.launch {
+                manager.stopAutomaticReading()
+                manager.disconnect()
+            }
+        }
+        Log.d(TAG, "MeterReadingViewModel cleared")
     }
 }
 
 /**
- * Enhanced UI State for Meter Reading screen with DLMS integration
+ * UI State for Meter Reading Screen
  */
 data class MeterReadingUiState(
     val isLoading: Boolean = false,
     val allMeters: List<Meter> = emptyList(),
     val filteredMeters: List<Meter> = emptyList(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val selectedMeter: Meter? = null
 )
 
 /**
- * Enhanced meter connection status with DLMS features
+ * Automatic Reading Progress State
  */
-data class MeterConnectionStatus(
-    val account: String,
-    val isConnected: Boolean = false,
-    val isConnecting: Boolean = false,
-    val isExecutingOperation: Boolean = false,
-    val rssi: Int = -100,
-    val lastReading: Float? = null,
-    val lastReadingDate: String? = null,
-    val connectionQuality: ConnectionQuality = ConnectionQuality.POOR,
-    val dlmsSession: Boolean = false,
-    val connectionTime: Long? = null,
+data class AutoReadingProgress(
+    val isActive: Boolean = false,
+    val isManuallyStarted: Boolean = false,
+    val totalMeters: Int = 0,
+    val currentMeterIndex: Int = 0,
+    val completedReadings: Int = 0,
+    val successfulReadings: Int = 0,
+    val failedReadings: Int = 0,
+    val currentMeterUid: String = "",
+    val lastOperation: String = "",
     val lastError: String? = null,
-    val lastOperation: String? = null,
-    val lastOperationTime: Long? = null
-)
+    val startTime: Long? = null,
+    val endTime: Long? = null
+) {
+    val progressPercentage: Float
+        get() = if (totalMeters > 0) (completedReadings.toFloat() / totalMeters) else 0f
 
-/**
- * Connection quality enumeration
- */
-enum class ConnectionQuality {
-    EXCELLENT, GOOD, FAIR, POOR
+    val successRate: Float
+        get() = if (completedReadings > 0) (successfulReadings.toFloat() / completedReadings) else 0f
 }
 
 /**
- * Enhanced meter statistics with connection info
+ * Automatic Reading Statistics
  */
-data class MeterStatistics(
-    val totalCount: Int,
-    val connectedCount: Int,
-    val uniqueRanks: Int,
-    val rankDistribution: Map<String, Int>
+data class AutoReadingStats(
+    val totalMeters: Int,
+    val completedReadings: Int,
+    val successfulReadings: Int,
+    val failedReadings: Int,
+    val currentMeter: String,
+    val isActive: Boolean
 )
+
+/**
+ * Meter load result
+ */
+sealed class MeterLoadResult {
+    data class Success(val meters: List<Meter>) : MeterLoadResult()
+    data class Error(val message: String) : MeterLoadResult()
+}

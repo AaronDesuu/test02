@@ -225,7 +225,7 @@ fun MeterReadingScreen(
             // Show error state
             meterUiState.errorMessage != null -> {
                 ErrorLoadingMetersContent(
-                    errorMessage = meterUiState.errorMessage,
+                    errorMessage = meterUiState.errorMessage!!,
                     onRetry = {
                         if (meterCsvFile?.fileName != null) {
                             meterReadingViewModel.loadMeterData(context, meterCsvFile.fileName)

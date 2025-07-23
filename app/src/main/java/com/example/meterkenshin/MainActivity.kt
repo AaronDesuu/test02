@@ -323,7 +323,7 @@ fun DLMSCommunicationManager.executeDLMSOperation(
         when (operation) {
             "read_instantaneous" -> {
                 // Equivalent to AccessData(0, IST_INSTANT_PARAMS, 2, true)
-                readInstantaneousData()
+//                readInstantaneousData()
             }
             "read_billing" -> {
                 // Equivalent to AccessData(0, IST_BILLING_PARAMS, 2, true)
@@ -335,7 +335,7 @@ fun DLMSCommunicationManager.executeDLMSOperation(
             }
             "read_event_log" -> {
                 // Equivalent to AccessData(0, IST_EVENT_LOG, 2, true)
-                readEventLog()
+//                readEventLog()
             }
             "set_clock" -> {
                 // Equivalent to AccessData(1, IST_CLOCK, 2, false)
