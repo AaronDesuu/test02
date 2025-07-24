@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/meterkenshin/ui/screen/MeterDetailScreen.kt
 package com.example.meterkenshin.ui.screen
 
 import androidx.compose.foundation.background
@@ -47,19 +48,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
+import com.example.meterkenshin.model.MeterData
+import com.example.meterkenshin.model.MeterStatus
 
 /**
- * Modern Meter Detail Screen with updated design and theme consistency
+ * Modern Meter Detail Screen with updated design and new data structure
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterDetailScreen(
-    meter: Meter,
+    meter: MeterData,
     onBackPressed: () -> Unit = {},
     onRegistration: () -> Unit = {},
     onReadData: () -> Unit = {},
@@ -72,11 +76,11 @@ fun MeterDetailScreen(
     Column(
         modifier = modifier.fillMaxSize()
     ) {
-        // Modern Top App Bar matching other screens
+        // Modern Top App Bar
         CenterAlignedTopAppBar(
             title = {
                 Text(
-                    text = "S/N: ${meter.logical}", // Changed from SerialID to S/N
+                    text = stringResource(R.string.meter_detail_title, meter.serialNumber),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -90,7 +94,7 @@ fun MeterDetailScreen(
                 }
             },
             colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface, // Match other screens
+                containerColor = MaterialTheme.colorScheme.surface,
                 titleContentColor = MaterialTheme.colorScheme.onSurface
             )
         )
@@ -100,15 +104,20 @@ fun MeterDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-                .padding(bottom = 16.dp),
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Connection status card
-            ConnectionStatusCard(meter = meter)
+            // Meter Information Card
+            MeterInfoCard(meter = meter)
 
-            // DLMS function buttons with modern design
-            DLMSFunctionsCard(
+            // Energy Data Card
+            EnergyDataCard(meter = meter)
+
+            // Technical Data Card
+            TechnicalDataCard(meter = meter)
+
+            // Action Buttons Section
+            ActionButtonsSection(
                 onRegistration = onRegistration,
                 onReadData = onReadData,
                 onLoadProfile = onLoadProfile,
@@ -117,170 +126,32 @@ fun MeterDetailScreen(
                 onSetClock = onSetClock
             )
 
-            // Meter specifications card
-            MeterSpecificationsCard(meter = meter)
-
-            // Bottom padding for system bars
-            Spacer(modifier = Modifier.height(16.dp))
+            // Bottom spacing for navigation
             Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
     }
 }
 
-
 /**
- * DLMS functions in a modern card design
+ * Meter information card
  */
 @Composable
-private fun DLMSFunctionsCard(
-    onRegistration: () -> Unit,
-    onReadData: () -> Unit,
-    onLoadProfile: () -> Unit,
-    onEventLog: () -> Unit,
-    onBillingData: () -> Unit,
-    onSetClock: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = "Actions",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            // Registration button (active)
-            ModernDLMSButton(
-                text = "Registration",
-                icon = Icons.Default.Person,
-                onClick = onRegistration,
-                isActive = true
-            )
-
-            // Other function buttons (inactive)
-            ModernDLMSButton(
-                text = "Read data",
-                icon = Icons.Default.Assessment,
-                onClick = onReadData,
-                isActive = false
-            )
-
-            ModernDLMSButton(
-                text = "Load profile",
-                icon = Icons.Default.Storage,
-                onClick = onLoadProfile,
-                isActive = false
-            )
-
-            ModernDLMSButton(
-                text = "Event log",
-                icon = Icons.Default.Event,
-                onClick = onEventLog,
-                isActive = false
-            )
-
-            ModernDLMSButton(
-                text = "Billing data",
-                icon = Icons.Default.Payment,
-                onClick = onBillingData,
-                isActive = false
-            )
-
-            // Set Clock button (active)
-            ModernDLMSButton(
-                text = "Set Clock",
-                icon = Icons.Default.AccessTime,
-                onClick = onSetClock,
-                isActive = true
-            )
-        }
-    }
-}
-
-/**
- * Modern DLMS function button
- */
-@Composable
-private fun ModernDLMSButton(
-    text: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    isActive: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isActive) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            contentColor = if (isActive) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-        ),
-        shape = RoundedCornerShape(16.dp),
-        enabled = true
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-/**
- * Meter specifications card
- */
-@Composable
-private fun MeterSpecificationsCard(
-    meter: Meter,
+private fun MeterInfoCard(
+    meter: MeterData,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Info,
@@ -290,134 +161,257 @@ private fun MeterSpecificationsCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Meter Specifications",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = stringResource(R.string.meter_information),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            // Specification details in modern format
-            SpecificationRow(
-                label = "Meter Number",
-                value = meter.account,
-                isHighlighted = true
-            )
-            SpecificationRow(label = "Serial Number", value = meter.logical)
-            SpecificationRow(label = "Location", value = "1st Floor")
-            SpecificationRow(label = "Protocol", value = "IEC 62056")
-            SpecificationRow(label = "Meter Model", value = "F5LWF")
-            SpecificationRow(label = "Meter Type", value = "1 phase 2 wire")
-            SpecificationRow(label = "V/A", value = "200V/120A")
-            SpecificationRow(label = "Frequency", value = "50Hz")
+            // Status indicator
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(getStatusColor(meter.status))
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = stringResource(R.string.status_format, meter.status.displayName),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+
+            // Meter details
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                InfoRow(
+                    label = stringResource(R.string.meter_uid),
+                    value = meter.uid
+                )
+                InfoRow(
+                    label = stringResource(R.string.serial_number),
+                    value = meter.serialNumber
+                )
+                InfoRow(
+                    label = stringResource(R.string.bluetooth_id),
+                    value = meter.bluetoothId
+                )
+                if (!meter.fixedDate.isNullOrBlank()) {
+                    InfoRow(
+                        label = stringResource(R.string.fixed_date),
+                        value = meter.fixedDate
+                    )
+                }
+                if (!meter.readDate.isNullOrBlank()) {
+                    InfoRow(
+                        label = stringResource(R.string.last_read_date),
+                        value = meter.readDate
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * Connection status card
+ * Energy data card
  */
 @Composable
-private fun ConnectionStatusCard(
-    meter: Meter,
+private fun EnergyDataCard(
+    meter: MeterData,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     ) {
         Column(
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Cable,
+                    imageVector = Icons.Default.Assessment,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.secondary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Connection Status",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    text = stringResource(R.string.energy_data),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            SpecificationRow(
-                label = "Status",
-                value = "Connected",
-                valueColor = Color(0xFF4CAF50)
-            )
-            SpecificationRow(label = "Signal Strength", value = "-65 dBm")
-            SpecificationRow(label = "Last Communication", value = "2 minutes ago")
-            SpecificationRow(label = "Last Billing Read", value = "30 days ago")
+            // Energy readings
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                EnergyValueCard(
+                    label = stringResource(R.string.import_energy),
+                    value = meter.formattedImpKwh,
+                    unit = "kWh",
+                    color = MaterialTheme.colorScheme.primary,
+                    hasData = meter.impKwh != null
+                )
+                EnergyValueCard(
+                    label = stringResource(R.string.export_energy),
+                    value = meter.formattedExpKwh,
+                    unit = "kWh",
+                    color = MaterialTheme.colorScheme.secondary,
+                    hasData = meter.expKwh != null
+                )
+            }
+
+            // Max demand readings
+            if (meter.impMaxDemandKw != null || meter.expMaxDemandKw != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    EnergyValueCard(
+                        label = stringResource(R.string.imp_max_demand),
+                        value = meter.impMaxDemandKw?.let { String.format("%.3f", it) } ?: "------",
+                        unit = "kW",
+                        color = MaterialTheme.colorScheme.tertiary,
+                        hasData = meter.impMaxDemandKw != null
+                    )
+                    EnergyValueCard(
+                        label = stringResource(R.string.exp_max_demand),
+                        value = meter.expMaxDemandKw?.let { String.format("%.3f", it) } ?: "------",
+                        unit = "kW",
+                        color = MaterialTheme.colorScheme.tertiary,
+                        hasData = meter.expMaxDemandKw != null
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * Modern specification row component
+ * Technical data card
  */
 @Composable
-private fun SpecificationRow(
-    label: String,
-    value: String,
-    isHighlighted: Boolean = false,
-    isSensitive: Boolean = false,
-    valueColor: Color? = null,
+private fun TechnicalDataCard(
+    meter: MeterData,
     modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.technical_data),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (meter.minVoltV != null) {
+                    InfoRow(
+                        label = stringResource(R.string.minimum_voltage),
+                        value = stringResource(R.string.voltage_format, meter.minVoltV)
+                    )
+                }
+
+                InfoRow(
+                    label = stringResource(R.string.connection_status),
+                    value = if (meter.isActive)
+                        stringResource(R.string.meter_online)
+                    else
+                        stringResource(R.string.meter_offline)
+                )
+
+                if (!meter.alert.isNullOrBlank()) {
+                    InfoRow(
+                        label = stringResource(R.string.alerts),
+                        value = meter.alert,
+                        valueColor = colorResource(R.color.warning_light)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Energy value card component
+ */
+@Composable
+private fun EnergyValueCard(
+    label: String,
+    value: String,
+    unit: String,
+    color: Color,
+    hasData: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
+            text = value,
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (hasData) color else MaterialTheme.colorScheme.onSurfaceVariant
         )
-
         Text(
-            text = if (isSensitive) "••••••••••••••••" else value,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Medium,
-            color = valueColor ?: if (isHighlighted) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
+            text = unit,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
         )
     }
 }
 
 /**
- * Helper composable for detail rows
+ * Info row component
  */
 @Composable
-private fun DetailRow(
+private fun InfoRow(
     label: String,
     value: String,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
@@ -430,9 +424,159 @@ private fun DetailRow(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
+            color = valueColor,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.End
         )
+    }
+}
+
+/**
+ * Action buttons section
+ */
+@Composable
+private fun ActionButtonsSection(
+    onRegistration: () -> Unit,
+    onReadData: () -> Unit,
+    onLoadProfile: () -> Unit,
+    onEventLog: () -> Unit,
+    onBillingData: () -> Unit,
+    onSetClock: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.meter_actions),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Action buttons grid
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ActionButton(
+                        text = stringResource(R.string.registration),
+                        description = stringResource(R.string.registration_description),
+                        icon = Icons.Default.Person,
+                        onClick = onRegistration,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        text = stringResource(R.string.read_data),
+                        description = stringResource(R.string.read_data_description),
+                        icon = Icons.Default.Storage,
+                        onClick = onReadData,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ActionButton(
+                        text = stringResource(R.string.load_profile),
+                        description = stringResource(R.string.load_profile_description),
+                        icon = Icons.Default.Assessment,
+                        onClick = onLoadProfile,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        text = stringResource(R.string.event_log),
+                        description = stringResource(R.string.event_log_description),
+                        icon = Icons.Default.Event,
+                        onClick = onEventLog,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ActionButton(
+                        text = stringResource(R.string.billing_data),
+                        description = stringResource(R.string.billing_data_description),
+                        icon = Icons.Default.Payment,
+                        onClick = onBillingData,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ActionButton(
+                        text = stringResource(R.string.set_clock),
+                        description = stringResource(R.string.set_clock_description),
+                        icon = Icons.Default.AccessTime,
+                        onClick = onSetClock,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Action button component
+ */
+@Composable
+private fun ActionButton(
+    text: String,
+    description: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier.height(80.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+/**
+ * Get color for meter status
+ */
+@Composable
+private fun getStatusColor(status: MeterStatus): Color {
+    return when (status) {
+        MeterStatus.ACTIVE -> colorResource(R.color.success_light)
+        MeterStatus.INACTIVE -> colorResource(R.color.outline_light)
+        MeterStatus.NO_DATA -> colorResource(R.color.warning_light)
+        MeterStatus.ERROR -> colorResource(R.color.error_light)
     }
 }

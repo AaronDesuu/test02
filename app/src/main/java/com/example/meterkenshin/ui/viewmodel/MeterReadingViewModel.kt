@@ -1,11 +1,13 @@
+// app/src/main/java/com/example/meterkenshin/ui/viewmodel/MeterReadingViewModel.kt
 package com.example.meterkenshin.ui.viewmodel
 
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meterkenshin.ui.screen.Meter
-import com.example.meterkenshin.ui.screen.MeterLoadResult
+import com.example.meterkenshin.model.MeterData
+import com.example.meterkenshin.model.MeterLoadResult
+import com.example.meterkenshin.model.MeterStatistics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,44 +18,46 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
 
-/**
- * ViewModel for Meter Reading functionality
- * Handles meter data loading, search, and filtering operations
- */
 class MeterReadingViewModel : ViewModel() {
-
-    companion object {
-        private const val TAG = "MeterReadingViewModel"
-        private const val APP_FILES_FOLDER = "app_files"
-    }
-
-    // State management
     private val _uiState = MutableStateFlow(MeterReadingUiState())
     val uiState: StateFlow<MeterReadingUiState> = _uiState.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    companion object {
+        private const val TAG = "MeterReadingViewModel"
+        private const val APP_FILES_FOLDER = "app_files"
+        private const val METER_CSV_FILENAME = "meter.csv"
+    }
+
+    init {
+        // Search query changes trigger filtering
+        viewModelScope.launch {
+            searchQuery.collect { query ->
+                filterMeters(query)
+            }
+        }
+    }
+
     /**
      * Load meters from CSV file
      */
-    fun loadMeters(context: Context, fileName: String) {
+    fun loadMeters(context: Context) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
-            val result = withContext(Dispatchers.IO) {
-                loadMeterDataFromFile(context, fileName)
-            }
+            val result = loadMeterDataFromFile(context, METER_CSV_FILENAME)
 
             when (result) {
                 is MeterLoadResult.Success -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         allMeters = result.meters,
-                        filteredMeters = filterMeters(result.meters, _searchQuery.value),
+                        filteredMeters = result.meters,
                         errorMessage = null
                     )
-                    Log.d(TAG, "Successfully loaded ${result.meters.size} meters")
+                    Log.i(TAG, "Successfully loaded ${result.meters.size} meters")
                 }
                 is MeterLoadResult.Error -> {
                     _uiState.value = _uiState.value.copy(
@@ -62,151 +66,138 @@ class MeterReadingViewModel : ViewModel() {
                     )
                     Log.e(TAG, "Failed to load meters: ${result.message}")
                 }
+                is MeterLoadResult.Loading -> {
+                    // Already handled above
+                }
             }
         }
     }
 
     /**
-     * Update search query and filter meters
+     * Update search query
      */
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
-        val currentState = _uiState.value
-        _uiState.value = currentState.copy(
-            filteredMeters = filterMeters(currentState.allMeters, query)
-        )
-    }
-
-    /**
-     * Clear search query
-     */
-    fun clearSearch() {
-        updateSearchQuery("")
-    }
-
-    /**
-     * Refresh meter data
-     */
-    fun refreshMeters(context: Context, fileName: String) {
-        loadMeters(context, fileName)
-    }
-
-    /**
-     * Clear error message
-     */
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
     /**
      * Filter meters based on search query
      */
-    private fun filterMeters(meters: List<Meter>, query: String): List<Meter> {
-        if (query.isBlank()) return meters
-
-        val lowerQuery = query.lowercase()
-        return meters.filter { meter ->
-            meter.account.lowercase().contains(lowerQuery) ||
-                    meter.key.lowercase().contains(lowerQuery) ||
-                    meter.logical.lowercase().contains(lowerQuery) ||
-                    meter.rank.lowercase().contains(lowerQuery)
+    private fun filterMeters(query: String) {
+        val allMeters = _uiState.value.allMeters
+        if (query.isBlank()) {
+            _uiState.value = _uiState.value.copy(filteredMeters = allMeters)
+            return
         }
+
+        val filteredMeters = allMeters.filter { meter ->
+            val lowerQuery = query.lowercase()
+            meter.uid.lowercase().contains(lowerQuery) ||
+                    meter.serialNumber.lowercase().contains(lowerQuery) ||
+                    meter.bluetoothId.lowercase().contains(lowerQuery) ||
+                    meter.displayName.lowercase().contains(lowerQuery)
+        }
+
+        _uiState.value = _uiState.value.copy(filteredMeters = filteredMeters)
     }
 
     /**
-     * Load meter data from CSV file based on project01 parsing logic
+     * Load meter data from CSV file with new structure
      */
     private suspend fun loadMeterDataFromFile(
         context: Context,
         fileName: String
     ): MeterLoadResult {
-        return try {
-            val externalFilesDir = context.getExternalFilesDir(null)
-            val appFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
-            val meterFile = File(appFilesDir, fileName)
+        return withContext(Dispatchers.IO) {
+            try {
+                val externalFilesDir = context.getExternalFilesDir(null)
+                val appFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
+                val meterFile = File(appFilesDir, fileName)
 
-            if (!meterFile.exists()) {
-                return MeterLoadResult.Error("Meter file not found: ${meterFile.absolutePath}")
-            }
+                if (!meterFile.exists()) {
+                    return@withContext MeterLoadResult.Error("Meter file not found: ${meterFile.absolutePath}")
+                }
 
-            Log.d(TAG, "Loading meter data from: ${meterFile.absolutePath}")
+                Log.d(TAG, "Loading meter data from: ${meterFile.absolutePath}")
 
-            val meters = mutableListOf<Meter>()
-            val reader = BufferedReader(FileReader(meterFile))
+                val meters = mutableListOf<MeterData>()
+                val reader = BufferedReader(FileReader(meterFile))
 
-            reader.use { bufferedReader ->
-                var isFirstLine = true
-                var lineNumber = 0
+                reader.use { bufferedReader ->
+                    var isFirstLine = true
+                    var lineNumber = 0
 
-                bufferedReader.forEachLine { line ->
-                    lineNumber++
+                    bufferedReader.forEachLine { line ->
+                        lineNumber++
 
-                    if (isFirstLine) {
-                        // Skip header line - expected format: Account,Key,Logical,Rank
-                        isFirstLine = false
-                        Log.d(TAG, "CSV Header: $line")
-                        return@forEachLine
-                    }
-
-                    if (line.trim().isEmpty()) {
-                        // Skip empty lines
-                        return@forEachLine
-                    }
-
-                    try {
-                        // Parse CSV line based on project01 format: Account,Key,Logical,Rank
-                        val fields = line.split(",").map { it.trim().removeSurrounding("\"") }
-
-                        if (fields.size >= 4) {
-                            val meter = Meter(
-                                account = fields[0],
-                                key = fields[1],
-                                logical = fields[2],
-                                rank = fields[3]
-                            )
-                            meters.add(meter)
-                            Log.d(TAG, "Parsed meter: $meter")
-                        } else {
-                            Log.w(TAG, "Invalid line $lineNumber: insufficient fields (${fields.size}/4) - $line")
+                        if (isFirstLine) {
+                            // Skip header line - expected format: UID,Activate,Serial NO.,Bluetooth ID,Fixed date,Imp [kWh],Exp [kWh],ImpMaxDemand [kW],ExpMaxDemand [kW],MinVolt [V],Alert,Read date
+                            isFirstLine = false
+                            Log.d(TAG, "CSV Header: $line")
+                            return@forEachLine
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error parsing line $lineNumber: $line", e)
+
+                        if (line.trim().isEmpty()) {
+                            // Skip empty lines
+                            return@forEachLine
+                        }
+
+                        try {
+                            // Parse CSV line based on meter.csv format
+                            val fields = line.split(",").map { it.trim().removeSurrounding("\"") }
+
+                            if (fields.size >= 4) { // Minimum required fields: UID, Activate, Serial NO., Bluetooth ID
+                                val meter = MeterData(
+                                    uid = fields[0],
+                                    activate = fields[1].toIntOrNull() ?: 0,
+                                    serialNumber = fields[2],
+                                    bluetoothId = fields[3],
+                                    fixedDate = fields.getOrNull(4)?.takeIf { it.isNotBlank() },
+                                    impKwh = fields.getOrNull(5)?.toFloatOrNull(),
+                                    expKwh = fields.getOrNull(6)?.toFloatOrNull(),
+                                    impMaxDemandKw = fields.getOrNull(7)?.toFloatOrNull(),
+                                    expMaxDemandKw = fields.getOrNull(8)?.toFloatOrNull(),
+                                    minVoltV = fields.getOrNull(9)?.toFloatOrNull(),
+                                    alert = fields.getOrNull(10)?.takeIf { it.isNotBlank() },
+                                    readDate = fields.getOrNull(11)?.takeIf { it.isNotBlank() }
+                                )
+                                meters.add(meter)
+                                Log.d(TAG, "Parsed meter: UID=${meter.uid}, Active=${meter.isActive}, S/N=${meter.serialNumber}")
+                            } else {
+                                Log.w(TAG, "Invalid line $lineNumber: insufficient fields (${fields.size}/12) - $line")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error parsing line $lineNumber: $line", e)
+                        }
                     }
                 }
-            }
 
-            if (meters.isEmpty()) {
-                MeterLoadResult.Error("No valid meter data found in CSV file")
-            } else {
-                Log.i(TAG, "Successfully loaded ${meters.size} meters from CSV")
-                MeterLoadResult.Success(meters)
-            }
+                if (meters.isEmpty()) {
+                    MeterLoadResult.Error("No valid meter data found in CSV file")
+                } else {
+                    Log.i(TAG, "Successfully loaded ${meters.size} meters from CSV")
+                    MeterLoadResult.Success(meters)
+                }
 
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading meter data", e)
-            MeterLoadResult.Error("Failed to load meter data: ${e.message}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading meter data", e)
+                MeterLoadResult.Error("Failed to load meter data: ${e.message}")
+            }
         }
     }
 
     /**
-     * Get meter by account ID
+     * Get meter by UID
      */
-    fun getMeterByAccount(account: String): Meter? {
-        return _uiState.value.allMeters.find { it.account == account }
+    fun getMeterByUid(uid: String): MeterData? {
+        return _uiState.value.allMeters.find { it.uid == uid }
     }
 
     /**
-     * Get meters by rank
+     * Get active meters only
      */
-    fun getMetersByRank(rank: String): List<Meter> {
-        return _uiState.value.allMeters.filter { it.rank == rank }
-    }
-
-    /**
-     * Get unique ranks from all meters
-     */
-    fun getUniqueRanks(): List<String> {
-        return _uiState.value.allMeters.map { it.rank }.distinct().sorted()
+    fun getActiveMeters(): List<MeterData> {
+        return _uiState.value.allMeters.filter { it.isActive }
     }
 
     /**
@@ -214,13 +205,27 @@ class MeterReadingViewModel : ViewModel() {
      */
     fun getMeterStatistics(): MeterStatistics {
         val meters = _uiState.value.allMeters
-        val rankCounts = meters.groupBy { it.rank }.mapValues { it.value.size }
+        val activeCount = meters.count { it.isActive }
+        val inactiveCount = meters.count { !it.isActive }
+        val noDataCount = meters.count { it.isActive && !it.hasReadingData }
+        val totalImport = meters.mapNotNull { it.impKwh }.sum()
+        val totalExport = meters.mapNotNull { it.expKwh }.sum()
 
         return MeterStatistics(
             totalCount = meters.size,
-            uniqueRanks = rankCounts.size,
-            rankDistribution = rankCounts
+            activeCount = activeCount,
+            inactiveCount = inactiveCount,
+            noDataCount = noDataCount,
+            totalImportEnergy = totalImport,
+            totalExportEnergy = totalExport
         )
+    }
+
+    /**
+     * Get meters by status
+     */
+    fun getMetersByStatus(status: com.example.meterkenshin.model.MeterStatus): List<MeterData> {
+        return _uiState.value.allMeters.filter { it.status == status }
     }
 }
 
@@ -229,16 +234,7 @@ class MeterReadingViewModel : ViewModel() {
  */
 data class MeterReadingUiState(
     val isLoading: Boolean = false,
-    val allMeters: List<Meter> = emptyList(),
-    val filteredMeters: List<Meter> = emptyList(),
+    val allMeters: List<MeterData> = emptyList(),
+    val filteredMeters: List<MeterData> = emptyList(),
     val errorMessage: String? = null
-)
-
-/**
- * Meter statistics data class
- */
-data class MeterStatistics(
-    val totalCount: Int,
-    val uniqueRanks: Int,
-    val rankDistribution: Map<String, Int>
 )

@@ -405,73 +405,69 @@
     <string name="delete">Delete</string>
     <string name="retry">Retry</string>
 
-
     <!-- Add these strings to app/src/main/res/values/strings.xml -->
 
-    <!-- Meter Detail Screen -->
-    <string name="meter_detail_title">Meter Details</string>
-    <string name="serial_id">SerialID: %1$s</string>
-    <string name="meter_status_connected">Connected</string>
-    <string name="meter_status_disconnected">Disconnected</string>
-    <string name="signal_strength">Signal Strength: %1$s dBm</string>
-
-    <!-- DLMS Functions -->
-    <string name="dlms_functions">DLMS Functions</string>
-    <string name="dlms_registration">Registration</string>
-    <string name="dlms_read_data">Read data</string>
-    <string name="dlms_load_profile">Load profile</string>
-    <string name="dlms_event_log">Event log</string>
-    <string name="dlms_billing_data">Billing data</string>
-    <string name="dlms_set_clock">Set Clock</string>
-
-    <!-- Meter Information Labels -->
-    <string name="meter_account">Account</string>
-    <string name="meter_security_key">Security Key</string>
-    <string name="meter_logical_address">Logical Address</string>
-    <string name="meter_rank">Rank</string>
-    <string name="meter_communication">Communication</string>
-    <string name="meter_protocol">Protocol</string>
-    <string name="meter_next_schedule">Next Schedule</string>
-
-    <!-- Status Values -->
-    <string name="status_connected">Connected</string>
-    <string name="status_disconnected">Disconnected</string>
-    <string name="status_unknown">Unknown</string>
-    <string name="communication_dlms">DLMS/COSEM</string>
-    <string name="protocol_iec">IEC 62056</string>
-    <string name="no_data">No data</string>
-    <string name="not_set">Not set</string>
-
-    <!-- DLMS Function Descriptions -->
-    <string name="registration_description">Register and authenticate with the meter</string>
-    <string name="read_data_description">Read current meter data and measurements</string>
-    <string name="load_profile_description">Download load profile data from meter</string>
-    <string name="event_log_description">View meter event logs and alarms</string>
-    <string name="billing_data_description">Retrieve billing and tariff data</string>
-    <string name="set_clock_description">Synchronize meter clock with system time</string>
-
-    <!-- Connection Status -->
+    <!-- Meter Data Strings -->
+    <string name="meter_detail_title">S/N: %1$s</string>
+    <string name="meter_information">Meter Information</string>
+    <string name="energy_data">Energy Data</string>
+    <string name="technical_data">Technical Data</string>
+    <string name="meter_actions">Meter Actions</string>
+    <string name="meter_uid">Meter UID</string>
+    <string name="bluetooth_id">Bluetooth ID</string>
+    <string name="fixed_date">Fixed Date</string>
+    <string name="last_read_date">Last Read Date</string>
+    <string name="status_format">Status: %1$s</string>
+    <string name="import_energy">Import Energy</string>
+    <string name="export_energy">Export Energy</string>
+    <string name="imp_max_demand">Import Max Demand</string>
+    <string name="exp_max_demand">Export Max Demand</string>
+    <string name="minimum_voltage">Minimum Voltage</string>
+    <string name="voltage_format">%.2f V</string>
     <string name="connection_status">Connection Status</string>
-    <string name="rssi_value">RSSI: %1$d</string>
-    <string name="connection_quality_excellent">Excellent</string>
-    <string name="connection_quality_good">Good</string>
-    <string name="connection_quality_fair">Fair</string>
-    <string name="connection_quality_poor">Poor</string>
+    <string name="alerts">Alerts</string>
 
-    <!-- Action Messages -->
-    <string name="function_not_implemented">This function will be implemented for DLMS communication</string>
-    <string name="connecting_to_meter">Connecting to meter…</string>
-    <string name="meter_communication_error">Communication error with meter</string>
-    <string name="operation_successful">Operation completed successfully</string>
-    <string name="operation_failed">Operation failed</string>
+    <!-- Meter Reading Screen -->
 
-    <!-- Simplified Meter List -->
-    <string name="imp_kwh_placeholder">Imp [kWh]:------</string>
-    <string name="read_date_placeholder">Read date:</string>
-    <string name="meter_offline">Offline</string>
-    <string name="meter_online">Online</string>
+    <string name="no_meters_found_for_query">No meters found for \"%1$s\"</string>
+    <string name="meter_csv_empty">The meter CSV file appears to be empty or invalid</string>
+    <string name="meter_overview">Meter Overview</string>
+    <string name="inactive_meters">Inactive Meters</string>
+    <string name="total_imp_kwh">Total Import</string>
+    <string name="total_exp_kwh">Total Export</string>
+    <string name="search_meters_hint">Search by UID, serial number, or Bluetooth ID…</string>
 
-    <!-- Add these strings to app/src/main/res/values/strings.xml -->
+
+    <!-- Energy Formats -->
+    <string name="imp_kwh_format">Imp: %1$s kWh</string>
+    <string name="exp_kwh_format">Exp: %1$s kWh</string>
+    <string name="read_date_format">Read: %1$s</string>
+    <string name="kwh_value_format">%.3f kWh</string>
+    <string name="meter_id_format">Meter %1$s</string>
+
+    <!-- Upload Prompts -->
+    <string name="meter_csv_required">Meter CSV Required</string>
+    <string name="meter_csv_required_description">Please upload the meter.csv file to view meter data and readings</string>
+    <string name="upload_files">Upload Files</string>
+
+    <!-- Status Messages -->
+    <string name="synced">Synced</string>
+    <string name="sync_pending">Pending</string>
+    <string name="view_all">View All</string>
+
+    <!-- Meter Actions -->
+    <string name="registration">Registration</string>
+    <string name="registration_description">Register meter parameters</string>
+    <string name="read_data">Read Data</string>
+    <string name="read_data_description">Read current meter values</string>
+    <string name="load_profile">Load Profile</string>
+    <string name="load_profile_description">Retrieve load profile data</string>
+    <string name="event_log">Event Log</string>
+    <string name="event_log_description">View meter event history</string>
+    <string name="billing_data">Billing Data</string>
+    <string name="billing_data_description">Retrieve billing and tariff data</string>
+    <string name="set_clock">Set Clock</string>
+    <string name="set_clock_description">Synchronize meter clock with system time</string>
 
     <!-- Bluetooth Connection Strings -->
     <string name="bluetooth_enabled">Bluetooth enabled</string>
@@ -514,4 +510,6 @@
     <string name="printer_config_csv_mac">CSV MAC: %1$s</string>
     <string name="printer_config_not_uploaded">Printer CSV not uploaded</string>
     <string name="printer_config_invalid">Invalid printer configuration</string>
+    <string name="file_upload_status">File Upload Status</string>
+    <string name="manage_files">manage files</string>
 </resources>
