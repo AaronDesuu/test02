@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileUpload
@@ -32,16 +31,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,6 +58,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.ui.component.ReceiptPrintButton
+import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
+import com.example.meterkenshin.ui.component.createSampleReceiptData
+import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import java.io.BufferedReader
 import java.io.File
@@ -70,10 +70,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import com.example.meterkenshin.ui.component.ReceiptPrintButton
-import com.example.meterkenshin.ui.component.createSampleReceiptData
-import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,27 +139,7 @@ fun ReceiptScreen(
             .fillMaxSize()
             .background(colorResource(R.color.background_light))
     ) {
-        // Top App Bar
-        CenterAlignedTopAppBar(
-            title = {
-                Text(
-                    text = stringResource(R.string.receipt_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackPressed) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = colorResource(R.color.surface_light)
-            )
-        )
+
 
         Column(
             modifier = Modifier

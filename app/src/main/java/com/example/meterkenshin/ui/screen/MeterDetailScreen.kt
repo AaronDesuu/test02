@@ -72,29 +72,6 @@ fun MeterDetailScreen(
     Column(
         modifier = modifier.fillMaxSize()
     ) {
-        // Modern Top App Bar matching other screens
-        CenterAlignedTopAppBar(
-            title = {
-                Text(
-                    text = "S/N: ${meter.logical}", // Changed from SerialID to S/N
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onBackPressed) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.back)
-                    )
-                }
-            },
-            colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface, // Match other screens
-                titleContentColor = MaterialTheme.colorScheme.onSurface
-            )
-        )
-
         // Main content with modern design
         Column(
             modifier = Modifier
@@ -105,7 +82,7 @@ fun MeterDetailScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Connection status card
-            ConnectionStatusCard(meter = meter)
+            MeterStatusCard(meter = meter)
 
             // DLMS function buttons with modern design
             DLMSFunctionsCard(
@@ -315,10 +292,10 @@ private fun MeterSpecificationsCard(
 }
 
 /**
- * Connection status card
+ * Meter status card
  */
 @Composable
-private fun ConnectionStatusCard(
+private fun MeterStatusCard(
     meter: Meter,
     modifier: Modifier = Modifier
 ) {
@@ -345,13 +322,13 @@ private fun ConnectionStatusCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Connection Status",
+                    text = "Meter Status",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
-
+            SpecificationRow(label = "Serial Number", value = meter.logical)
             SpecificationRow(
                 label = "Status",
                 value = "Connected",

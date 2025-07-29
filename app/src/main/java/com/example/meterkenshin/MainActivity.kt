@@ -13,25 +13,12 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.permissions.BluetoothPermissionHandler
-import com.example.meterkenshin.ui.screen.FileUploadScreen
-import com.example.meterkenshin.ui.screen.HomeScreen
-import com.example.meterkenshin.ui.screen.LoginScreen
-import com.example.meterkenshin.ui.screen.Meter
-import com.example.meterkenshin.ui.screen.MeterDetailScreen
-import com.example.meterkenshin.ui.screen.MeterReadingScreen
-import com.example.meterkenshin.ui.screen.ReceiptScreen
+import com.example.meterkenshin.ui.component.MeterKenshinApp
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
 import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -89,6 +76,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
+                    // Your existing MeterKenshinApp now handles the screen tracking automatically
                     MeterKenshinApp(
                         sessionManager = sessionManager,
                         fileUploadViewModel = fileUploadViewModel,
@@ -183,100 +171,5 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         // Clean up Bluetooth connection
         customBluetoothManager?.cleanup()
-    }
-}
-
-@Composable
-fun MeterKenshinApp(
-    sessionManager: SessionManager,
-    fileUploadViewModel: FileUploadViewModel,
-    meterReadingViewModel: MeterReadingViewModel,
-    bluetoothViewModel: BluetoothViewModel
-) {
-    val context = LocalContext.current
-
-    // Use the original session checking logic
-    var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
-    var currentScreen by remember { mutableStateOf("home") }
-    var selectedMeter by remember { mutableStateOf<Meter?>(null) }
-
-    // Check login state immediately on app start (preserve original logic)
-    LaunchedEffect(Unit) {
-        isLoggedIn = sessionManager.isLoggedIn()
-        if (isLoggedIn) {
-            currentScreen = "home"
-            // Initialize file checking after login check (preserve original behavior)
-            fileUploadViewModel.checkExistingFiles(context)
-        } else {
-            currentScreen = "login"
-        }
-    }
-
-    when {
-        !isLoggedIn || currentScreen == "login" -> {
-            LoginScreen(
-                sessionManager = sessionManager,
-                onLoginSuccess = {
-                    isLoggedIn = true
-                    currentScreen = "home"
-                    // Initialize file checking after successful login (preserve original)
-                    fileUploadViewModel.checkExistingFiles(context)
-                }
-            )
-        }
-        currentScreen == "home" -> {
-            HomeScreen(
-                sessionManager = sessionManager,
-                onLogout = {
-                    sessionManager.logout()
-                    isLoggedIn = false
-                    currentScreen = "login"
-                },
-                onNavigateToFileUpload = { currentScreen = "file_upload" },
-                onNavigateToReceiptTemplate = { currentScreen = "receipt" }, // ADD THIS LINE
-                onNavigateToMeterReading = { currentScreen = "meter_reading" },
-                fileUploadViewModel = fileUploadViewModel,
-                meterReadingViewModel = meterReadingViewModel,
-                bluetoothViewModel = bluetoothViewModel
-            )
-        }
-        currentScreen == "file_upload" -> {
-            FileUploadScreen(
-                viewModel = fileUploadViewModel,
-                onUploadComplete = {
-                    // Refresh file data after upload
-                    fileUploadViewModel.checkExistingFiles(context)
-                    currentScreen = "home"
-                },
-                onBackPressed = { currentScreen = "home" }
-            )
-        }
-        currentScreen == "meter_reading" -> {
-            MeterReadingScreen(
-                fileUploadViewModel = fileUploadViewModel,
-                meterReadingViewModel = meterReadingViewModel,
-                onBackPressed = { currentScreen = "home" },
-                onNavigateToFileUpload = { currentScreen = "file_upload" },
-                onNavigateToMeterDetail = { meter ->
-                    selectedMeter = meter
-                    currentScreen = "meter_detail"
-                }
-            )
-        }
-        currentScreen == "meter_detail" -> {
-            selectedMeter?.let { meter ->
-                MeterDetailScreen(
-                    meter = meter,
-                    onBackPressed = { currentScreen = "meter_reading" }
-                )
-            }
-        }
-        currentScreen == "receipt" -> {
-            ReceiptScreen(
-                fileUploadViewModel = fileUploadViewModel,
-                bluetoothViewModel = bluetoothViewModel,
-                onBackPressed = { currentScreen = "home" }
-            )
-        }
     }
 }

@@ -514,4 +514,20 @@
     <string name="printer_config_csv_mac">CSV MAC: %1$s</string>
     <string name="printer_config_not_uploaded">Printer CSV not uploaded</string>
     <string name="printer_config_invalid">Invalid printer configuration</string>
+
+    <!-- Navigation Drawer Strings - Add these to your existing app/src/main/res/values/strings.xml -->
+
+    <!-- Navigation Drawer -->
+    <string name="nav_home">Home</string>
+    <string name="nav_meter_reading">Meter Reading</string>
+    <string name="nav_import_data">Import Data</string>
+    <string name="nav_receipt_template">Receipt Template</string>
+    <string name="navigation_drawer">Navigation Drawer</string>
+    <string name="open_drawer">Open navigation drawer</string>
+    <string name="close_drawer">Close navigation drawer</string>
+
+    <!-- User Profile in Drawer -->
+    <string name="user_profile">User Profile</string>
+    <string name="logged_in_as">Logged in as %1$s</string>
+    <string name="receipt_template_title">Receipt Template</string>
 </resources>
