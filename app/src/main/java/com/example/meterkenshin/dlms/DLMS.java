@@ -27,7 +27,6 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
@@ -37,6 +36,36 @@ public class DLMS {
     public final static int RANK_POWER = 2;
     public final static int RANK_READER = 3;
     public final static int RANK_PUBLIC = 4;
+
+    private final String TAG = DLMS.class.getSimpleName();
+    private int seed0;
+    private long seed1, seed2, seed3;
+    private int mCurrentAcount = 0;
+    private ArrayList<AccountInfo> AccountInformation;
+
+    private Context mContext;
+    private Calendar old;
+
+    DLMS(Context context) {
+        mContext = context;
+        AccountInformation = new ArrayList<AccountInfo>();
+        AccountInfo level0 = new AccountInfo();
+        level0.set("Super   ,00000000000000000000000000000000,7f,00");
+        AccountInformation.add(level0);
+
+        AccountInfo level1 = new AccountInfo();
+        level1.set("Admin   ,30303030303030303030303030303030,61,01");
+        AccountInformation.add(level1);
+
+        AccountInfo level2 = new AccountInfo();
+        level2.set("Power   ,3030303030303030,41,02");
+        AccountInformation.add(level2);
+
+        AccountInfo level3 = new AccountInfo();
+        level3.set("Reader  ,3030303030303030,41,03");
+        AccountInformation.add(level3);
+    }
+
     public final static int IST_FIRM_VER = 1;
     public final static int IST_FIRM_SIG = 2;
     public final static int IST_TIME_NOW = 3;
@@ -136,7 +165,8 @@ public class DLMS {
     public final static int IST_SECURITY_NONE = 97;
     public final static int IST_SECURITY_HLS = 98;
     public final static int IST_SECURITY_LLS = 99;
-    private static final byte SECURITY_CONTROL_BYTE_ENCRYPTED_AUTHENTICATED = (byte) 0x30; // Example
+
+
     private final static byte[][] g_ist = {
             {(byte) 0, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00},/* 0: 0 */
             {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x02, (byte) 0x01, (byte) 0xff},/* 1: Active firmware version */
@@ -239,6 +269,866 @@ public class DLMS {
             {(byte) 64, (byte) 0x00, (byte) 0x00, (byte) 0x2b, (byte) 0x00, (byte) 0x01, (byte) 0xff},/* 98: Setup security(For security HLS)*/
             {(byte) 64, (byte) 0x00, (byte) 0x00, (byte) 0x2b, (byte) 0x00, (byte) 0x02, (byte) 0xff},/* 99: Setup security(For security LLS) */
     };
+
+    private final int[] YEAR = {
+            0,      //	365	2010	2	365
+            365,    //	365	2010	2	365
+            730,    //	730	2011	3	365
+            1096,   //	1096	2012	0	366
+            1461,   //	1461	2013	1	365
+            1826,   //	1826	2014	2	365
+            2191,   //	2191	2015	3	365
+            2557,   //	2557	2016	0	366
+            2922,   //	2922	2017	1	365
+            3287,   //	3287	2018	2	365
+            3652,   //	3652	2019	3	365
+            4018,   //	4018	2020	0	366
+            4383,   //	4383	2021	1	365
+            4748,   //	4748	2022	2	365
+            5113,   //	5113	2023	3	365
+            5479,   //	5479	2024	0	366
+            5844,   //	5844	2025	1	365
+            6209,   //	6209	2026	2	365
+            6574,   //	6574	2027	3	365
+            6940,   //	6940	2028	0	366
+            7305,   //	7305	2029	1	365
+            7670,   //	7670	2030	2	365
+            8035,   //	8035	2031	3	365
+            8401,   //	8401	2032	0	366
+            8766,   //	8766	2033	1	365
+            9131,   //	9131	2034	2	365
+            9496,   //	9496	2035	3	365
+            9862,   //	9862	2036	0	366
+            10227,  //	10227	2037	1	365
+            10592,  //	10592	2038	2	365
+            10957,  //	10957	2039	3	365
+            11323,  //	11323	2040	0	366
+            11688,  //	11688	2041	1	365
+            12053,  //	12053	2042	2	365
+            12418,  //	12418	2043	3	365
+            12784,  //	12784	2044	0	366
+            13149,  //	13149	2045	1	365
+            13514,//	13514	2046	2	365
+            13879,//	13879	2047	3	365
+            14245,//	14245	2048	0	366
+            14610,//	14610	2049	1	365
+            14975,//	14975	2050	2	365
+            15340,//	15340	2051	3	365
+            15706,//	15706	2052	0	366
+            16071,//	16071	2053	1	365
+            16436,//	16436	2054	2	365
+            16801,//	16801	2055	3	365
+            17167,//	17167	2056	0	366
+            17532,//	17532	2057	1	365
+            17897,//	17897	2058	2	365
+            18262,//	18262	2059	3	365
+            18628,//	18628	2060	0	366
+            18993,//	18993	2061	1	365
+            19358,//	19358	2062	2	365
+            19723,//	19723	2063	3	365
+            20089,//	20089	2064	0	366
+            20454,//	20454	2065	1	365
+            20819,//	20819	2066	2	365
+            21184,//	21184	2067	3	365
+            21550,//	21550	2068	0	366
+            21915,//	21915	2069	1	365
+            22280,//	22280	2070	2	365
+            22645,//	22645	2071	3	365
+            23011,//	23011	2072	0	366
+            23376,//	23376	2073	1	365
+            23741,//	23741	2074	2	365
+            24106,//	24106	2075	3	365
+            24472,//	24472	2076	0	366
+            24837,//	24837	2077	1	365
+            25202,//	25202	2078	2	365
+            25567,//	25567	2079	3	365
+            25933,//	25933	2080	0	366
+            26298,//	26298	2081	1	365
+            26663,//	26663	2082	2	365
+            27028,//	27028	2083	3	365
+            27394,//	27394	2084	0	366
+            27759,//	27759	2085	1	365
+            28124,//	28124	2086	2	365
+            28489,//	28489	2087	3	365
+            28855,//	28855	2088	0	366
+            29220,//	29220	2089	1	365
+            29585,//	29585	2090	2	365
+            29950,//	29950	2091	3	365
+            30316,//	30316	2092	0	366
+            30681,//	30681	2093	1	365
+            31046,//	31046	2094	2	365
+            31411,//	31411	2095	3	365
+            31777,//	31777	2096	0	366
+            32142,//	32142	2097	1	365
+            32507,//	32507	2098	2	365
+            32872,//	32872	2099	3	365
+            33238//	33238	2100	0	366
+    };
+    private final int[] MONTH = {
+            0,
+            31,        //31
+            59,        //28
+            90,        //31
+            120,    //30
+            151,    //31
+            181,    //30
+            212,    //31
+            243,    //31
+            273,    //30
+            304,    //31
+            334,    //30
+            365,    //31
+    };
+    static  String[] MonthList = {
+            "----",
+            "January",
+            "February",
+            "March",
+            "April",
+            "May",
+            "June",
+            "July",
+            "August",
+            "September",
+            "October",
+            "November",
+            "December"
+    };
+
+    public static String dateTimeToMonth(final String DateTime) {
+        int pos = Integer.parseInt(DateTime.substring(5, 7));
+        return String.format("%s %s", MonthList[pos], DateTime.substring(0, 4));
+    }
+
+    public static String getNowDate() {
+        android.icu.text.SimpleDateFormat sdf = new android.icu.text.SimpleDateFormat("EEE dd MMM yyyy HH:mm:ss", Locale.getDefault());
+        return sdf.format(new Date());
+    }
+
+    public long DatetimeToSec(String datetime) {    /*yyyy/mm/dd hh:mm:ss*/
+        int y = Integer.parseInt(datetime.substring(0, 4));
+        int m = Integer.parseInt(datetime.substring(5, 7));
+        int d = Integer.parseInt(datetime.substring(8, 10));
+        int h = Integer.parseInt(datetime.substring(11, 13));
+        int k = Integer.parseInt(datetime.substring(14, 16));
+        int s = Integer.parseInt(datetime.substring(17, 19));
+
+        int days = (int) YEAR[y - 2010] + (int) MONTH[m - 1] + d - 1;
+        if ((y % 4) == 0) {
+            if (m > 2) {
+                days++;
+            }
+        }
+        long sec = days;
+        sec *= 86400;
+        sec += h * 3600;
+        sec += k * 60;
+        sec += s;
+        return sec;
+    }
+
+    public String SecToDatetime(final long sec) {
+
+        int d;
+        int m;
+        int y;
+        int h;
+        int k;
+        int s;
+
+        d = (int) (sec / 86400);
+        for (y = 0; y < 100; y++) {
+            if (YEAR[y] > d) {
+                y--;
+                break;
+            }
+        }
+        d -= YEAR[y];
+        for (m = 0; m < 12; m++) {
+            if (MONTH[m] > d) {
+                m--;
+                break;
+            }
+        }
+        d -= MONTH[m];
+        s = (int) (sec % 86400);
+        h = s / 3600;
+        s %= 3600;
+        k = s / 60;
+        s %= 60;
+        return format("%04d/%02d/%02d %02d:%02d:%02d", y + 2010, m + 1, d, h, k, s);
+    }
+
+    public long CurrentDatetimeSec() {    /*yyyy/mm/dd hh:mm:ss*/
+
+        long sec;
+        String datetime;
+        android.icu.text.SimpleDateFormat sdf = new android.icu.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault());
+        Date date = new Date();
+        sec = DatetimeToSec(sdf.format(date));
+        return sec;
+    }
+
+    public String CurrentYearMonth() {    /*MMyyyy*/
+
+        android.icu.text.SimpleDateFormat sdf = new android.icu.text.SimpleDateFormat("yyyyMM", Locale.getDefault());
+        return sdf.format(new Date());
+    }
+    public String AnyYearMonth(final int year, final int month) {    /*MMyyyy*/
+        Calendar start = Calendar.getInstance();
+        start.setTime(new java.util.Date());
+        start.add(Calendar.YEAR, year);
+        start.add(Calendar.MONTH, month);
+        return String.format("%4d%2d", start.get(Calendar.YEAR), start.get(Calendar.MONTH) + 1);
+    }
+
+    public String FormattedMonthDay(final int month, final int days) {    /*MMyyyy*/
+        Calendar start = Calendar.getInstance();
+        start.setTime(new java.util.Date());
+        start.add(Calendar.MONTH, month);
+        start.add(Calendar.DATE, days);
+        int pos = start.get(Calendar.MONTH) + 1;
+        return String.format("%s %2d, %4d", MonthList[pos], start.get(Calendar.DATE), start.get(Calendar.YEAR));
+    }
+
+    public String ConvertLocalDatetime(final String YearMonDay){
+        return String.format("%s/%s/%s",
+                YearMonDay.substring(5,7),  /*Mon*/
+                YearMonDay.substring(8,10),  /*Day*/
+                YearMonDay.substring(0,4)); /*Mon*/
+    }
+
+    public String SecToRawDatetime(final long sec) {
+
+        int d;
+        int m;
+        int y;
+        int h;
+        int k;
+        int s;
+
+        d = (int) (sec / 86400);
+        for (y = 0; y < 100; y++) {
+            if (YEAR[y] > d) {
+                y--;
+                break;
+            }
+        }
+        d -= YEAR[y];
+        for (m = 0; m < 12; m++) {
+            if (MONTH[m] > d) {
+                m--;
+                break;
+            }
+        }
+        d -= MONTH[m];
+        s = (int) (sec % 86400);
+        h = s / 3600;
+        s %= 3600;
+        k = s / 60;
+        s %= 60;
+        return format("%04x%02x%02xff%02x%02x%02xff800000", y + 2010, m + 1, d, h, k, s);
+    }
+    public String TimeStampFilename(final String datetime){
+        String timestamp = datetime.replace("/","");
+        timestamp = timestamp.replace(":","");
+        timestamp = timestamp.replace(" ","_");
+        return timestamp;
+    }
+    private int getUI8(final byte[] in, final int offset) {
+        int ret;
+        if (in[offset] < 0)
+            ret = 256 + in[offset];
+        else
+            ret = in[offset];
+        return ret;
+    }
+
+    private int getI8(final byte[] in, final int offset) {
+        int ret;
+        ret = in[offset];
+        return ret;
+    }
+
+    private int getUI16(final byte[] in, final int offset) {
+        int ret;
+
+        ret = 0;
+        ret += getUI8(in, offset + 0);
+        ret <<= 8;
+        ret += getUI8(in, offset + 1);
+        return ret;
+    }
+
+    private int getI16(final byte[] in, final int offset) {
+        int ret;
+        ret = 0;
+        ret += getUI8(in, offset + 0);
+        ret <<= 8;
+        ret += getUI8(in, offset + 1);
+        if (ret > 0x7fff) {
+            ret -= 65536;
+        }
+        return ret;
+    }
+
+    private long getUI32(final byte[] in, final int offset) {
+        long ret;
+        ret = 0;
+        ret += getUI8(in, offset + 0);
+        ret <<= 8;
+        ret += getUI8(in, offset + 1);
+        ret <<= 8;
+        ret += getUI8(in, offset + 2);
+        ret <<= 8;
+        ret += getUI8(in, offset + 3);
+        return ret;
+    }
+
+    private long getI32(final byte[] in, final int offset) {
+        long ret;
+        ret = 0;
+        ret += getUI8(in, offset + 0);
+        ret <<= 8;
+        ret += getUI8(in, offset + 1);
+        ret <<= 8;
+        ret += getUI8(in, offset + 2);
+        ret <<= 8;
+        ret += getUI8(in, offset + 3);
+        if (ret > 0x7fffffff) {
+            ret -= 0x100000000L;
+        }
+        return ret;
+    }
+
+    public String getBitsStr(final String bits) {
+        StringBuffer ret = new StringBuffer();
+        long eval = 1, val = Long.parseLong(bits);
+        if (val > 0) {
+            ret.append(format("%d (bit", val));
+            for (int i = 0; i < 32; i++) {
+                if ((val & eval) > 0) {
+                    ret.append(format(" %d", i));
+                }
+                eval <<= 1;
+            }
+            ret.append(")");
+        } else {
+            ret.append(format("%X (off)", val));
+        }
+        return ret.toString();
+    }
+
+    public String setOct2Str(final byte[] oct, final int offset, final int length) {
+        StringBuffer ret = new StringBuffer();
+        for (int i = 0; i < length; i++) {
+            ret.append(format("%02X", getUI8(oct, offset + i)));
+        }
+        return ret.toString();
+    }
+
+    public String setStr2Str(final byte[] oct, final int offset, final int length) {
+        StringBuffer ret = new StringBuffer();
+        for (int i = 0; i < length; i++) {
+            ret.append(format("%c", getUI8(oct, offset + i)));
+        }
+        return ret.toString();
+    }
+
+    public byte[] setStr2Oct(final String str) {
+        int len = str.length();
+        byte[] out = new byte[len / 2 + len % 2];
+        byte[] in = str.getBytes();
+
+        int dat;
+        for (int i = 0; i < in.length; i++) {
+            dat = getUI8(in, i);
+            switch (dat) {
+                case '0':
+                case '1':
+                case '2':
+                case '3':
+                case '4':
+                case '5':
+                case '6':
+                case '7':
+                case '8':
+                case '9':
+                    dat -= '0';
+                    break;
+                case 'A':
+                case 'B':
+                case 'C':
+                case 'D':
+                case 'E':
+                case 'F':
+                    dat -= 'A';
+                    dat += 0x0a;
+                    break;
+                case 'a':
+                case 'b':
+                case 'c':
+                case 'd':
+                case 'e':
+                case 'f':
+                    dat -= 'a';
+                    dat += 0x0a;
+                    break;
+            }
+            if ((i % 2) > 0) {
+                out[i / 2] |= dat;
+            } else {
+                out[i / 2] = (byte) (dat << 4);
+            }
+        }
+        return out;
+    }
+
+    public int setUInt32(byte[] buff, final int offset, final int val) {
+        int dat = val;
+        buff[offset + 3] = (byte) (dat & 0xff);
+        dat >>= 8;
+        buff[offset + 2] = (byte) (dat & 0xff);
+        dat >>= 8;
+        buff[offset + 1] = (byte) (dat & 0xff);
+        dat >>= 8;
+        buff[offset + 0] = (byte) (dat & 0xff);
+        return (offset + 4);
+    }
+
+    public int setUInt16(byte[] buff, final int offset, final int val) {
+        int dat = val;
+        buff[offset + 1] = (byte) (dat & 0xff);
+        dat >>= 8;
+        buff[offset + 0] = (byte) (dat & 0xff);
+        return (offset + 2);
+    }
+
+    public int setUInt8(byte[] buff, final int offset, final int val) {
+        int dat = val;
+        buff[offset + 0] = (byte) (dat & 0xff);
+        return (offset + 1);
+    }
+
+    public double Float(final double div, final String in) {
+        return ((double) Long.parseLong(in)) / div;
+    }
+
+
+    public String arrange6_int(final String in){
+        Long val = Long.parseLong(in);
+        return format("%06d", val);
+    }
+
+    public String arrange_boolean(final String t, final String f,final String in) {
+        if(in.equals("false")){
+            return f;
+        } else {
+            return t;
+        }
+    }
+
+    void writeFile(String data, File file) {
+        // try-with-resources
+        try (FileWriter writer = new FileWriter(file, true)) {
+            writer.write(data + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ファイルを読み出し*---
+    String readFile(File file) {
+        String text = null;
+        // try-with-resources
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String read;
+            while (true) {
+                read = br.readLine();
+                if (read != null) {
+                    text = read;
+                } else {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return text;
+    }
+
+    public void writeScan(final String scan) {
+        File file = new File(mContext.getFilesDir(), "scan");
+        writeFile(scan, file);
+    }
+
+    public String readScan() {
+        String scan;
+        File file = new File(mContext.getFilesDir(), "scan");
+        scan = readFile(file);
+        if (scan == null) {
+            scan = String.valueOf(2000);
+//            scan = String.valueOf(mContext.mScanTick);
+            writeScan(scan);
+        }
+        return scan;
+    }
+
+    public void writeTick(final String tick) {
+        File file = new File(mContext.getFilesDir(), "tick");
+        writeFile(tick, file);
+    }
+
+    public String readTick() {
+        String tick;
+        File file = new File(mContext.getFilesDir(), "tick");
+        tick = readFile(file);
+        if (tick == null) {
+            tick = String.valueOf(200);
+            writeTick(tick);
+        }
+        return tick;
+    }
+
+    public void writeInterval(final String interval) {
+        File file = new File(mContext.getFilesDir(), "interval");
+        writeFile(interval, file);
+    }
+
+    public String readInterval() {
+        String interval;
+        File file = new File(mContext.getFilesDir(), "interval");
+        interval = readFile(file);
+        if (interval == null) {
+            interval = "100";
+            writeInterval(interval);
+        }
+        return interval;
+    }
+
+    public int Count(){
+        return AccountInformation.size();
+    }
+
+    public void Account(final String newAccount, final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        AccountInformation.get(pos).Account(newAccount);
+    }
+
+    public String Account(final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        return AccountInformation.get(pos).Account();
+    }
+
+    public void Password(final String newPassword, final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        AccountInformation.get(pos).Key(newPassword);
+    }
+
+    public String Password(final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        return AccountInformation.get(pos).Key();
+    }
+
+    public void writeAddress(final String address,final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        AccountInformation.get(pos).Logical(address);
+    }
+
+    public String getAddress(final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        return AccountInformation.get(pos).Logical();
+    }
+
+    public void writeRank(final String rank,final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        AccountInformation.get(pos).Rank(rank);
+    }
+    public String getRank(final int sel) {
+        int pos;
+        if (sel < 0) {
+            pos = mCurrentAcount;
+        } else {
+            pos = sel;
+        }
+        return AccountInformation.get(pos).Rank();
+    }
+    private byte[] octetPassword() {
+        return setStr2Oct(Password(-1));
+    }
+    private byte[] octetAddress() {
+        return setStr2Oct(getAddress(-1));
+    }
+    private byte[] octetRank() {
+        return setStr2Oct(getRank(-1));
+    }
+    public byte Addr() {
+        byte[] r = octetAddress();
+        return r[0];
+    }
+
+    public byte Rank() {
+        byte[] r = octetRank();
+        return r[0];
+    }
+
+    public class AccountInfo {
+        private String[] mProperty = {null, null, null, null};
+
+        public AccountInfo() {
+        }
+
+        public AccountInfo(final String in) {
+            set(in);
+        }
+
+        public AccountInfo(final AccountInfo in) {
+            set(in.get());
+        }
+
+        public boolean set(final String in) {
+            boolean ret = false;
+
+            String data;
+            if (in != null) {
+                if (in.isEmpty()) {
+                    data = new String("Reader  ,3030303030303030,41,03");
+                } else {
+                    data = in;
+                }
+            } else {
+                data = new String("Reader  ,3030303030303030,41,03");
+            }
+            String[] cells = data.split(",");
+            if (cells.length == mProperty.length) {
+                for (int i = 0; i < mProperty.length; i++) {
+                    if (i < cells.length) {
+                        mProperty[i] = cells[i];
+                    }
+                }
+                ret = true;
+            }
+            return ret;
+        }
+
+        public boolean set(final String in1, final String in2, final String in3,final String in4) {
+            mProperty[0] = in1;
+            mProperty[1] = in2;
+            mProperty[2] = in3;
+            mProperty[3] = in4;
+            return true;
+        }
+
+        public final String get() {
+            return format("%s,%s,%s,%s",
+                    mProperty[0], mProperty[1], mProperty[2],mProperty[3]);
+        }
+
+        public final String Account() {
+            return mProperty[0];
+        }
+        public void Account(final String in) {
+            mProperty[0] = in;
+        }
+
+        public final String Key() {
+            return mProperty[1];
+        }
+        public void Key(final String in) {
+            mProperty[1] = in;
+        }
+
+        public final String Logical() {
+            return mProperty[2];
+        }
+        public void Logical(final String in) {
+            mProperty[2] = in;
+        }
+
+        public final String Rank() {
+            return mProperty[3];
+        }
+        public void Rank(final String in) {
+            mProperty[3] = in;
+        }
+    }
+    public void updateAllMeterInformation() {
+        if(AccountInformation.size()>1) {
+            File file = new File(mContext.getFilesDir(), "meterinfo");
+            try (FileWriter writer = new FileWriter(file, false)) {
+                for (int i = 0; i < AccountInformation.size(); i++) {
+                    writer.write(AccountInformation.get(i).get() + "\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public int addMeterInformation(final AccountInfo info) {
+        File file = new File(mContext.getFilesDir(), "meterinfo");
+        try (FileWriter writer = new FileWriter(file, true)) {
+            writer.write(info.get() + "\n");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        AccountInformation.add(info);
+        return AccountInformation.size() - 1;
+    }
+
+    public void readMeterInformation() {
+        AccountInformation.clear();
+        File file = new File(mContext.getFilesDir(), "meterinfo");
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            while (true) {
+                String read = br.readLine();
+                if (read != null) {
+                    AccountInfo temp = new AccountInfo(read);
+                    AccountInformation.add(temp);
+                } else {
+                    break;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (AccountInformation.size() == 0) {
+            mCurrentAcount = addMeterInformation(new AccountInfo());
+        }
+    }
+    public int findAccount(final String acount){
+        int find = 0;
+        for (int i = 1; i < AccountInformation.size(); i++) {
+            if (AccountInformation.get(i).Account().equals(acount)) {
+                find  = i;
+            }
+        }
+        return find;
+    }
+
+    public boolean setCurrentAccount(final String account) {
+
+        boolean find = false;
+
+        mCurrentAcount = findAccount(account);
+        if (mCurrentAcount != 0) {
+            find = true;
+        } else {
+            AccountInfo temp = new AccountInfo(AccountInformation.get(0).get());
+            temp.Account(account);
+            mCurrentAcount = addMeterInformation(temp);
+        }
+        return find;
+    }
+
+    public void setCurrentLevel(final int level) {
+        mCurrentAcount = level;
+    }
+
+    public void changeCurrent(final int pos){
+        mCurrentAcount = pos;
+    }
+    public int getCurrent(){
+        return mCurrentAcount;
+    }
+
+    public String getAccountList(){
+        StringBuffer ret = new StringBuffer();
+        for(int i = 0; i< AccountInformation.size(); i++){
+            if(i>0){
+                ret.append(",");
+            }
+            if(AccountInformation.get(i).Account().isEmpty()) {
+                ret.append("Default");
+            }
+            else{
+                ret.append(AccountInformation.get(i).Account());
+            }
+        }
+        return ret.toString();
+    }
+
+    private final int[] fcs16Table = {
+            0x0000, 0x1189, 0x2312, 0x329B, 0x4624, 0x57AD, 0x6536, 0x74BF,
+            0x8C48, 0x9DC1, 0xAF5A, 0xBED3, 0xCA6C, 0xDBE5, 0xE97E, 0xF8F7,
+            0x1081, 0x0108, 0x3393, 0x221A, 0x56A5, 0x472C, 0x75B7, 0x643E,
+            0x9CC9, 0x8D40, 0xBFDB, 0xAE52, 0xDAED, 0xCB64, 0xF9FF, 0xE876,
+            0x2102, 0x308B, 0x0210, 0x1399, 0x6726, 0x76AF, 0x4434, 0x55BD,
+            0xAD4A, 0xBCC3, 0x8E58, 0x9FD1, 0xEB6E, 0xFAE7, 0xC87C, 0xD9F5,
+            0x3183, 0x200A, 0x1291, 0x0318, 0x77A7, 0x662E, 0x54B5, 0x453C,
+            0xBDCB, 0xAC42, 0x9ED9, 0x8F50, 0xFBEF, 0xEA66, 0xD8FD, 0xC974,
+            0x4204, 0x538D, 0x6116, 0x709F, 0x0420, 0x15A9, 0x2732, 0x36BB,
+            0xCE4C, 0xDFC5, 0xED5E, 0xFCD7, 0x8868, 0x99E1, 0xAB7A, 0xBAF3,
+            0x5285, 0x430C, 0x7197, 0x601E, 0x14A1, 0x0528, 0x37B3, 0x263A,
+            0xDECD, 0xCF44, 0xFDDF, 0xEC56, 0x98E9, 0x8960, 0xBBFB, 0xAA72,
+            0x6306, 0x728F, 0x4014, 0x519D, 0x2522, 0x34AB, 0x0630, 0x17B9,
+            0xEF4E, 0xFEC7, 0xCC5C, 0xDDD5, 0xA96A, 0xB8E3, 0x8A78, 0x9BF1,
+            0x7387, 0x620E, 0x5095, 0x411C, 0x35A3, 0x242A, 0x16B1, 0x0738,
+            0xFFCF, 0xEE46, 0xDCDD, 0xCD54, 0xB9EB, 0xA862, 0x9AF9, 0x8B70,
+            0x8408, 0x9581, 0xA71A, 0xB693, 0xC22C, 0xD3A5, 0xE13E, 0xF0B7,
+            0x0840, 0x19C9, 0x2B52, 0x3ADB, 0x4E64, 0x5FED, 0x6D76, 0x7CFF,
+            0x9489, 0x8500, 0xB79B, 0xA612, 0xD2AD, 0xC324, 0xF1BF, 0xE036,
+            0x18C1, 0x0948, 0x3BD3, 0x2A5A, 0x5EE5, 0x4F6C, 0x7DF7, 0x6C7E,
+            0xA50A, 0xB483, 0x8618, 0x9791, 0xE32E, 0xF2A7, 0xC03C, 0xD1B5,
+            0x2942, 0x38CB, 0x0A50, 0x1BD9, 0x6F66, 0x7EEF, 0x4C74, 0x5DFD,
+            0xB58B, 0xA402, 0x9699, 0x8710, 0xF3AF, 0xE226, 0xD0BD, 0xC134,
+            0x39C3, 0x284A, 0x1AD1, 0x0B58, 0x7FE7, 0x6E6E, 0x5CF5, 0x4D7C,
+            0xC60C, 0xD785, 0xE51E, 0xF497, 0x8028, 0x91A1, 0xA33A, 0xB2B3,
+            0x4A44, 0x5BCD, 0x6956, 0x78DF, 0x0C60, 0x1DE9, 0x2F72, 0x3EFB,
+            0xD68D, 0xC704, 0xF59F, 0xE416, 0x90A9, 0x8120, 0xB3BB, 0xA232,
+            0x5AC5, 0x4B4C, 0x79D7, 0x685E, 0x1CE1, 0x0D68, 0x3FF3, 0x2E7A,
+            0xE70E, 0xF687, 0xC41C, 0xD595, 0xA12A, 0xB0A3, 0x8238, 0x93B1,
+            0x6B46, 0x7ACF, 0x4854, 0x59DD, 0x2D62, 0x3CEB, 0x0E70, 0x1FF9,
+            0xF78F, 0xE606, 0xD49D, 0xC514, 0xB1AB, 0xA022, 0x92B9, 0x8330,
+            0x7BC7, 0x6A4E, 0x58D5, 0x495C, 0x3DE3, 0x2C6A, 0x1EF1, 0x0F78
+    };
+
+    private final int CRC16(final byte[] buff, final int count) {
+        int fcs16 = 0xFFFF;
+        for (int pos = 1; pos < 1 + count; ++pos) {
+            fcs16 = (int) (((fcs16 >> 8)
+                    ^ fcs16Table[(fcs16 ^ (int) buff[pos]) & 0xFF]) & 0xFFFF);
+        }
+        fcs16 = ~fcs16;
+        fcs16 = ((fcs16 >> 8) & 0xFF) | (fcs16 << 8);
+        return (fcs16 & 0xFFFF);
+    }
+
     private final static byte AARQ = (byte) 0x60;
     private final static byte AARE = (byte) 0x61;
     private final static byte RLRQ = (byte) 0x62;
@@ -259,6 +1149,19 @@ public class DLMS {
     private final static byte[] def_conf = {(byte) 0x00, (byte) 0x00, (byte) 0x06, (byte) 0x5f, (byte) 0x1f, (byte) 0x04, (byte) 0x00, (byte) 0x00, (byte) 0x10, (byte) 0x1d, (byte) 0x00, (byte) 0xD0};/*224*/
     //    private final static byte [] def_conf = {(byte) 0x00, (byte) 0x00, (byte) 0x06, (byte) 0x5f, (byte) 0x1f, (byte) 0x04, (byte) 0x00, (byte) 0x00, (byte) 0x10, (byte) 0x1d, (byte) 0x03, (byte) 0x00};
     private final static byte[] def_rlrq = {(byte) 0x80, (byte) 0x01, (byte) 0x00};/*224*/
+    private byte[] app1;
+    private byte[] app6;
+    private byte[] app10;
+    private byte[] app11;
+    private byte[] app12;
+    private byte[] app30;
+    private int client;
+    private byte[] challenge0 = new byte[31];
+    private byte[] frameCounter0 = new byte[4];
+    private byte[] challenge1;
+    private byte[] master;
+    private byte[] dedicate;
+
     private final static byte[] GETRQ = {
             (byte) 0xc0, (byte) 0x01, (byte) 0x41,
             (byte) 0x00, (byte) 0x01,
@@ -274,12 +1177,14 @@ public class DLMS {
             (byte) 0x01, (byte) 0x41, (byte) 0x00, (byte) 0x20, (byte) 0x00, (byte) 0xff,
             (byte) 0x02, (byte) 0x00
     };//
+
     private final static byte[] ACTRQ = {
             (byte) 0xc3, (byte) 0x01, (byte) 0x41,
             (byte) 0x00, (byte) 0x03,
             (byte) 0x00, (byte) 0x00, (byte) 0x60, (byte) 0x0f, (byte) 0x00, (byte) 0xff,
             (byte) 0x01
     };
+
     private final static String[] ERROR = {
             "Success",// = (0),
             "Hardware fault",// = (1),
@@ -298,6 +1203,7 @@ public class DLMS {
             "Data block number invalid",// = (19),
             "Other reason",// = (250)
     };
+
     private final static String[] alert1 = {
             "Clock invalid(0)",
             "unregistered(1)",
@@ -332,6 +1238,7 @@ public class DLMS {
             "unregistered(30)",
             "unregistered(31)"
     };
+
     private final static String[] alert2 = {
             "Total Power Failure(0)",
             "Power Resume(1)",
@@ -366,7 +1273,7 @@ public class DLMS {
             "unregistered(30)",
             "unregistered(31)",
     };
-    public static String[] PQCODE =
+    public static String PQCODE[] =
             {
                     "UNDEF(0)",
                     "RSV(1)",
@@ -625,7 +1532,7 @@ public class DLMS {
                     "Load profile cleared",
                     "Event records cleared"
             };
-    public static String[] LOGCODE =
+    public static String LOGCODE[] =
             {
                     "Unknown",//0:予約
                     "LOG_FUKUDEN",//1:復電検出
@@ -695,984 +1602,6 @@ public class DLMS {
                     "ETSN1",//
                     "ETSN2",//
             };
-    static String[] MonthList = {
-            "----",
-            "January",
-            "February",
-            "March",
-            "April",
-            "May",
-            "June",
-            "July",
-            "August",
-            "September",
-            "October",
-            "November",
-            "December"
-    };
-    private static File folderFiles;
-    private static int mScanTick;
-    private static int mTick;
-    private final String TAG = DLMS.class.getSimpleName();
-    private final int[] YEAR = {
-            0,      //	365	2010	2	365
-            365,    //	365	2010	2	365
-            730,    //	730	2011	3	365
-            1096,   //	1096	2012	0	366
-            1461,   //	1461	2013	1	365
-            1826,   //	1826	2014	2	365
-            2191,   //	2191	2015	3	365
-            2557,   //	2557	2016	0	366
-            2922,   //	2922	2017	1	365
-            3287,   //	3287	2018	2	365
-            3652,   //	3652	2019	3	365
-            4018,   //	4018	2020	0	366
-            4383,   //	4383	2021	1	365
-            4748,   //	4748	2022	2	365
-            5113,   //	5113	2023	3	365
-            5479,   //	5479	2024	0	366
-            5844,   //	5844	2025	1	365
-            6209,   //	6209	2026	2	365
-            6574,   //	6574	2027	3	365
-            6940,   //	6940	2028	0	366
-            7305,   //	7305	2029	1	365
-            7670,   //	7670	2030	2	365
-            8035,   //	8035	2031	3	365
-            8401,   //	8401	2032	0	366
-            8766,   //	8766	2033	1	365
-            9131,   //	9131	2034	2	365
-            9496,   //	9496	2035	3	365
-            9862,   //	9862	2036	0	366
-            10227,  //	10227	2037	1	365
-            10592,  //	10592	2038	2	365
-            10957,  //	10957	2039	3	365
-            11323,  //	11323	2040	0	366
-            11688,  //	11688	2041	1	365
-            12053,  //	12053	2042	2	365
-            12418,  //	12418	2043	3	365
-            12784,  //	12784	2044	0	366
-            13149,  //	13149	2045	1	365
-            13514,//	13514	2046	2	365
-            13879,//	13879	2047	3	365
-            14245,//	14245	2048	0	366
-            14610,//	14610	2049	1	365
-            14975,//	14975	2050	2	365
-            15340,//	15340	2051	3	365
-            15706,//	15706	2052	0	366
-            16071,//	16071	2053	1	365
-            16436,//	16436	2054	2	365
-            16801,//	16801	2055	3	365
-            17167,//	17167	2056	0	366
-            17532,//	17532	2057	1	365
-            17897,//	17897	2058	2	365
-            18262,//	18262	2059	3	365
-            18628,//	18628	2060	0	366
-            18993,//	18993	2061	1	365
-            19358,//	19358	2062	2	365
-            19723,//	19723	2063	3	365
-            20089,//	20089	2064	0	366
-            20454,//	20454	2065	1	365
-            20819,//	20819	2066	2	365
-            21184,//	21184	2067	3	365
-            21550,//	21550	2068	0	366
-            21915,//	21915	2069	1	365
-            22280,//	22280	2070	2	365
-            22645,//	22645	2071	3	365
-            23011,//	23011	2072	0	366
-            23376,//	23376	2073	1	365
-            23741,//	23741	2074	2	365
-            24106,//	24106	2075	3	365
-            24472,//	24472	2076	0	366
-            24837,//	24837	2077	1	365
-            25202,//	25202	2078	2	365
-            25567,//	25567	2079	3	365
-            25933,//	25933	2080	0	366
-            26298,//	26298	2081	1	365
-            26663,//	26663	2082	2	365
-            27028,//	27028	2083	3	365
-            27394,//	27394	2084	0	366
-            27759,//	27759	2085	1	365
-            28124,//	28124	2086	2	365
-            28489,//	28489	2087	3	365
-            28855,//	28855	2088	0	366
-            29220,//	29220	2089	1	365
-            29585,//	29585	2090	2	365
-            29950,//	29950	2091	3	365
-            30316,//	30316	2092	0	366
-            30681,//	30681	2093	1	365
-            31046,//	31046	2094	2	365
-            31411,//	31411	2095	3	365
-            31777,//	31777	2096	0	366
-            32142,//	32142	2097	1	365
-            32507,//	32507	2098	2	365
-            32872,//	32872	2099	3	365
-            33238//	33238	2100	0	366
-    };
-    private final int[] MONTH = {
-            0,
-            31,        //31
-            59,        //28
-            90,        //31
-            120,    //30
-            151,    //31
-            181,    //30
-            212,    //31
-            243,    //31
-            273,    //30
-            304,    //31
-            334,    //30
-            365,    //31
-    };
-    private final int[] fcs16Table = {
-            0x0000, 0x1189, 0x2312, 0x329B, 0x4624, 0x57AD, 0x6536, 0x74BF,
-            0x8C48, 0x9DC1, 0xAF5A, 0xBED3, 0xCA6C, 0xDBE5, 0xE97E, 0xF8F7,
-            0x1081, 0x0108, 0x3393, 0x221A, 0x56A5, 0x472C, 0x75B7, 0x643E,
-            0x9CC9, 0x8D40, 0xBFDB, 0xAE52, 0xDAED, 0xCB64, 0xF9FF, 0xE876,
-            0x2102, 0x308B, 0x0210, 0x1399, 0x6726, 0x76AF, 0x4434, 0x55BD,
-            0xAD4A, 0xBCC3, 0x8E58, 0x9FD1, 0xEB6E, 0xFAE7, 0xC87C, 0xD9F5,
-            0x3183, 0x200A, 0x1291, 0x0318, 0x77A7, 0x662E, 0x54B5, 0x453C,
-            0xBDCB, 0xAC42, 0x9ED9, 0x8F50, 0xFBEF, 0xEA66, 0xD8FD, 0xC974,
-            0x4204, 0x538D, 0x6116, 0x709F, 0x0420, 0x15A9, 0x2732, 0x36BB,
-            0xCE4C, 0xDFC5, 0xED5E, 0xFCD7, 0x8868, 0x99E1, 0xAB7A, 0xBAF3,
-            0x5285, 0x430C, 0x7197, 0x601E, 0x14A1, 0x0528, 0x37B3, 0x263A,
-            0xDECD, 0xCF44, 0xFDDF, 0xEC56, 0x98E9, 0x8960, 0xBBFB, 0xAA72,
-            0x6306, 0x728F, 0x4014, 0x519D, 0x2522, 0x34AB, 0x0630, 0x17B9,
-            0xEF4E, 0xFEC7, 0xCC5C, 0xDDD5, 0xA96A, 0xB8E3, 0x8A78, 0x9BF1,
-            0x7387, 0x620E, 0x5095, 0x411C, 0x35A3, 0x242A, 0x16B1, 0x0738,
-            0xFFCF, 0xEE46, 0xDCDD, 0xCD54, 0xB9EB, 0xA862, 0x9AF9, 0x8B70,
-            0x8408, 0x9581, 0xA71A, 0xB693, 0xC22C, 0xD3A5, 0xE13E, 0xF0B7,
-            0x0840, 0x19C9, 0x2B52, 0x3ADB, 0x4E64, 0x5FED, 0x6D76, 0x7CFF,
-            0x9489, 0x8500, 0xB79B, 0xA612, 0xD2AD, 0xC324, 0xF1BF, 0xE036,
-            0x18C1, 0x0948, 0x3BD3, 0x2A5A, 0x5EE5, 0x4F6C, 0x7DF7, 0x6C7E,
-            0xA50A, 0xB483, 0x8618, 0x9791, 0xE32E, 0xF2A7, 0xC03C, 0xD1B5,
-            0x2942, 0x38CB, 0x0A50, 0x1BD9, 0x6F66, 0x7EEF, 0x4C74, 0x5DFD,
-            0xB58B, 0xA402, 0x9699, 0x8710, 0xF3AF, 0xE226, 0xD0BD, 0xC134,
-            0x39C3, 0x284A, 0x1AD1, 0x0B58, 0x7FE7, 0x6E6E, 0x5CF5, 0x4D7C,
-            0xC60C, 0xD785, 0xE51E, 0xF497, 0x8028, 0x91A1, 0xA33A, 0xB2B3,
-            0x4A44, 0x5BCD, 0x6956, 0x78DF, 0x0C60, 0x1DE9, 0x2F72, 0x3EFB,
-            0xD68D, 0xC704, 0xF59F, 0xE416, 0x90A9, 0x8120, 0xB3BB, 0xA232,
-            0x5AC5, 0x4B4C, 0x79D7, 0x685E, 0x1CE1, 0x0D68, 0x3FF3, 0x2E7A,
-            0xE70E, 0xF687, 0xC41C, 0xD595, 0xA12A, 0xB0A3, 0x8238, 0x93B1,
-            0x6B46, 0x7ACF, 0x4854, 0x59DD, 0x2D62, 0x3CEB, 0x0E70, 0x1FF9,
-            0xF78F, 0xE606, 0xD49D, 0xC514, 0xB1AB, 0xA022, 0x92B9, 0x8330,
-            0x7BC7, 0x6A4E, 0x58D5, 0x495C, 0x3DE3, 0x2C6A, 0x1EF1, 0x0F78
-    };
-    private final byte[] def_info = {
-            (byte) 0x81, (byte) 0x80, (byte) 0x0c,
-            (byte) 0x05, (byte) 0x01, (byte) 0x00,
-            (byte) 0x06, (byte) 0x01, (byte) 0x00,
-            (byte) 0x07, (byte) 0x01, (byte) 0x00,
-            (byte) 0x08, (byte) 0x01, (byte) 0x00
-    };
-    private int seed0;
-    private long seed1, seed2, seed3;
-    private int mCurrentAcount = 0;
-    private final ArrayList<AccountInfo> AccountInformation;
-    private final Context mContext;
-    private Calendar old;
-    // HLS implementation
-    private AccSecurity accSecurity;
-    private boolean hlsActive = false;
-    private final String hlsEncryptionKeyAlias = "myMeterEncryptionKey"; // Example alias
-    private final byte[] clientSystemTitle = {(byte) 0x41, (byte) 0x42, (byte) 0x43, (byte) 0x30, (byte) 0x30, (byte) 0x30, (byte) 0x30, (byte) 0x31}; // Example
-    private byte[] serverSystemTitle; // This should be obtained from the meter, e.g., during AARE
-    private byte[] app1;
-    private byte[] app6;
-    private byte[] app10;
-    private byte[] app11;
-    private byte[] app12;
-    private byte[] app30;
-    private int client;
-    private final byte[] challenge0 = new byte[31];
-    private final byte[] frameCounter0 = new byte[4];
-    private byte[] challenge1;
-    private byte[] master;
-    private byte[] dedicate;
-    private final byte[] adr1 = {0x03};
-    private byte cmd;
-    private byte ns, nr;
-    private byte ws, wr, cws, cwr;
-    private int ss, sr;
-    private byte[] info;
-    private int mRank;
-    private byte[] svChallenge = null;
-    private byte[] clChallenge = null;
-    private byte[] svAppTitle = null;
-    private byte[] clAppTitle = null;
-    private int mObj;
-    private byte mMode;
-    private byte mAtr;
-    private byte mSel;
-    private int mBlockNo;
-    private byte[] global;
-
-    public DLMS(Context context) {
-        mContext = context;
-        AccountInformation = new ArrayList<AccountInfo>();
-        AccountInfo level0 = new AccountInfo();
-        level0.set("Super   ,00000000000000000000000000000000,7f,00");
-        AccountInformation.add(level0);
-
-        AccountInfo level1 = new AccountInfo();
-        level1.set("Admin   ,30303030303030303030303030303030,61,01");
-        AccountInformation.add(level1);
-
-        AccountInfo level2 = new AccountInfo();
-        level2.set("Power   ,3030303030303030,41,02");
-        AccountInformation.add(level2);
-
-        AccountInfo level3 = new AccountInfo();
-        level3.set("Reader  ,3030303030303030,41,03");
-        AccountInformation.add(level3);
-
-        byte[] placeholderServerTitle = {(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00}; // Placeholder
-        accSecurity = new AccSecurity(mContext, clientSystemTitle, placeholderServerTitle);
-
-        // Example: Ensure a key exists in Keystore (you might do this once during setup)
-        SecretKey masterKey = accSecurity.getSecretKeyFromKeystore(hlsEncryptionKeyAlias);
-        if (masterKey == null) {
-            masterKey = accSecurity.generateAndStoreAesGcmKey(hlsEncryptionKeyAlias);
-            if (masterKey != null) {
-                // Key generated and stored
-            } else {
-                // Handle key generation failure
-            }
-        }
-        // This masterKey might be used directly or to derive session keys
-        // For HLS, often a session key is derived/agreed upon.
-        // For simplicity here, let's assume masterKey is used as session key (not always the case)
-        accSecurity.setSessionEncryptionKey(masterKey);
-
-    }
-
-    public static String dateTimeToMonth(final String DateTime) {
-        int pos = Integer.parseInt(DateTime.substring(5, 7));
-        return String.format("%s %s", MonthList[pos], DateTime.substring(0, 4));
-    }
-
-    public static String getNowDate() {
-        android.icu.text.SimpleDateFormat sdf = new android.icu.text.SimpleDateFormat("EEE dd MMM yyyy HH:mm:ss", Locale.getDefault());
-        return sdf.format(new Date());
-    }
-
-    // Call this after successful AARE with HLS confirmed and server system title is known
-    public void activateHls(byte[] meterSystemTitle, SecretKey agreedSessionKey) {
-        this.serverSystemTitle = meterSystemTitle;
-        // Re-initialize or update AccSecurity if server system title changes or wasn't known
-        this.accSecurity = new AccSecurity(mContext, clientSystemTitle, this.serverSystemTitle);
-        this.accSecurity.setSessionEncryptionKey(agreedSessionKey); // Set the actual session key
-        this.hlsActive = true;
-        // accSecurity.resetInvocationCounters(); // Or similar method
-    }
-
-    public byte[] get_request_normal(int object, int clas, int attribute, int version, int function) {
-        // ... (construct your normal APDU: PDU)
-        byte[] pdu = constructPlaintextGetRequest(object, clas, attribute, version, function);
-
-        if (hlsActive && accSecurity != null && accSecurity.getSessionEncryptionKey() != null) {
-            // 1. Get current client invocation counter
-            long frameCounter = accSecurity.getNextClientInvocationCounterAndIncrement();
-
-            // 2. Encrypt the PDU
-            byte[] securedPdu = accSecurity.encryptApdu(pdu, accSecurity.getSessionEncryptionKey(), clientSystemTitle, frameCounter);
-
-            if (securedPdu != null) {
-                // 3. Prepend the security header (containing security control byte, frame counter)
-                //    to the securedPdu. The structure of this header is defined by DLMS.
-                //    For example: [Security Control Byte] [Frame Counter (4 bytes)] [Secured APDU (Ciphertext + Tag)]
-                byte[] securityHeader = createSecurityHeader(SECURITY_CONTROL_BYTE_ENCRYPTED_AUTHENTICATED, frameCounter);
-                ByteBuffer finalApduBuffer = ByteBuffer.allocate(securityHeader.length + securedPdu.length);
-                finalApduBuffer.put(securityHeader);
-                finalApduBuffer.put(securedPdu);
-                return finalApduBuffer.array();
-            } else {
-                // Handle encryption failure
-                return null; // Or throw exception
-            }
-        } else {
-            // Send unsecured (or handle error if HLS was expected)
-            return pdu; // Or wrap in a non-secured APDU structure if needed
-        }
-    }
-
-    public byte[] process_response(byte[] receivedData) {
-        if (hlsActive && accSecurity != null && accSecurity.getSessionEncryptionKey() != null) {
-            // 1. Parse the security header from receivedData
-            //    - Extract security control byte
-            //    - Extract server's frame counter
-            //    - Get the actual encrypted payload (securedPduPart)
-            // Example parsing (highly simplified):
-            if (receivedData == null || receivedData.length < 5) { /* error: too short */
-                return null;
-            }
-            byte securityControlByte = receivedData[0];
-            ByteBuffer fcBuffer = ByteBuffer.wrap(receivedData, 1, 4);
-            long serverFrameCounter = fcBuffer.getInt();
-            byte[] securedPduPart = new byte[receivedData.length - 5];
-            System.arraycopy(receivedData, 5, securedPduPart, 0, securedPduPart.length);
-
-            // TODO: Validate serverFrameCounter against expected values to prevent replay attacks
-
-            // 2. Decrypt the securedPduPart
-            byte[] plaintextPdu = accSecurity.decryptApdu(securedPduPart, accSecurity.getSessionEncryptionKey(), serverSystemTitle, serverFrameCounter);
-
-            if (plaintextPdu != null) {
-                // Process the decrypted PDU
-                return processPlaintextResponse(plaintextPdu);
-            } else {
-                // Handle decryption/authentication failure
-                // This could mean data tampering or wrong key
-                hlsActive = false; // Potentially invalidate HLS session
-                accSecurity.resetSecurityContext();
-                return null;
-            }
-        } else {
-            // Process as unsecured response
-            return processPlaintextResponse(receivedData);
-        }
-    }
-
-    // Dummy helper methods (replace with actual DLMS APDU construction)
-    private byte[] constructPlaintextGetRequest(int object, int clas, int attribute, int version, int function) {
-        // Replace with your actual APDU construction logic
-        String request = String.format("GET object:%d class:%d attr:%d ver:%d func:%d", object, clas, attribute, version, function);
-        return request.getBytes(); // Example
-    }
-
-    private byte[] processPlaintextResponse(byte[] plaintextPdu) {
-        // Replace with your actual response processing logic
-        System.out.println("Plaintext response: " + new String(plaintextPdu));
-        return plaintextPdu;
-    }
-
-    private byte[] createSecurityHeader(byte securityControl, long frameCounter) {
-        ByteBuffer header = ByteBuffer.allocate(5); // 1 byte for control, 4 for counter
-        header.put(securityControl);
-        header.putInt((int) frameCounter); // Lower 4 bytes of frame counter
-        return header.array();
-    }
-
-    public long DatetimeToSec(String datetime) {    /*yyyy/mm/dd hh:mm:ss*/
-        int y = Integer.parseInt(datetime.substring(0, 4));
-        int m = Integer.parseInt(datetime.substring(5, 7));
-        int d = Integer.parseInt(datetime.substring(8, 10));
-        int h = Integer.parseInt(datetime.substring(11, 13));
-        int k = Integer.parseInt(datetime.substring(14, 16));
-        int s = Integer.parseInt(datetime.substring(17, 19));
-
-        int days = YEAR[y - 2010] + MONTH[m - 1] + d - 1;
-        if ((y % 4) == 0) {
-            if (m > 2) {
-                days++;
-            }
-        }
-        long sec = days;
-        sec *= 86400;
-        sec += h * 3600L;
-        sec += k * 60L;
-        sec += s;
-        return sec;
-    }
-
-    public String SecToDatetime(final long sec) {
-
-        int d;
-        int m;
-        int y;
-        int h;
-        int k;
-        int s;
-
-        d = (int) (sec / 86400);
-        for (y = 0; y < 100; y++) {
-            if (YEAR[y] > d) {
-                y--;
-                break;
-            }
-        }
-        d -= YEAR[y];
-        for (m = 0; m < 12; m++) {
-            if (MONTH[m] > d) {
-                m--;
-                break;
-            }
-        }
-        d -= MONTH[m];
-        s = (int) (sec % 86400);
-        h = s / 3600;
-        s %= 3600;
-        k = s / 60;
-        s %= 60;
-        return format("%04d/%02d/%02d %02d:%02d:%02d", y + 2010, m + 1, d, h, k, s);
-    }
-
-    public long CurrentDatetimeSec() {    /*yyyy/mm/dd hh:mm:ss*/
-
-        long sec;
-        String datetime;
-        android.icu.text.SimpleDateFormat sdf = new android.icu.text.SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault());
-        Date date = new Date();
-        sec = DatetimeToSec(sdf.format(date));
-        return sec;
-    }
-
-    public String CurrentYearMonth() {    /*MMyyyy*/
-
-        android.icu.text.SimpleDateFormat sdf = new android.icu.text.SimpleDateFormat("yyyyMM", Locale.getDefault());
-        return sdf.format(new Date());
-    }
-
-    public String AnyYearMonth(final int year, final int month) {    /*MMyyyy*/
-        Calendar start = Calendar.getInstance();
-        start.setTime(new java.util.Date());
-        start.add(Calendar.YEAR, year);
-        start.add(Calendar.MONTH, month);
-        return String.format("%4d%2d", start.get(Calendar.YEAR), start.get(Calendar.MONTH) + 1);
-    }
-
-    public String FormattedMonthDay(final int month, final int days) {    /*MMyyyy*/
-        Calendar start = Calendar.getInstance();
-        start.setTime(new java.util.Date());
-        start.add(Calendar.MONTH, month);
-        start.add(Calendar.DATE, days);
-        int pos = start.get(Calendar.MONTH) + 1;
-        return String.format("%s %2d, %4d", MonthList[pos], start.get(Calendar.DATE), start.get(Calendar.YEAR));
-    }
-
-    public String ConvertLocalDatetime(final String YearMonDay) {
-        return String.format("%s/%s/%s",
-                YearMonDay.substring(5, 7),  /*Mon*/
-                YearMonDay.substring(8, 10),  /*Day*/
-                YearMonDay.substring(0, 4)); /*Mon*/
-    }
-
-    public String SecToRawDatetime(final long sec) {
-
-        int d;
-        int m;
-        int y;
-        int h;
-        int k;
-        int s;
-
-        d = (int) (sec / 86400);
-        for (y = 0; y < 100; y++) {
-            if (YEAR[y] > d) {
-                y--;
-                break;
-            }
-        }
-        d -= YEAR[y];
-        for (m = 0; m < 12; m++) {
-            if (MONTH[m] > d) {
-                m--;
-                break;
-            }
-        }
-        d -= MONTH[m];
-        s = (int) (sec % 86400);
-        h = s / 3600;
-        s %= 3600;
-        k = s / 60;
-        s %= 60;
-        return format("%04x%02x%02xff%02x%02x%02xff800000", y + 2010, m + 1, d, h, k, s);
-    }
-
-    public String TimeStampFilename(final String datetime) {
-        String timestamp = datetime.replace("/", "");
-        timestamp = timestamp.replace(":", "");
-        timestamp = timestamp.replace(" ", "_");
-        return timestamp;
-    }
-
-    private int getUI8(final byte[] in, final int offset) {
-        int ret;
-        if (in[offset] < 0)
-            ret = 256 + in[offset];
-        else
-            ret = in[offset];
-        return ret;
-    }
-
-    private int getI8(final byte[] in, final int offset) {
-        int ret;
-        ret = in[offset];
-        return ret;
-    }
-
-    private int getUI16(final byte[] in, final int offset) {
-        int ret;
-
-        ret = 0;
-        ret += getUI8(in, offset);
-        ret <<= 8;
-        ret += getUI8(in, offset + 1);
-        return ret;
-    }
-
-    private int getI16(final byte[] in, final int offset) {
-        int ret;
-        ret = 0;
-        ret += getUI8(in, offset);
-        ret <<= 8;
-        ret += getUI8(in, offset + 1);
-        if (ret > 0x7fff) {
-            ret -= 65536;
-        }
-        return ret;
-    }
-
-    private long getUI32(final byte[] in, final int offset) {
-        long ret;
-        ret = 0;
-        ret += getUI8(in, offset);
-        ret <<= 8;
-        ret += getUI8(in, offset + 1);
-        ret <<= 8;
-        ret += getUI8(in, offset + 2);
-        ret <<= 8;
-        ret += getUI8(in, offset + 3);
-        return ret;
-    }
-
-    private long getI32(final byte[] in, final int offset) {
-        long ret;
-        ret = 0;
-        ret += getUI8(in, offset);
-        ret <<= 8;
-        ret += getUI8(in, offset + 1);
-        ret <<= 8;
-        ret += getUI8(in, offset + 2);
-        ret <<= 8;
-        ret += getUI8(in, offset + 3);
-        if (ret > 0x7fffffff) {
-            ret -= 0x100000000L;
-        }
-        return ret;
-    }
-
-    public String getBitsStr(final String bits) {
-        StringBuffer ret = new StringBuffer();
-        long eval = 1, val = Long.parseLong(bits);
-        if (val > 0) {
-            ret.append(format("%d (bit", val));
-            for (int i = 0; i < 32; i++) {
-                if ((val & eval) > 0) {
-                    ret.append(format(" %d", i));
-                }
-                eval <<= 1;
-            }
-            ret.append(")");
-        } else {
-            ret.append(format("%X (off)", val));
-        }
-        return ret.toString();
-    }
-
-    public String setOct2Str(final byte[] oct, final int offset, final int length) {
-        StringBuffer ret = new StringBuffer();
-        for (int i = 0; i < length; i++) {
-            ret.append(format("%02X", getUI8(oct, offset + i)));
-        }
-        return ret.toString();
-    }
-
-    public String setStr2Str(final byte[] oct, final int offset, final int length) {
-        StringBuffer ret = new StringBuffer();
-        for (int i = 0; i < length; i++) {
-            ret.append(format("%c", getUI8(oct, offset + i)));
-        }
-        return ret.toString();
-    }
-
-    public byte[] setStr2Oct(final String str) {
-        int len = str.length();
-        byte[] out = new byte[len / 2 + len % 2];
-        byte[] in = str.getBytes();
-
-        int dat;
-        for (int i = 0; i < in.length; i++) {
-            dat = getUI8(in, i);
-            switch (dat) {
-                case '0':
-                case '1':
-                case '2':
-                case '3':
-                case '4':
-                case '5':
-                case '6':
-                case '7':
-                case '8':
-                case '9':
-                    dat -= '0';
-                    break;
-                case 'A':
-                case 'B':
-                case 'C':
-                case 'D':
-                case 'E':
-                case 'F':
-                    dat -= 'A';
-                    dat += 0x0a;
-                    break;
-                case 'a':
-                case 'b':
-                case 'c':
-                case 'd':
-                case 'e':
-                case 'f':
-                    dat -= 'a';
-                    dat += 0x0a;
-                    break;
-            }
-            if ((i % 2) > 0) {
-                out[i / 2] |= dat;
-            } else {
-                out[i / 2] = (byte) (dat << 4);
-            }
-        }
-        return out;
-    }
-
-    public int setUInt32(byte[] buff, final int offset, final int val) {
-        int dat = val;
-        buff[offset + 3] = (byte) (dat & 0xff);
-        dat >>= 8;
-        buff[offset + 2] = (byte) (dat & 0xff);
-        dat >>= 8;
-        buff[offset + 1] = (byte) (dat & 0xff);
-        dat >>= 8;
-        buff[offset] = (byte) (dat & 0xff);
-        return (offset + 4);
-    }
-
-    public int setUInt16(byte[] buff, final int offset, final int val) {
-        int dat = val;
-        buff[offset + 1] = (byte) (dat & 0xff);
-        dat >>= 8;
-        buff[offset] = (byte) (dat & 0xff);
-        return (offset + 2);
-    }
-
-    public int setUInt8(byte[] buff, final int offset, final int val) {
-        int dat = val;
-        buff[offset] = (byte) (dat & 0xff);
-        return (offset + 1);
-    }
-
-    public double Float(final double div, final String in) {
-        return ((double) Long.parseLong(in)) / div;
-    }
-
-    public String arrange6_int(final String in) {
-        Long val = Long.parseLong(in);
-        return format("%06d", val);
-    }
-
-    public String arrange_boolean(final String t, final String f, final String in) {
-        if (in.equals("false")) {
-            return f;
-        } else {
-            return t;
-        }
-    }
-
-    void writeFile(String data, File file) {
-        // try-with-resources
-        try (FileWriter writer = new FileWriter(file, true)) {
-            writer.write(data + "\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // ファイルを読み出し*---
-    String readFile(File file) {
-        String text = null;
-        // try-with-resources
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String read;
-            while (true) {
-                read = br.readLine();
-                if (read != null) {
-                    text = read;
-                } else {
-                    break;
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return text;
-    }
-
-    public void writeScan(final String scan) {
-        // TODO: Replace with actual folderFiles when integrating
-        File file = new File(mContext.getFilesDir(), "scan");
-        writeFile(scan, file);
-    }
-
-    public String readScan() {
-        String scan;
-        // TODO: Replace with actual folderFiles when integrating
-        File file = new File(mContext.getFilesDir(), "scan");
-        scan = readFile(file);
-        if (scan == null) {
-            // TODO: Replace with actual mScanTick when integrating
-            scan = String.valueOf(1000); // Default value
-            writeScan(scan);
-        }
-        return scan;
-    }
-
-    public void writeTick(final String tick) {
-        // TODO: Replace with actual folderFiles when integrating
-        File file = new File(mContext.getFilesDir(), "tick");
-        writeFile(tick, file);
-    }
-
-    public String readTick() {
-        String tick;
-        // TODO: Replace with actual folderFiles when integrating
-        File file = new File(mContext.getFilesDir(), "tick");
-        tick = readFile(file);
-        if (tick == null) {
-            // TODO: Replace with actual mTick when integrating
-            tick = String.valueOf(1000); // Default value
-            writeTick(tick);
-        }
-        return tick;
-    }
-
-    public void writeInterval(final String interval) {
-        File file = new File(mContext.getFilesDir(), "interval");
-        writeFile(interval, file);
-    }
-
-    public String readInterval() {
-        String interval;
-        File file = new File(mContext.getFilesDir(), "interval");
-        interval = readFile(file);
-        if (interval == null) {
-            interval = "100";
-            writeInterval(interval);
-        }
-        return interval;
-    }
-
-    public int Count() {
-        return AccountInformation.size();
-    }
-
-    public void Account(final String newAccount, final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        AccountInformation.get(pos).Account(newAccount);
-    }
-
-    public String Account(final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        return AccountInformation.get(pos).Account();
-    }
-
-    public void Password(final String newPassword, final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        AccountInformation.get(pos).Key(newPassword);
-    }
-
-    public String Password(final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        return AccountInformation.get(pos).Key();
-    }
-
-    public void writeAddress(final String address, final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        AccountInformation.get(pos).Logical(address);
-    }
-
-    public String getAddress(final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        return AccountInformation.get(pos).Logical();
-    }
-
-    public void writeRank(final String rank, final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        AccountInformation.get(pos).Rank(rank);
-    }
-
-    public String getRank(final int sel) {
-        int pos;
-        if (sel < 0) {
-            pos = mCurrentAcount;
-        } else {
-            pos = sel;
-        }
-        return AccountInformation.get(pos).Rank();
-    }
-
-    private byte[] octetPassword() {
-        return setStr2Oct(Password(-1));
-    }
-
-    private byte[] octetAddress() {
-        return setStr2Oct(getAddress(-1));
-    }
-
-    private byte[] octetRank() {
-        return setStr2Oct(getRank(-1));
-    }
-
-    public byte Addr() {
-        byte[] r = octetAddress();
-        return r[0];
-    }
-
-    public byte Rank() {
-        byte[] r = octetRank();
-        return r[0];
-    }
-
-    public void updateAllMeterInformation() {
-        if (AccountInformation.size() > 1) {
-            File file = new File(mContext.getFilesDir(), "meterinfo");
-            try (FileWriter writer = new FileWriter(file, false)) {
-                for (int i = 0; i < AccountInformation.size(); i++) {
-                    writer.write(AccountInformation.get(i).get() + "\n");
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    public int addMeterInformation(final AccountInfo info) {
-        File file = new File(mContext.getFilesDir(), "meterinfo");
-        try (FileWriter writer = new FileWriter(file, true)) {
-            writer.write(info.get() + "\n");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        AccountInformation.add(info);
-        return AccountInformation.size() - 1;
-    }
-
-    public void readMeterInformation() {
-        AccountInformation.clear();
-        File file = new File(mContext.getFilesDir(), "meterinfo");
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            while (true) {
-                String read = br.readLine();
-                if (read != null) {
-                    AccountInfo temp = new AccountInfo(read);
-                    AccountInformation.add(temp);
-                } else {
-                    break;
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if (AccountInformation.size() == 0) {
-            mCurrentAcount = addMeterInformation(new AccountInfo());
-        }
-    }
-
-    public int findAccount(final String acount) {
-        int find = 0;
-        for (int i = 1; i < AccountInformation.size(); i++) {
-            if (AccountInformation.get(i).Account().equals(acount)) {
-                find = i;
-            }
-        }
-        return find;
-    }
-
-    public boolean setCurrentAccount(final String account) {
-
-        boolean find = false;
-
-        mCurrentAcount = findAccount(account);
-        if (mCurrentAcount != 0) {
-            find = true;
-        } else {
-            AccountInfo temp = new AccountInfo(AccountInformation.get(0).get());
-            temp.Account(account);
-            mCurrentAcount = addMeterInformation(temp);
-        }
-        return find;
-    }
-
-    public void setCurrentLevel(final int level) {
-        mCurrentAcount = level;
-    }
-
-    public void changeCurrent(final int pos) {
-        mCurrentAcount = pos;
-    }
-
-    public int getCurrent() {
-        return mCurrentAcount;
-    }
-
-    public String getAccountList() {
-        StringBuffer ret = new StringBuffer();
-        for (int i = 0; i < AccountInformation.size(); i++) {
-            if (i > 0) {
-                ret.append(",");
-            }
-            if (AccountInformation.get(i).Account().isEmpty()) {
-                ret.append("Default");
-            } else {
-                ret.append(AccountInformation.get(i).Account());
-            }
-        }
-        return ret.toString();
-    }
-
-    private final int CRC16(final byte[] buff, final int count) {
-        int fcs16 = 0xFFFF;
-        for (int pos = 1; pos < 1 + count; ++pos) {
-            fcs16 = ((fcs16 >> 8)
-                    ^ fcs16Table[(fcs16 ^ (int) buff[pos]) & 0xFF]) & 0xFFFF;
-        }
-        fcs16 = ~fcs16;
-        fcs16 = ((fcs16 >> 8) & 0xFF) | (fcs16 << 8);
-        return (fcs16 & 0xFFFF);
-    }
 
     private int getAlert(ArrayList<String> out, final String in, final String[] alert) {
         byte eval = 1;
@@ -1778,7 +1707,7 @@ public class DLMS {
             case IST_BILLING_PARAMS:
                 ArrayList<BillingData> list = new ArrayList<BillingData>();
                 for (int i = 0; i < data.size(); ) {
-                    out.add(data.get(i));
+                    out.add(data.get(i + 0));
                     out.add(format("IMP: %.3f [kWh], EXP: %.3f [kWh]", Float(1000.0, data.get(i + 1)), Float(1000.0, data.get(i + 2))));
                     out.add(format("ABS: %.3f [kWh], NET: %.3f [kWh]", Float(1000.0, data.get(i + 3)), Float(1000.0, data.get(i + 4))));
                     out.add(format("Max Imp: %.3f [kW], Exp: %.3f [kW]", Float(1000.0, data.get(i + 5)), Float(1000.0, data.get(i + 6))));
@@ -1817,6 +1746,7 @@ public class DLMS {
                     byte[] code = setStr2Oct(data.get(i++));
                     idx = getUI8(code, 0);
                     int num = getUI8(code, 1);
+                    ;
                     if (idx > LOGCODE.length) {
                         idx = 0;
                     }
@@ -1858,52 +1788,52 @@ public class DLMS {
 
         switch (code) {
             case 0:
-                ret = "success (0)";
+                ret = String.valueOf("success (0)");
                 break;
             case 1:
-                ret = "hardware fault (1)";/**/
+                ret = String.valueOf("hardware fault (1)");/**/
                 break;
             case 2:
-                ret = "temporary failure (2)";/**/
+                ret = String.valueOf("temporary failure (2)");/**/
                 break;
             case 3:
-                ret = "read write denied (3)";/**/
+                ret = String.valueOf("read write denied (3)");/**/
                 break;
             case 4:
-                ret = "object undefined (4)";/**/
+                ret = String.valueOf("object undefined (4)");/**/
                 break;
             case 9:
-                ret = "object class inconsistent (9)";/**/
+                ret = String.valueOf("object class inconsistent (9)");/**/
                 break;
             case 11:
-                ret = "object unavailable (11)";/**/
+                ret = String.valueOf("object unavailable (11)");/**/
                 break;
             case 12:
-                ret = "type unmatched (12)";/**/
+                ret = String.valueOf("type unmatched (12)");/**/
                 break;
             case 13:
-                ret = "scope of access violated (13)";/**/
+                ret = String.valueOf("scope of access violated (13)");/**/
                 break;
             case 14:
-                ret = "data block unavailable (14)";/**/
+                ret = String.valueOf("data block unavailable (14)");/**/
                 break;
             case 15:
-                ret = "long get aborted (15)";/**/
+                ret = String.valueOf("long get aborted (15)");/**/
                 break;
             case 16:
-                ret = "no long get in progress (16)";/**/
+                ret = String.valueOf("no long get in progress (16)");/**/
                 break;
             case 17:
-                ret = "long set aborted (17)";/**/
+                ret = String.valueOf("long set aborted (17)");/**/
                 break;
             case 18:
-                ret = "no long set in progress (18)";/**/
+                ret = String.valueOf("no long set in progress (18)");/**/
                 break;
             case 19:
-                ret = "data block number invalid (19)";/**/
+                ret = String.valueOf("data block number invalid (19)");/**/
                 break;
             case 250:
-                ret = "other reason(250)";/**/
+                ret = String.valueOf("other reason(250)");/**/
                 break;
             default:
                 ret = format("unknown code (%d)", code);/**/
@@ -1948,7 +1878,7 @@ public class DLMS {
                 }
             }
         }
-        out[0] = id;
+        out[0] = (byte) id;
         System.arraycopy(data, 0, out, offset, data.length);
         return out;
     }
@@ -2134,8 +2064,24 @@ public class DLMS {
                 case 255:    //"don't_care"
                     break;
             }
+            ;
         }
     }
+
+    private byte[] adr1 = {0x03};
+    private byte cmd;
+    private byte ns, nr;
+    private byte ws, wr, cws, cwr;
+    private int ss, sr;
+    private byte[] info;
+    private int mRank;
+    private final byte[] def_info = {
+            (byte) 0x81, (byte) 0x80, (byte) 0x0c,
+            (byte) 0x05, (byte) 0x01, (byte) 0x00,
+            (byte) 0x06, (byte) 0x01, (byte) 0x00,
+            (byte) 0x07, (byte) 0x01, (byte) 0x00,
+            (byte) 0x08, (byte) 0x01, (byte) 0x00
+    };
 
     public void init(final byte sizes, final byte sizer,
                      final byte wins, final byte winr) {
@@ -2144,10 +2090,10 @@ public class DLMS {
         }
         info = new byte[def_info.length];
         System.arraycopy(def_info, 0, info, 0, def_info.length);
-        info[5] = sizes;
-        info[8] = sizer;
-        info[11] = wins;
-        info[14] = winr;
+        info[5] = (byte) sizes;
+        info[8] = (byte) sizer;
+        info[11] = (byte) wins;
+        info[14] = (byte) winr;
     }
 
     private byte[] hdlcs(final byte cmd, final byte[] llc) {
@@ -2168,8 +2114,8 @@ public class DLMS {
         tmp = (byte) (len >> 8);
         s[offset++] += (byte) (tmp & 0x0f);
         s[offset++] = (byte) (len & 0xff);
-        s[offset++] = adr1[0];
-        s[offset++] = Addr();
+        s[offset++] = (byte) adr1[0];
+        s[offset++] = (byte) Addr();
         s[offset++] = cmd;
         crc = CRC16(s, offset - 1);
         offset = setUInt16(s, offset, crc);
@@ -2200,12 +2146,12 @@ public class DLMS {
             len <<= 8;
             len += getUI8(in, ret[1]++);
             if (in.length == (len + ret[1] - 1)) {
-                if (in[ret[1]++] == Addr()) {
-                    if (in[ret[1]++] == adr1[0]) {
+                if (in[ret[1]++] == (byte) Addr()) {
+                    if (in[ret[1]++] == (byte) adr1[0]) {
                         ret[0] = in[ret[1]++];
                         crc = CRC16(in, ret[1] - 1);
                         tmp = (byte) (crc >> 8);
-                        if (in[ret[1]++] == tmp) {
+                        if (in[ret[1]++] == (byte) tmp) {
                             if (in[ret[1]++] == (byte) (crc & 0xff)) {
                                 if (len > 12) {
                                     len -= 12;
@@ -2215,7 +2161,7 @@ public class DLMS {
                                     ret[1] += len;
                                     crc = CRC16(in, ret[1] - 1);
                                     tmp = (byte) (crc >> 8);
-                                    if (in[ret[1]++] == tmp) {
+                                    if (in[ret[1]++] == (byte) tmp) {
                                         if (in[ret[1]] == (byte) (crc & 0xff)) {
                                             return llc;
                                         } else {
@@ -2239,6 +2185,11 @@ public class DLMS {
         }
         return null;
     }
+
+    private byte[] svChallenge = null;
+    private byte[] clChallenge = null;
+    private byte[] svAppTitle = null;
+    private byte[] clAppTitle = null;
 
     private void setClientAppTitle(final byte[] in, final int offset) {
         if (this.clAppTitle != null) {
@@ -2360,6 +2311,12 @@ public class DLMS {
         }
         return out;
     }
+
+    private int mObj;
+    private byte mMode;
+    private byte mAtr;
+    private byte mSel;
+    private int mBlockNo;
 
     private int setApp1() {
 
@@ -2488,6 +2445,8 @@ public class DLMS {
         }
         return len;
     }
+
+    private byte[] global;
 
     private int setApp30() {
         app30 = null;
@@ -2723,7 +2682,7 @@ public class DLMS {
                 }
             }
         }
-        if (!ok) {
+        if (ok == false) {
             ret[0] = 0;
             return null;
         } else {
@@ -2767,6 +2726,32 @@ public class DLMS {
             }
         }
         return null;
+    }
+
+    private class BillingData {
+        public String Date;
+        public String IMP;
+        public String EXP;
+        public String ABS;
+        public String NET;
+        public String Max_Imp;
+        public String Max_Exp;
+        public String Min_Volt0;
+        public String Alert1_Dsc;
+        public String Alert2_Dsc;
+
+        BillingData(final String a, final String b, final String c, final String d, final String e, final String f, final String g, final String h, final String i, final String j) {
+            Date = a;
+            IMP = b;
+            EXP = c;
+            ABS = d;
+            NET = e;
+            Max_Imp = f;
+            Max_Exp = g;
+            Min_Volt0 = h;
+            Alert1_Dsc = i;
+            Alert2_Dsc = j;
+        }
     }
 
     public byte[] getReq(final int idx, final byte atr, final byte sel, final String attach, final byte pos) {
@@ -2968,7 +2953,7 @@ public class DLMS {
                             out.add(getNowDate(modeling));
                             io[0] = 0;
                             io[1] = 0;
-                            byte[] app = new byte[_res.length - 4];
+                            byte app[] = new byte[_res.length - 4];
                             System.arraycopy(_res, 4, app, 0, _res.length - 4);
                             getData(data, io, app);
                             if (modeling) {
@@ -2998,7 +2983,7 @@ public class DLMS {
                             }
                             mBlockNo = no;
                             len[1] = _res.length - len[0];
-                            byte[] app = new byte[len[1]];
+                            byte app[] = new byte[len[1]];
                             System.arraycopy(_res, len[0], app, 0, len[1]);
                             for (io[0] = 0, io[1] = 0; io[0] < len[1]; ) {
                                 getData(data, io, app);
@@ -3037,169 +3022,4 @@ public class DLMS {
         }
         return out;
     }
-
-    public class AccountInfo {
-        private final String[] mProperty = {null, null, null, null};
-
-        public AccountInfo() {
-        }
-
-        public AccountInfo(final String in) {
-            set(in);
-        }
-
-        public AccountInfo(final AccountInfo in) {
-            set(in.get());
-        }
-
-        public boolean set(final String in) {
-            boolean ret = false;
-
-            String data;
-            if (in != null) {
-                if (in.isEmpty()) {
-                    data = "Reader  ,3030303030303030,41,03";
-                } else {
-                    data = in;
-                }
-            } else {
-                data = "Reader  ,3030303030303030,41,03";
-            }
-            String[] cells = data.split(",");
-            if (cells.length == mProperty.length) {
-                for (int i = 0; i < mProperty.length; i++) {
-                    if (i < cells.length) {
-                        mProperty[i] = cells[i];
-                    }
-                }
-                ret = true;
-            }
-            return ret;
-        }
-
-        public boolean set(final String in1, final String in2, final String in3, final String in4) {
-            mProperty[0] = in1;
-            mProperty[1] = in2;
-            mProperty[2] = in3;
-            mProperty[3] = in4;
-            return true;
-        }
-
-        public final String get() {
-            return format("%s,%s,%s,%s",
-                    mProperty[0], mProperty[1], mProperty[2], mProperty[3]);
-        }
-
-        public final String Account() {
-            return mProperty[0];
-        }
-
-        public void Account(final String in) {
-            mProperty[0] = in;
-        }
-
-        public final String Key() {
-            return mProperty[1];
-        }
-
-        public void Key(final String in) {
-            mProperty[1] = in;
-        }
-
-        public final String Logical() {
-            return mProperty[2];
-        }
-
-        public void Logical(final String in) {
-            mProperty[2] = in;
-        }
-
-        public final String Rank() {
-            return mProperty[3];
-        }
-
-        public void Rank(final String in) {
-            mProperty[3] = in;
-        }
-    }
-
-    private class BillingData {
-        public String Date;
-        public String IMP;
-        public String EXP;
-        public String ABS;
-        public String NET;
-        public String Max_Imp;
-        public String Max_Exp;
-        public String Min_Volt0;
-        public String Alert1_Dsc;
-        public String Alert2_Dsc;
-
-        BillingData(final String a, final String b, final String c, final String d, final String e, final String f, final String g, final String h, final String i, final String j) {
-            Date = a;
-            IMP = b;
-            EXP = c;
-            ABS = d;
-            NET = e;
-            Max_Imp = f;
-            Max_Exp = g;
-            Min_Volt0 = h;
-            Alert1_Dsc = i;
-            Alert2_Dsc = j;
-        }
-    }
-
-    // TODO: Add AccSecurity class definition here when implementing HLS
-    // For now, creating a placeholder class to prevent compilation errors
-    private class AccSecurity {
-        private final Context context;
-        private final byte[] clientTitle;
-        private final byte[] serverTitle;
-        private SecretKey sessionKey;
-
-        public AccSecurity(Context ctx, byte[] client, byte[] server) {
-            this.context = ctx;
-            this.clientTitle = client;
-            this.serverTitle = server;
-        }
-
-        public SecretKey getSecretKeyFromKeystore(String alias) {
-            // TODO: Implement keystore retrieval
-            return null;
-        }
-
-        public SecretKey generateAndStoreAesGcmKey(String alias) {
-            // TODO: Implement key generation and storage
-            return null;
-        }
-
-        public SecretKey getSessionEncryptionKey() {
-            return this.sessionKey;
-        }
-
-        public void setSessionEncryptionKey(SecretKey key) {
-            this.sessionKey = key;
-        }
-
-        public long getNextClientInvocationCounterAndIncrement() {
-            // TODO: Implement frame counter management
-            return System.currentTimeMillis() & 0xFFFFFFFFL;
-        }
-
-        public byte[] encryptApdu(byte[] pdu, SecretKey key, byte[] title, long counter) {
-            // TODO: Implement APDU encryption
-            return pdu; // Placeholder
-        }
-
-        public byte[] decryptApdu(byte[] encrypted, SecretKey key, byte[] title, long counter) {
-            // TODO: Implement APDU decryption
-            return encrypted; // Placeholder
-        }
-
-        public void resetSecurityContext() {
-            // TODO: Implement security context reset
-        }
-    }
 }
-
-

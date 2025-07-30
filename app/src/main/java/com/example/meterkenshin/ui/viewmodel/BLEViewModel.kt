@@ -119,7 +119,8 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
      * Initialize Bluetooth adapter
      */
     private fun initializeBluetooth() {
-        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+        val bluetoothManager =
+            context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = bluetoothManager.adapter
 
         if (bluetoothAdapter == null) {
@@ -151,7 +152,11 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
         val missingPerms = mutableListOf<String>()
 
         for (permission in requiredPermissions) {
-            if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.checkSelfPermission(
+                    context,
+                    permission
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
                 missingPerms.add(permission)
             }
         }
@@ -187,7 +192,10 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
      * Check if specific Bluetooth permission is granted
      */
     private fun hasBluetoothPermission(permission: String): Boolean {
-        return ActivityCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+        return ActivityCompat.checkSelfPermission(
+            context,
+            permission
+        ) == PackageManager.PERMISSION_GRANTED
     }
 
     /**
@@ -230,7 +238,8 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
                 val success = withContext(Dispatchers.IO) {
                     try {
                         if (hasBluetoothPermission(Manifest.permission.BLUETOOTH_CONNECT) ||
-                            hasBluetoothPermission(Manifest.permission.BLUETOOTH)) {
+                            hasBluetoothPermission(Manifest.permission.BLUETOOTH)
+                        ) {
                             bluetoothLeService?.connect(meter.bluetoothId!!) ?: false
                         } else {
                             false
@@ -295,7 +304,8 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
                 val success = withContext(Dispatchers.IO) {
                     try {
                         if (hasBluetoothPermission(Manifest.permission.BLUETOOTH_CONNECT) ||
-                            hasBluetoothPermission(Manifest.permission.BLUETOOTH)) {
+                            hasBluetoothPermission(Manifest.permission.BLUETOOTH)
+                        ) {
                             bluetoothLeService?.connect(bluetoothId) ?: false
                         } else {
                             false
@@ -333,21 +343,93 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
     /**
      * Disconnect from current meter
      */
-//    fun disconnect() {
-//        viewModelScope.launch {
-//            try {
-//                bluetoothLeService?.disconnect()
-//                _connectionState.value = BLEConnectionState.DISCONNECTED
-//                _connectedMeter.value = null
-//                _dlmsSessionEstablished.value = false
-//                updateStatusMessage(context.getString(R.string.connection_state_disconnected))
-//
-//            } catch (e: Exception) {
-//                Log.e(TAG, "Disconnect error", e)
-//                updateStatusMessage("Disconnect error: ${e.message}")
-//            }
-//        }
-//    }
+    /**
+     * Disconnect from current meter
+     */
+    fun disconnect() {
+        viewModelScope.launch {
+            try {
+                // Check permissions first before attempting to disconnect
+                if (!hasBluetoothPermission(Manifest.permission.BLUETOOTH_CONNECT) &&
+                    !hasBluetoothPermission(Manifest.permission.BLUETOOTH)
+                ) {
+
+                    Log.w(TAG, "Missing Bluetooth permissions for disconnect")
+                    updateStatusMessage(context.getString(R.string.bluetooth_permissions_required))
+
+                    // Still update the UI state even if we can't properly disconnect
+                    _connectionState.value = BLEConnectionState.DISCONNECTED
+                    _connectedMeter.value = null
+                    _dlmsSessionEstablished.value = false
+                    return@launch
+                }
+
+                // Attempt to disconnect from the BLE service
+                try {
+                    bluetoothLeService?.disconnect()
+                    Log.d(TAG, "Bluetooth disconnect called Successfully")
+
+                    // Update connection state
+                    _connectionState.value = BLEConnectionState.DISCONNECTED
+                    _connectedMeter.value = null
+                    _dlmsSessionEstablished.value = false
+                    updateStatusMessage(context.getString(R.string.connection_state_disconnected))
+
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Permission denied during disconnect", e)
+                    updateStatusMessage(context.getString(R.string.bluetooth_permissions_required))
+
+                    // Still clean up the state even if disconnect failed
+                    _connectionState.value = BLEConnectionState.DISCONNECTED
+                    _connectedMeter.value = null
+                    _dlmsSessionEstablished.value = false
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Disconnect error", e)
+                updateStatusMessage("Disconnect error: ${e.message}")
+
+                // Ensure state is cleaned up even on unexpected errors
+                _connectionState.value = BLEConnectionState.DISCONNECTED
+                _connectedMeter.value = null
+                _dlmsSessionEstablished.value = false
+            }
+        }
+    }
+
+    /**
+     * Updated onCleared method with proper permission handling
+     */
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            // Unbind service first
+            if (serviceConnected) {
+                context.unbindService(serviceConnection)
+            }
+
+            // Try to disconnect if we have the proper permissions
+            if (hasBluetoothPermission(Manifest.permission.BLUETOOTH_CONNECT) ||
+                hasBluetoothPermission(Manifest.permission.BLUETOOTH)
+            ) {
+                try {
+                    bluetoothLeService?.disconnect()
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Permission denied during cleanup disconnect", e)
+                }
+            }
+
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Permission denied during cleanup", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Cleanup error", e)
+        } finally {
+            // Always clean up the state regardless of permission issues
+            _connectionState.value = BLEConnectionState.DISCONNECTED
+            _connectedMeter.value = null
+            _dlmsSessionEstablished.value = false
+        }
+    }
 
     /**
      * Scan for nearby BLE devices
@@ -360,7 +442,8 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
 
         // Check permissions for scanning
         if (!hasBluetoothPermission(Manifest.permission.BLUETOOTH_SCAN) &&
-            !hasBluetoothPermission(Manifest.permission.BLUETOOTH_ADMIN)) {
+            !hasBluetoothPermission(Manifest.permission.BLUETOOTH_ADMIN)
+        ) {
             updateStatusMessage(context.getString(R.string.bluetooth_permissions_required))
             return
         }
@@ -561,62 +644,45 @@ class BLEViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        try {
-            if (serviceConnected) {
-                context.unbindService(serviceConnection)
-            }
-//            disconnect()
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Permission denied during cleanup", e)
-            // Still clean up the state even if we can't call some methods
-            _connectionState.value = BLEConnectionState.DISCONNECTED
-            _connectedMeter.value = null
-            _dlmsSessionEstablished.value = false
-        } catch (e: Exception) {
-            Log.e(TAG, "Cleanup error", e)
-        }
+
+    /**
+     * BLE Connection States
+     */
+    enum class BLEConnectionState {
+        DISCONNECTED,
+        CONNECTING,
+        CONNECTED,
+        FAILED,
+        TIMEOUT
     }
-}
 
-/**
- * BLE Connection States
- */
-enum class BLEConnectionState {
-    DISCONNECTED,
-    CONNECTING,
-    CONNECTED,
-    FAILED,
-    TIMEOUT
-}
+    /**
+     * Meter data reading results
+     */
+    sealed class MeterDataResult {
+        object Loading : MeterDataResult()
+        data class Success(val data: Map<String, String>) : MeterDataResult()
+        data class Error(val message: String) : MeterDataResult()
+    }
 
-/**
- * Meter data reading results
- */
-sealed class MeterDataResult {
-    object Loading : MeterDataResult()
-    data class Success(val data: Map<String, String>) : MeterDataResult()
-    data class Error(val message: String) : MeterDataResult()
-}
+    /**
+     * Connection statistics data class
+     */
+    data class ConnectionStats(
+        val totalAttempts: Int,
+        val currentState: BLEConnectionState,
+        val lastConnectionTime: Long?,
+        val isSessionEstablished: Boolean,
+        val connectedMeter: Meter?
+    )
 
-/**
- * Connection statistics data class
- */
-data class ConnectionStats(
-    val totalAttempts: Int,
-    val currentState: BLEConnectionState,
-    val lastConnectionTime: Long?,
-    val isSessionEstablished: Boolean,
-    val connectedMeter: Meter?
-)
-
-/**
- * Extension function to check if service is connected
- * This would need to be implemented in your BluetoothLeService
- */
-private fun BluetoothLeService.isConnected(): Boolean {
-    // This method should be implemented in your BluetoothLeService
-    // to return the current connection status
-    return false // placeholder
+    /**
+     * Extension function to check if service is connected
+     * This would need to be implemented in your BluetoothLeService
+     */
+    private fun BluetoothLeService.isConnected(): Boolean {
+        // This method should be implemented in your BluetoothLeService
+        // to return the current connection status
+        return false // placeholder
+    }
 }

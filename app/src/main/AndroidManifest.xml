@@ -37,18 +37,6 @@
     <!-- Internet permission for potential cloud features -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <!-- Bluetooth permissions for Android 12+ -->
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
-
-    <!-- Legacy Bluetooth permissions for older Android versions -->
-    <uses-permission android:name="android.permission.BLUETOOTH"
-        android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
-        android:maxSdkVersion="30" />
-
-    <!-- Location permission required for BLE scanning -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <!-- Hardware features -->
     <uses-feature
@@ -83,7 +71,11 @@
             </intent-filter>
         </activity>
 
-        <!-- Note: BluetoothPrintService is a regular class, not an Android Service -->
+        <!-- Bluetooth LE Service -->
+        <service
+            android:name=".bluetooth.BluetoothLeService"
+            android:enabled="true"
+            android:exported="false" />
 
         <!-- File Provider for sharing files -->
         <provider
