@@ -54,10 +54,6 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import kotlin.random.Random
 import androidx.core.graphics.toColorInt
 
 /**
@@ -360,7 +356,7 @@ private fun ModernMeterCard(
             ) {
                     if (rssi != null) {
                         Text(
-                            text = "${rssi} dBm",
+                            text = "$rssi dBm",
                             style = MaterialTheme.typography.bodySmall,
                             color = when {
                                 rssi > -50 -> Color(0xFF4CAF50)
