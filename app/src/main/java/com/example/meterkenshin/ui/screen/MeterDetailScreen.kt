@@ -1,8 +1,6 @@
 package com.example.meterkenshin.ui.screen
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,11 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Cable
@@ -34,17 +30,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -52,6 +44,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
+import com.example.meterkenshin.model.Meter
+import java.text.SimpleDateFormat
+import java.util.Locale
+import androidx.core.graphics.toColorInt
 
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
@@ -104,7 +100,6 @@ fun MeterDetailScreen(
     }
 }
 
-
 /**
  * DLMS functions in a modern card design
  */
@@ -127,81 +122,92 @@ private fun DLMSFunctionsCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(20.dp)
         ) {
-            Text(
-                text = "Actions",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.dlms_functions),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
 
-            // Registration button (active)
-            ModernDLMSButton(
-                text = "Registration",
+            // Function buttons in single column (6 rows)
+            FunctionButton(
+                text = stringResource(R.string.dlms_registration),
                 icon = Icons.Default.Person,
                 onClick = onRegistration,
-                isActive = true
+                modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Other function buttons (inactive)
-            ModernDLMSButton(
-                text = "Read data",
+            FunctionButton(
+                text = stringResource(R.string.dlms_read_data),
                 icon = Icons.Default.Assessment,
                 onClick = onReadData,
-                isActive = false
+                modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            ModernDLMSButton(
-                text = "Load profile",
+            FunctionButton(
+                text = stringResource(R.string.dlms_load_profile),
                 icon = Icons.Default.Storage,
                 onClick = onLoadProfile,
-                isActive = false
+                modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            ModernDLMSButton(
-                text = "Event log",
+            FunctionButton(
+                text = stringResource(R.string.dlms_event_log),
                 icon = Icons.Default.Event,
                 onClick = onEventLog,
-                isActive = false
+                modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            ModernDLMSButton(
-                text = "Billing data",
+            FunctionButton(
+                text = stringResource(R.string.dlms_billing_data),
                 icon = Icons.Default.Payment,
                 onClick = onBillingData,
-                isActive = false
+                modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Set Clock button (active)
-            ModernDLMSButton(
-                text = "Set Clock",
+            FunctionButton(
+                text = stringResource(R.string.dlms_set_clock),
                 icon = Icons.Default.AccessTime,
                 onClick = onSetClock,
-                isActive = true
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
 }
 
 /**
- * Modern DLMS function button
+ * Function button component
  */
 @Composable
-private fun ModernDLMSButton(
+private fun FunctionButton(
     text: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    isActive: Boolean,
+    isActive: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp),
+        modifier = modifier.height(56.dp),
         colors = ButtonDefaults.buttonColors(
             containerColor = if (isActive) {
                 MaterialTheme.colorScheme.primary
@@ -237,7 +243,7 @@ private fun ModernDLMSButton(
 }
 
 /**
- * Meter specifications card
+ * Meter specifications card with enhanced CSV data support using MeterModel
  */
 @Composable
 private fun MeterSpecificationsCard(
@@ -267,25 +273,123 @@ private fun MeterSpecificationsCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Meter Specifications",
+                    text = stringResource(R.string.meter_info),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
-            // Specification details in modern format
             SpecificationRow(
-                label = "Meter Number",
-                value = meter.account,
-                isHighlighted = true
+                label = "Location",
+                value = meter.location.ifBlank { "-" }
             )
-            SpecificationRow(label = "Serial Number", value = meter.logical)
-            SpecificationRow(label = "Location", value = "1st Floor")
-            SpecificationRow(label = "Protocol", value = "IEC 62056")
-            SpecificationRow(label = "Meter Model", value = "F5LWF")
-            SpecificationRow(label = "Meter Type", value = "1 phase 2 wire")
-            SpecificationRow(label = "V/A", value = "200V/120A")
+            SpecificationRow(
+                label = "Meter Type",
+                value = meter.type.displayName.ifBlank { "-" }
+            )
+            SpecificationRow(
+                label = "Status",
+                value = meter.status.displayName,
+                valueColor = Color(meter.status.colorHex.toColorInt())
+            )
+
+            // Enhanced data from CSV
+            if (meter.impKWh != null || meter.expKWh != null || meter.impMaxDemandKW != null || meter.expMaxDemandKW != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Energy Readings",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                SpecificationRow(
+                    label = "Import Energy (kWh)",
+                    value = meter.impKWh?.let { String.format("%.2f", it) } ?: "-"
+                )
+                SpecificationRow(
+                    label = "Export Energy (kWh)",
+                    value = meter.expKWh?.let { String.format("%.2f", it) } ?: "-"
+                )
+                SpecificationRow(
+                    label = "Import Max Demand (kW)",
+                    value = meter.impMaxDemandKW?.let { String.format("%.2f", it) } ?: "-"
+                )
+                SpecificationRow(
+                    label = "Export Max Demand (kW)",
+                    value = meter.expMaxDemandKW?.let { String.format("%.2f", it) } ?: "-"
+                )
+            }
+
+            // System information
+            if (meter.bluetoothId != null || meter.minVoltV != null || meter.alert != null || meter.activate != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "System Information",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                SpecificationRow(
+                    label = "Bluetooth ID",
+                    value = meter.bluetoothId ?: "-"
+                )
+                SpecificationRow(
+                    label = "Min Voltage (V)",
+                    value = meter.minVoltV?.let { String.format("%.1f", it) } ?: "-"
+                )
+                SpecificationRow(
+                    label = "Alert Level",
+                    value = meter.alert?.let { String.format("%.2f", it) } ?: "-"
+                )
+                SpecificationRow(
+                    label = "Activation Status",
+                    value = when (meter.activate) {
+                        1 -> "Active"
+                        0 -> "Inactive"
+                        else -> "-"
+                    }
+                )
+            }
+
+            // Dates
+            if (meter.fixedDate != null || meter.lastMaintenanceDate != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Dates",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                SpecificationRow(
+                    label = "Installation Date",
+                    value = meter.fixedDate?.let { dateFormat.format(it) } ?: "-"
+                )
+                SpecificationRow(
+                    label = "Last Reading Date",
+                    value = meter.lastMaintenanceDate?.let { dateFormat.format(it) } ?: "-"
+                )
+            }
+
+            // Technical Specifications (static data)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Technical Specifications",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            SpecificationRow(label = "Protocol", value = stringResource(R.string.protocol_iec))
+            SpecificationRow(label = "Communication", value = stringResource(R.string.communication_dlms))
+            SpecificationRow(label = "V/A Rating", value = "240V/100A")
             SpecificationRow(label = "Frequency", value = "50Hz")
         }
     }
@@ -322,27 +426,30 @@ private fun MeterStatusCard(
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Meter Status",
+                    text = stringResource(R.string.meter_stats),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
-            SpecificationRow(label = "Serial Number", value = meter.logical)
             SpecificationRow(
-                label = "Status",
-                value = "Connected",
+                label = "Serial Number",
+                value = meter.serialNumber.ifBlank { "-" }
+            )
+            SpecificationRow(
+                label = stringResource(R.string.status_connected),
+                value = stringResource(R.string.status_connected),
                 valueColor = Color(0xFF4CAF50)
             )
-            SpecificationRow(label = "Signal Strength", value = "-65 dBm")
-            SpecificationRow(label = "Last Communication", value = "2 minutes ago")
-            SpecificationRow(label = "Last Billing Read", value = "30 days ago")
+            SpecificationRow(label = "Signal Strength", value = "-")
+            SpecificationRow(label = "Last Communication", value = "-")
+            SpecificationRow(label = "Last Billing Read", value = "-")
         }
     }
 }
 
 /**
- * Modern specification row component
+ * Modern specification row component with null-safe display
  */
 @Composable
 private fun SpecificationRow(
@@ -368,7 +475,7 @@ private fun SpecificationRow(
         )
 
         Text(
-            text = if (isSensitive) "••••••••••••••••" else value,
+            text = if (isSensitive && value != "-") "••••••••••••••••" else value,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Medium,
             color = valueColor ?: if (isHighlighted) {
@@ -404,7 +511,7 @@ private fun DetailRow(
             modifier = Modifier.weight(1f)
         )
         Text(
-            text = value,
+            text = value.ifBlank { "-" },
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface,

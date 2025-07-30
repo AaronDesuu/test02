@@ -451,7 +451,7 @@
     <string name="set_clock_description">Synchronize meter clock with system time</string>
 
     <!-- Connection Status -->
-    <string name="connection_status">Connection Status</string>
+    <string name="meter_stats">Meter Stats</string>
     <string name="rssi_value">RSSI: %1$d</string>
     <string name="connection_quality_excellent">Excellent</string>
     <string name="connection_quality_good">Good</string>

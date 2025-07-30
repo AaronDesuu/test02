@@ -19,7 +19,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ElectricBolt
@@ -31,7 +30,6 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -70,13 +68,10 @@ import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.res.colorResource
 
 import com.example.meterkenshin.bluetooth.BluetoothManager
+import com.example.meterkenshin.model.Meter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,7 +82,7 @@ private const val TAG = "HomeScreen"
 // Data class for real-time meter readings
 data class MeterReading(
     val meterId: String,
-    val reading: Float,
+    val reading: Float?,
     val timestamp: Date = Date(),
     val quality: ReadingQuality = ReadingQuality.GOOD
 )
@@ -145,7 +140,7 @@ fun HomeScreen(
 
     // Generate sample readings based on real meters
     val recentReadings = remember(meterUiState.allMeters) {
-        generateSampleReadings(meterUiState.allMeters)
+        recentReadings(meterUiState.allMeters)
     }
 
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -702,7 +697,7 @@ private fun RecentReadingsSection(
                 ) {
                     Column {
                         readings.forEachIndexed { index, reading ->
-                            val meter = meters.find { it.account == reading.meterId }
+                            val meter = meters.find { it.id == reading.meterId }
                             ReadingItem(
                                 reading = reading,
                                 meter = meter,
@@ -732,7 +727,7 @@ private fun ReadingItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "S/N : ${meter?.logical ?: reading.meterId}",
+                    text = "S/N : ${meter?.serialNumber ?: reading.meterId}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium
                 )
@@ -750,7 +745,7 @@ private fun ReadingItem(
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = String.format("%.2f kWh", reading.reading),
+                    text = reading.reading?.let { String.format("%.2f kWh", it) } ?: "Not Read",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -800,7 +795,7 @@ data class QuickAction(
 
 // Helper functions for real data processing
 private fun calculateSystemOverview(meters: List<Meter>): SystemOverview {
-    val rankDistribution = meters.groupBy { it.rank }.mapValues { it.value.size }
+    val rankDistribution = meters.groupBy { it.id }.mapValues { it.value.size }
 
     return SystemOverview(
         totalMeters = meters.size,
@@ -814,14 +809,14 @@ private fun calculateSystemOverview(meters: List<Meter>): SystemOverview {
     )
 }
 
-private fun generateSampleReadings(meters: List<Meter>): List<MeterReading> {
+private fun recentReadings(meters: List<Meter>): List<MeterReading> {
     if (meters.isEmpty()) return emptyList()
 
     val random = Random()
     return meters.take(5).map { meter ->
         MeterReading(
-            meterId = meter.account,
-            reading = 100f + random.nextFloat() * 500f,
+            meterId = meter.serialNumber,
+            reading = meter.impKWh?.toFloat(),
             timestamp = Date(System.currentTimeMillis() - random.nextLong() % (24 * 60 * 60 * 1000)),
             quality = ReadingQuality.entries[random.nextInt(ReadingQuality.entries.size)]
         )

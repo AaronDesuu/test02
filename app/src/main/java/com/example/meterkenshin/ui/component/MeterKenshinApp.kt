@@ -12,7 +12,7 @@ import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen
-import com.example.meterkenshin.ui.screen.Meter
+import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
@@ -145,7 +145,7 @@ fun MeterKenshinApp(
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel,
                     onBackPressed = { currentScreen = "home" },
-                    onNavigateToFileUpload = { currentScreen = "file_upload" },
+//                    onNavigateToFileUpload = { currentScreen = "file_upload" },
                     onNavigateToMeterDetail = { meter ->
                         selectedMeter = meter
                         currentScreen = "meter_detail"
