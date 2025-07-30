@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.screen
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.NetworkCell
 import androidx.compose.material.icons.filled.Search
@@ -56,6 +58,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.random.Random
+import androidx.core.graphics.toColorInt
 
 /**
  * Meter Reading Screen with redesigned UI using MeterModel data class
@@ -285,15 +288,10 @@ private fun ModernMeterCard(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = meter.id.take(3), // Show first 3 characters of ID
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isOnline) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onErrorContainer
-                    }
+                Image(
+                    imageVector = Icons.Default.ElectricBolt,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -333,24 +331,15 @@ private fun ModernMeterCard(
                             .size(8.dp)
                             .clip(CircleShape)
                             .background(
-                                Color(android.graphics.Color.parseColor(meter.status.colorHex))
+                                Color(meter.status.colorHex.toColorInt())
                             )
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = meter.status.displayName,
+                        text = (if (meter.activate == 1) "Online" else "Offline"),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-
-                    // Meter type
-                    if (meter.type.displayName.isNotEmpty()) {
-                        Text(
-                            text = " • ${meter.type.displayName}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
                 }
 
                 // Enhanced CSV data (if available)
