@@ -530,4 +530,71 @@
     <string name="user_profile">User Profile</string>
     <string name="logged_in_as">Logged in as %1$s</string>
     <string name="receipt_template_title">Receipt Template</string>
+
+    <!-- Add these strings to your app/src/main/res/values/strings.xml -->
+
+    <!-- BLE Connection Strings -->
+    <string name="ble_connecting">Connecting to BLE device…</string>
+    <string name="ble_connected">BLE device connected</string>
+    <string name="ble_disconnected">BLE device disconnected</string>
+    <string name="ble_connection_failed">Failed to connect to BLE device</string>
+    <string name="ble_connection_timeout">BLE connection timeout</string>
+    <string name="ble_service_not_available">BLE service not available</string>
+
+    <!-- BLE Meter Specific -->
+    <string name="ble_meter_connecting">Connecting to meter %1$s…</string>
+    <string name="ble_meter_connected">Connected to meter %1$s</string>
+    <string name="ble_meter_disconnected">Disconnected from meter</string>
+    <string name="ble_meter_no_bluetooth_id">Meter has no Bluetooth ID configured</string>
+    <string name="ble_meter_read_success">Meter data read successfully</string>
+    <string name="ble_meter_read_failed">Failed to read meter data</string>
+
+    <!-- DLMS Session -->
+    <string name="dlms_establishing_session">Establishing DLMS session…</string>
+    <string name="dlms_session_established">DLMS session established</string>
+    <string name="dlms_session_failed">DLMS session failed</string>
+    <string name="dlms_session_not_established">DLMS session not established</string>
+    <string name="dlms_reading_data">Reading meter data via DLMS…</string>
+
+    <!-- BLE Scanning -->
+    <string name="ble_scan_starting">Starting BLE device scan…</string>
+    <string name="ble_scan_stopped">BLE scan stopped</string>
+    <string name="ble_scan_completed">BLE scan completed</string>
+    <string name="ble_devices_found">Found %1$d BLE devices</string>
+    <string name="ble_no_devices_found">No BLE devices found</string>
+
+    <!-- Auto Connect -->
+    <string name="ble_auto_connect_starting">Starting automatic BLE connection…</string>
+    <string name="ble_auto_connect_trying_meter">Trying to connect to meter %1$s</string>
+    <string name="ble_auto_connect_success">Successfully auto-connected to meter</string>
+    <string name="ble_auto_connect_failed">Auto-connect failed - no meters available</string>
+    <string name="ble_auto_connect_no_bluetooth_meters">No meters with Bluetooth capability found</string>
+
+    <!-- Connection Status -->
+    <string name="ble_status_disconnected">Disconnected</string>
+    <string name="ble_status_connecting">Connecting</string>
+    <string name="ble_status_connected">Connected</string>
+    <string name="ble_status_failed">Connection Failed</string>
+    <string name="ble_status_timeout">Connection Timeout</string>
+
+    <!-- BLE Statistics -->
+    <string name="ble_connection_attempts">Connection attempts: %1$d</string>
+    <string name="ble_last_connected">Last connected: %1$s</string>
+    <string name="ble_session_status">DLMS session: %1$s</string>
+    <string name="ble_connected_to">Connected to: %1$s</string>
+
+    <!-- Error Messages -->
+    <string name="ble_error_no_adapter">Bluetooth adapter not found</string>
+    <string name="ble_error_not_supported">BLE not supported on this device</string>
+    <string name="ble_error_service_binding">Failed to bind BLE service</string>
+    <string name="ble_error_connection_lost">BLE connection lost</string>
+    <string name="ble_error_data_read">Error reading data from meter</string>
+    <string name="ble_error_invalid_address">Invalid Bluetooth address</string>
+
+    <!-- BLE Permissions -->
+    <string name="ble_permission_required">BLE permissions required</string>
+    <string name="ble_permission_explanation">This app needs BLE permissions to connect to meters</string>
+    <string name="ble_location_permission_required">Location permission required for BLE scanning</string>
+    <string name="auto_connect_failed">auto connect failed</string>
+
 </resources>

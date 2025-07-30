@@ -271,15 +271,15 @@ class BluetoothLeService : Service() {
         private const val STATE_CONNECTED = 3
         private const val STATE_DISCOVERED = 4
 
-        const val ACTION_GATT_ERROR: String = "com.fujielectricmeter.bluetooth.le.ACTION_GATT_ERROR"
+        const val ACTION_GATT_ERROR: String = "com.example.meterkenshin.bluetooth.le.ACTION_GATT_ERROR"
         const val ACTION_GATT_CONNECTED: String =
-            "com.fujielectricmeter.bluetooth.le.ACTION_GATT_CONNECTED"
+            "com.example.meterkenshin.bluetooth.le.ACTION_GATT_CONNECTED"
         const val ACTION_GATT_DISCONNECTED: String =
-            "com.fujielectricmeter.bluetooth.le.ACTION_GATT_DISCONNECTED"
+            "com.example.meterkenshin.bluetooth.le.ACTION_GATT_DISCONNECTED"
         const val ACTION_GATT_SERVICES_DISCOVERED: String =
-            "com.fujielectricmeter.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED"
+            "com.example.meterkenshin.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED"
         const val ACTION_DATA_AVAILABLE: String =
-            "com.fujielectricmeter.bluetooth.le.ACTION_DATA_AVAILABLE"
-        const val EXTRA_DATA: String = "com.fujielectricmeter.bluetooth.le.EXTRA_DATA"
+            "com.example.meterkenshin.bluetooth.le.ACTION_DATA_AVAILABLE"
+        const val EXTRA_DATA: String = "com.example.meterkenshin.bluetooth.le.EXTRA_DATA"
     }
 }

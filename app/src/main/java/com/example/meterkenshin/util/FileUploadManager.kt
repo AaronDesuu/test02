@@ -1,4 +1,4 @@
-package com.example.meterkenshin.utils
+package com.example.meterkenshin.util
 
 import android.content.Context
 import android.net.Uri

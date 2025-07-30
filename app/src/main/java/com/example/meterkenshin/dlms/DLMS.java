@@ -1,4 +1,4 @@
-package com.example.meterkenshin.DLMS;
+package com.example.meterkenshin.dlms;
 
 import static java.lang.String.format;
 
