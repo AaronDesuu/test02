@@ -597,4 +597,107 @@
     <string name="ble_location_permission_required">Location permission required for BLE scanning</string>
     <string name="auto_connect_failed">auto connect failed</string>
 
+        <!-- DLMS Communication Strings -->
+        <string name="dlms_initialization_error">Failed to initialize DLMS communication</string>
+        <string name="communication_timeout">Communication timeout - no response from meter</string>
+        <string name="connected_to_meter">Successfully connected to meter</string>
+        <string name="connection_failed">Failed to connect to meter</string>
+        <string name="disconnected">Disconnected from meter</string>
+
+        <!-- Electric Meter Reading Strings -->
+        <string name="meter_no_bluetooth">This meter does not have Bluetooth capability</string>
+        <string name="meter_not_connected">No meter connected. Please connect to a meter first.</string>
+        <string name="reading_meter_data">Reading meter data...</string>
+        <string name="electric_meter_data_read_complete">Electric meter data reading completed successfully</string>
+        <string name="data_read_failed">Failed to read data from meter</string>
+        <string name="data_read_successful">Meter data read successfully</string>
+
+        <!-- Electric Meter Data Field Names -->
+        <string name="meter_activate">Activation Status</string>
+        <string name="meter_fixed_date">Fixed Date</string>
+        <string name="meter_import_kwh">Import Energy (kWh)</string>
+        <string name="meter_export_kwh">Export Energy (kWh)</string>
+        <string name="meter_import_max_demand">Import Max Demand (kW)</string>
+        <string name="meter_export_max_demand">Export Max Demand (kW)</string>
+        <string name="meter_min_voltage">Minimum Voltage (V)</string>
+        <string name="meter_alert">Alert Status</string>
+        <string name="meter_read_date">Read Date</string>
+
+
+        <!-- Progress and Status -->
+        <string name="reading_progress">Reading Progress: %1$d/%2$d</string>
+        <string name="all_readings_complete">All meter readings completed</string>
+        <string name="readings_incomplete">Some readings are incomplete</string>
+        <string name="no_data_available">No data available</string>
+
+        <!-- Button Labels -->
+
+        <string name="disconnect_meter">Disconnect</string>
+        <string name="read_meter_data">Read Meter Data</string>
+        <string name="retry_connection">Retry Connection</string>
+        <string name="clear_error">Clear Error</string>
+
+        <!-- Admin Functions -->
+        <string name="admin_mode_active">Admin mode active</string>
+        <string name="admin_access_required">Admin access required for this operation</string>
+        <string name="admin_session_established">Admin session established</string>
+
+        <!-- Error Messages -->
+        <string name="error_session_establish">Failed to establish DLMS session</string>
+        <string name="error_session_release">Failed to release DLMS session</string>
+        <string name="error_data_access">Error accessing meter data</string>
+        <string name="error_invalid_response">Invalid response from meter</string>
+        <string name="error_connection_lost">Connection to meter lost</string>
+        <string name="error_timeout">Operation timed out</string>
+
+        <!-- Meter Status Display -->
+        <string name="meter_status_active">Active</string>
+        <string name="meter_status_inactive">Inactive</string>
+        <string name="meter_status_reading">Reading...</string>
+        <string name="meter_status_error">Error</string>
+
+        <!-- Data Validation -->
+        <string name="invalid_bluetooth_id">Invalid Bluetooth ID</string>
+        <string name="meter_not_found">Meter not found</string>
+        <string name="data_validation_failed">Data validation failed</string>
+
+        <!-- Units and Formatting -->
+        <string name="unit_kwh">kWh</string>
+        <string name="unit_kw">kW</string>
+        <string name="unit_volt">V</string>
+        <string name="format_energy_reading">%.3f %s</string>
+        <string name="format_power_reading">%.2f %s</string>
+        <string name="format_voltage_reading">%.1f %s</string>
+
+        <!-- Date/Time Formatting -->
+        <string name="date_not_available">Date not available</string>
+        <string name="last_reading">Last reading: %s</string>
+        <string name="installation_date">Installation: %s</string>
+
+        <!-- Search and Filter -->
+
+        <string name="filter_by_status">Filter by status</string>
+        <string name="filter_by_type">Filter by type</string>
+        <string name="clear_filters">Clear filters</string>
+
+        <!-- Statistics -->
+        <string name="bluetooth_enabled_meters">Bluetooth enabled: %d</string>
+        <string name="meters_with_readings">With readings: %d</string>
+
+        <!-- Loading States -->
+        <string name="loading_meter_data">Loading meter data...</string>
+        <string name="processing_request">Processing request...</string>
+
+        <!-- Success Messages -->
+        <string name="meter_connected_successfully">Meter connected successfully</string>
+        <string name="data_read_complete">Data reading completed</string>
+        <string name="session_established_successfully">DLMS session established successfully</string>
+
+        <!-- Configuration -->
+        <string name="admin_rank_set">Admin rank configured</string>
+        <string name="dlms_configured">DLMS communication configured</string>
+        <string name="bluetooth_service_ready">Bluetooth service ready</string>
+    <string name="meter_csv_missing">meter csv missing</string>
+    <string name="title_meter">title meter</string>
+
 </resources>
