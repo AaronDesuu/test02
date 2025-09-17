@@ -15,7 +15,6 @@ import androidx.annotation.RequiresPermission
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.dlms.DLMS
-import com.example.meterkenshin.dlms.DLMSFactory
 import com.example.meterkenshin.R
 import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.bluetooth.DefaultDeviceList
@@ -258,19 +257,6 @@ class MeterReadingViewModel : ViewModel() {
         intentFilter.addAction(BluetoothLeServiceConstants.ACTION_GATT_SERVICES_DISCOVERED)
         intentFilter.addAction(BluetoothLeServiceConstants.ACTION_DATA_AVAILABLE)
         return intentFilter
-    }
-
-    /**
-     * Create DLMS instance - this method handles the package access issue
-     */
-    private fun createDLMSInstance(context: Context): DLMS? {
-        return try {
-            // Use the factory to create DLMS instance from the same package
-            DLMSFactory.createInstance(context)
-        } catch (e: Exception) {
-            Log.e(TAG, "Cannot create DLMS instance: ${e.message}")
-            null
-        }
     }
 
     /**
