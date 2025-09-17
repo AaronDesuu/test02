@@ -186,12 +186,6 @@ class MeterReadingViewModel : ViewModel() {
      */
     fun initialize(context: Context) {
         mContext = context
-        try {
-            // Try to create DLMS instance
-            d = createDLMSInstance(context)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize DLMS: ${e.message}")
-        }
 
         // Initialize device list (like project01)
         mDeviceList = DefaultDeviceList()
