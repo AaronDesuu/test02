@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.screen
 
+
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ElectricBolt
@@ -34,7 +36,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -58,23 +60,20 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
+import com.example.meterkenshin.bluetooth.BluetoothManager
 import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.Permission
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.model.getPermissions
 import com.example.meterkenshin.ui.component.BluetoothStatusComponent
+import com.example.meterkenshin.ui.component.MeterListComponent
 import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
-import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.ui.res.colorResource
-
-import com.example.meterkenshin.bluetooth.BluetoothManager
-import com.example.meterkenshin.model.Meter
-import java.text.SimpleDateFormat
+import com.example.meterkenshin.ui.component.HomeMeterList
 import java.util.Date
-import java.util.Locale
 import java.util.Random
 
 private const val TAG = "HomeScreen"
@@ -178,13 +177,17 @@ fun HomeScreen(
             // Recent Readings
             item {
                 RecentReadingsSection(
-                    readings = recentReadings.take(5),
+                    readings = recentReadings,
                     meters = meterUiState.allMeters,
                     onNavigateToMeterReading = onNavigateToMeterReading,
                     isLoading = meterUiState.isLoading,
-                    isMeterDataLoaded = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty()
+                    isMeterDataLoaded = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty(),
+                    fileUploadViewModel = fileUploadViewModel,
+                    meterReadingViewModel = meterReadingViewModel
                 )
+
             }
+
             // Bluetooth Status Card
             item {
                 BluetoothStatusComponent(
@@ -589,201 +592,18 @@ private fun RecentReadingsSection(
     meters: List<Meter>,
     onNavigateToMeterReading: () -> Unit,
     isLoading: Boolean,
-    isMeterDataLoaded: Boolean
+    isMeterDataLoaded: Boolean,
+    fileUploadViewModel: FileUploadViewModel = viewModel(),
+    meterReadingViewModel: MeterReadingViewModel = viewModel()
 ) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.recent_readings),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-
-            TextButton(
-                onClick = onNavigateToMeterReading,
-                enabled = isMeterDataLoaded
-            ) {
-                Text(stringResource(R.string.view_all_readings))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        when {
-            isLoading -> {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text("Loading readings...")
-                    }
-                }
-            }
-            !isMeterDataLoaded -> {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FileUpload,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "No meter data available",
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            text = "Upload meter.csv to see readings",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            }
-            readings.isEmpty() -> {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                ) {
-                    Text(
-                        text = stringResource(R.string.no_readings_available),
-                        modifier = Modifier.padding(24.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-            else -> {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    border = androidx.compose.foundation.BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
-                    )
-                ) {
-                    Column {
-                        readings.forEachIndexed { index, reading ->
-                            val meter = meters.find { it.id == reading.meterId }
-                            ReadingItem(
-                                reading = reading,
-                                meter = meter,
-                                showDivider = index < readings.size - 1
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
+    HomeMeterList(
+        fileUploadViewModel = fileUploadViewModel,
+        meterReadingViewModel = meterReadingViewModel,
+        onMeterClick = { onNavigateToMeterReading() },
+        onViewAllClick = onNavigateToMeterReading
+    )
 }
 
-@Composable
-private fun ReadingItem(
-    reading: MeterReading,
-    meter: Meter?,
-    showDivider: Boolean
-) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "S/N : ${meter?.serialNumber ?: reading.meterId}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = "Status : connected",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault()).format(reading.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = reading.reading?.let { String.format("%.2f kWh", it) } ?: "Not Read",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = when (reading.quality) {
-                            ReadingQuality.EXCELLENT -> Color(0xFF4CAF50)
-                            ReadingQuality.GOOD -> Color(0xFF8BC34A)
-                            ReadingQuality.FAIR -> Color(0xFFFF9800)
-                            ReadingQuality.POOR -> Color(0xFFF44336)
-                        }.copy(alpha = 0.15f)
-                    )
-                ) {
-                    Text(
-                        text = reading.quality.displayName,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = when (reading.quality) {
-                            ReadingQuality.EXCELLENT -> Color(0xFF4CAF50)
-                            ReadingQuality.GOOD -> Color(0xFF8BC34A)
-                            ReadingQuality.FAIR -> Color(0xFFFF9800)
-                            ReadingQuality.POOR -> Color(0xFFF44336)
-                        },
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                    )
-                }
-            }
-        }
-
-        if (showDivider) {
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant
-            )
-        }
-    }
-}
 
 
 // Data classes for quick actions
