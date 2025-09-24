@@ -700,4 +700,13 @@
     <string name="meter_csv_missing">meter csv missing</string>
     <string name="title_meter">title meter</string>
 
+    <!-- Print Actions Dropdown -->
+    <string name="print_actions">Print Actions</string>
+    <string name="batch_reading">Batch Reading</string>
+    <string name="batch_printing">Batch Printing</string>
+    <string name="select_and_print">Select &amp; Print</string>
+    <string name="batch_reading_description">Batch read all BLE Meters on the list that are not yet inspected, then automatically initiate batch printing</string>
+    <string name="batch_printing_description">Batch print all inspected BLE meters on the list that are not yet printed</string>
+    <string name="select_and_print_description">Select meter(s) from the list that are not yet printed, then print the receipts of all selected meter(s)</string>
+
 </resources>

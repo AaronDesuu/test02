@@ -50,6 +50,7 @@ import com.example.meterkenshin.ui.component.ModernMeterCard
 import com.example.meterkenshin.ui.component.getInspectionStatus
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.ui.component.PrintActionsDropdown
 
 /**
  * Reusable Meter List Component with MeterReadingViewModel Integration
@@ -153,6 +154,24 @@ fun MeterListComponent(
                                 .weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
+                        )
+
+                        // Print Actions Dropdown
+                        PrintActionsDropdown(
+                            onBatchReading = {
+                                // TODO: Implement batch reading functionality
+                                // This will batch read all BLE Meters on the list that are not yet inspected
+                                // After batch read, automatically initiate batch printing receipt of batch read meters
+                            },
+                            onBatchPrinting = {
+                                // TODO: Implement batch printing functionality
+                                // This will batch print all inspected BLE meters on the list that are not yet printed
+                            },
+                            onSelectAndPrint = {
+                                // TODO: Implement select and print functionality
+                                // This will allow selection of meter(s) from the list that are not yet printed
+                                // Then print the receipts of all selected meter(s)
+                            }
                         )
                     }
                 }
