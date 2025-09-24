@@ -1,5 +1,3 @@
-// Create new file: app/src/main/java/com/example/meterkenshin/ui/component/AppWithDrawer.kt
-
 package com.example.meterkenshin.ui.component
 
 import androidx.compose.foundation.BorderStroke
@@ -21,6 +19,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
@@ -94,6 +93,7 @@ fun AppWithDrawer(
     bluetoothViewModel: BluetoothViewModel,
     currentScreen: AppScreen = AppScreen.HOME,
     onNavigateToScreen: (AppScreen) -> Unit = {},
+    onNavigateToTest: () -> Unit = {}, // Add this parameter for test navigation
     onLogout: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
@@ -109,10 +109,11 @@ fun AppWithDrawer(
         ModalNavigationDrawer(
             drawerState = drawerState,
             drawerContent = {
-                DrawerContent(
+                DrawerContentWithTest(
                     session = session,
                     currentScreen = currentScreen,
                     onNavigationItemClick = onNavigateToScreen,
+                    onTestClick = onNavigateToTest, // Pass the test callback
                     onCloseDrawer = {
                         scope.launch {
                             drawerState.close()
@@ -186,10 +187,11 @@ fun AppWithDrawer(
 }
 
 @Composable
-private fun DrawerContent(
+private fun DrawerContentWithTest(
     session: UserSession,
     currentScreen: AppScreen,
     onNavigationItemClick: (AppScreen) -> Unit,
+    onTestClick: () -> Unit, // Custom callback for test navigation
     onCloseDrawer: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -205,7 +207,7 @@ private fun DrawerContent(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Navigation Items
+            // Main Navigation Items
             val navigationItems = listOf(
                 DrawerNavigationItem(
                     title = stringResource(R.string.nav_home),
@@ -250,10 +252,11 @@ private fun DrawerContent(
                         onNavigationItemClick(AppScreen.UNKNOWN)
                         onCloseDrawer()
                     },
-                    screen = AppScreen.UNKNOWN // Since settings isn't implemented yet
+                    screen = AppScreen.UNKNOWN
                 )
             )
 
+            // Render main navigation items
             navigationItems.forEach { item ->
                 val isSelected = currentScreen == item.screen
                 NavigationDrawerItem(
@@ -283,10 +286,52 @@ private fun DrawerContent(
                 )
             }
 
-            // Spacer to push logout to bottom
+            // OPTION 2: Always show debug section
+            Spacer(modifier = Modifier.height(16.dp))
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "Debug & Testing",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp)
+            )
+
+            NavigationDrawerItem(
+                label = {
+                    Text(
+                        text = "ModernMeterCard Test",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                icon = {
+                    Icon(
+                        imageVector = Icons.Default.Science,
+                        contentDescription = "ModernMeterCard Test",
+                        tint = MaterialTheme.colorScheme.tertiary
+                    )
+                },
+                selected = false,
+                onClick = {
+                    onTestClick()
+                    onCloseDrawer()
+                },
+                modifier = Modifier.padding(horizontal = 12.dp),
+                colors = NavigationDrawerItemDefaults.colors(
+                    unselectedContainerColor = MaterialTheme.colorScheme.surface,
+                    unselectedIconColor = MaterialTheme.colorScheme.tertiary,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            )
+
             Spacer(modifier = Modifier.weight(1f))
 
-            // Logout section at bottom
             LogoutSection(
                 onLogout = {
                     onCloseDrawer()
@@ -304,36 +349,31 @@ private fun UserProfileSection(session: UserSession) {
             .fillMaxWidth()
             .padding(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = when (session.role) {
-                UserRole.ROOT -> MaterialTheme.colorScheme.errorContainer
-                UserRole.ADMIN -> MaterialTheme.colorScheme.tertiaryContainer
-                UserRole.READER -> MaterialTheme.colorScheme.secondaryContainer
-            }
+            containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
         shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+            // User Avatar
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .padding(4.dp),
+                contentAlignment = Alignment.Center
             ) {
-                // Role Icon (same as WelcomeCard)
                 Card(
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.fillMaxSize(),
                     shape = CircleShape,
                     colors = CardDefaults.cardColors(
-                        containerColor = when (session.role) {
-                            UserRole.ROOT -> MaterialTheme.colorScheme.error
-                            UserRole.ADMIN -> MaterialTheme.colorScheme.tertiary
-                            UserRole.READER -> MaterialTheme.colorScheme.secondary
-                        }
-                    )
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    border = BorderStroke(2.dp, MaterialTheme.colorScheme.onPrimaryContainer)
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -341,45 +381,35 @@ private fun UserProfileSection(session: UserSession) {
                     ) {
                         Icon(
                             imageVector = when (session.role) {
-                                UserRole.ROOT -> Icons.Default.Security
                                 UserRole.ADMIN -> Icons.Default.AdminPanelSettings
-                                UserRole.READER -> Icons.Default.Visibility
+                                UserRole.READER -> Icons.Default.Security
+                                UserRole.ROOT -> TODO()
                             },
                             contentDescription = null,
-                            tint = when (session.role) {
-                                UserRole.ROOT -> MaterialTheme.colorScheme.onError
-                                UserRole.ADMIN -> MaterialTheme.colorScheme.onTertiary
-                                UserRole.READER -> MaterialTheme.colorScheme.onSecondary
-                            },
-                            modifier = Modifier.size(28.dp)
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.welcome_message, session.username),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = when (session.role) {
-                            UserRole.ROOT -> MaterialTheme.colorScheme.onErrorContainer
-                            UserRole.ADMIN -> MaterialTheme.colorScheme.onTertiaryContainer
-                            UserRole.READER -> MaterialTheme.colorScheme.onSecondaryContainer
-                        }
-                    )
-
-                    Text(
-                        text = stringResource(R.string.user_role, session.role.displayName),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = when (session.role) {
-                            UserRole.ROOT -> MaterialTheme.colorScheme.onErrorContainer
-                            UserRole.ADMIN -> MaterialTheme.colorScheme.onTertiaryContainer
-                            UserRole.READER -> MaterialTheme.colorScheme.onSecondaryContainer
-                        }.copy(alpha = 0.8f)
-                    )
-                }
+            // User Info
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = session.username,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = session.role.displayName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                )
             }
         }
     }
@@ -389,41 +419,36 @@ private fun UserProfileSection(session: UserSession) {
 private fun LogoutSection(
     onLogout: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.padding(16.dp)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+        ),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        HorizontalDivider(
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
-            thickness = 1.dp
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
         OutlinedButton(
             onClick = onLogout,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.error,
-                containerColor = MaterialTheme.colorScheme.surface
+                contentColor = MaterialTheme.colorScheme.error
             ),
-            border = BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
-            )
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ExitToApp,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = stringResource(R.string.logout_button),
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium
             )
         }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }

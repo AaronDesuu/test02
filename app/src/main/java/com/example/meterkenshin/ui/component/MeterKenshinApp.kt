@@ -16,6 +16,7 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
+import com.example.meterkenshin.ui.screen.MeterCardTestScreen // Add this import
 import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
@@ -43,6 +44,7 @@ fun MeterKenshinApp(
             "file_upload" -> AppScreen.IMPORT_DATA
             "receipt" -> AppScreen.RECEIPT_TEMPLATE
             "meter_detail" -> AppScreen.METER_DETAIL
+            "meter_card_test" -> AppScreen.UNKNOWN // Use UNKNOWN for test screen since we don't need a specific enum
             else -> AppScreen.HOME
         }
     }
@@ -51,6 +53,7 @@ fun MeterKenshinApp(
     BackHandler(enabled = isLoggedIn && currentScreen != "home") {
         when (currentScreen) {
             "meter_detail" -> currentScreen = "meter_reading"
+            "meter_card_test" -> currentScreen = "home" // Add this line for test screen
             "file_upload", "receipt", "meter_reading" -> currentScreen = "home"
             else -> currentScreen = "home"
         }
@@ -85,6 +88,9 @@ fun MeterKenshinApp(
                 AppScreen.UNKNOWN -> { /* Settings not implemented yet */ }
                 else -> { /* Handle other screens */ }
             }
+        },
+        onNavigateToTest = { // Add this parameter - this is what was missing!
+            currentScreen = "meter_card_test"
         },
         onLogout = {
             // Handle logout from drawer
@@ -145,7 +151,6 @@ fun MeterKenshinApp(
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel,
                     onBackPressed = { currentScreen = "home" },
-//                    onNavigateToFileUpload = { currentScreen = "file_upload" },
                     onNavigateToMeterDetail = { meter ->
                         selectedMeter = meter
                         currentScreen = "meter_detail"
@@ -159,6 +164,12 @@ fun MeterKenshinApp(
                         onBackPressed = { currentScreen = "meter_reading" }
                     )
                 }
+            }
+            // Add this new case for the test screen - this was missing!
+            currentScreen == "meter_card_test" -> {
+                MeterCardTestScreen(
+                    onNavigateBack = { currentScreen = "home" }
+                )
             }
         }
     }
