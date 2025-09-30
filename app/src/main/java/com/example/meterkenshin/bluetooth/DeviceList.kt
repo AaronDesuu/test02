@@ -116,15 +116,6 @@ class DefaultDeviceList : DeviceList, MeterReadingViewModel.DeviceList {
     }
 
     /**
-     * Remove devices that haven't been seen for a while
-     * @param timeoutMs Timeout in milliseconds (default 30 seconds)
-     */
-    fun removeStaleDevices(timeoutMs: Long = 30000) {
-        val currentTime = System.currentTimeMillis()
-        devices.removeAll { currentTime - it.lastSeen > timeoutMs }
-    }
-
-    /**
      * Get device info by address
      */
     fun getDeviceInfo(address: String): DeviceInfo? {

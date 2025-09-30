@@ -1,7 +1,6 @@
 package com.example.meterkenshin.ui.screen
 
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,22 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.ElectricMeter
-import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -60,16 +47,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
-import com.example.meterkenshin.bluetooth.BluetoothManager
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.model.Permission
 import com.example.meterkenshin.model.RequiredFile
-import com.example.meterkenshin.model.UserRole
-import com.example.meterkenshin.model.getPermissions
 import com.example.meterkenshin.ui.component.BluetoothStatusComponent
-import com.example.meterkenshin.ui.component.MeterListComponent
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.component.HomeMeterList
@@ -98,12 +80,10 @@ enum class ReadingQuality(val displayName: String) {
 fun HomeScreen(
     sessionManager: SessionManager,
     onLogout: () -> Unit,
-    onNavigateToFileUpload: () -> Unit = {},
-    onNavigateToReceiptTemplate: () -> Unit = {},
     onNavigateToMeterReading: () -> Unit = {},
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
-    bluetoothViewModel: BluetoothViewModel
+    printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
@@ -116,10 +96,10 @@ fun HomeScreen(
     // Observe real data from ViewModels
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
     val meterUiState by meterReadingViewModel.uiState.collectAsState()
-    val bluetoothConnectionState by bluetoothViewModel.connectionState.collectAsState()
-    val isBluetoothEnabled by bluetoothViewModel.isBluetoothEnabled.collectAsState()
-    val connectedDevice by bluetoothViewModel.connectedDevice.collectAsState()
-    val bluetoothStatusMessage by bluetoothViewModel.statusMessage.collectAsState()
+    val bluetoothConnectionState by printerBluetoothViewModel.connectionState.collectAsState()
+    val isBluetoothEnabled by printerBluetoothViewModel.isBluetoothEnabled.collectAsState()
+    val connectedDevice by printerBluetoothViewModel.connectedDevice.collectAsState()
+    val bluetoothStatusMessage by printerBluetoothViewModel.statusMessage.collectAsState()
 
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
@@ -153,27 +133,26 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Quick Actions
-            item {
-                QuickActionsSection(
-                    userRole = session.role,
-                    onNavigateToFileUpload = onNavigateToFileUpload,
-                    onNavigateToReceiptTemplate = onNavigateToReceiptTemplate,
-                    onNavigateToMeterReading = onNavigateToMeterReading,
-                    isMeterDataAvailable = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty()
-                )
-            }
-
             // System Overview Statistics
             item {
                 SystemOverviewSection(
                     overview = systemOverview,
                     isLoading = meterUiState.isLoading,
-                    isMeterDataLoaded = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty(),
-                    bluetoothConnectionState = bluetoothConnectionState,
-                    isBluetoothEnabled = isBluetoothEnabled
+                    isMeterDataLoaded = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty()
                 )
             }
+
+            // Printer Configuration (Bluetooth Status)
+            item {
+                BluetoothStatusComponent(
+                    connectionState = bluetoothConnectionState,
+                    isBluetoothEnabled = isBluetoothEnabled,
+                    connectedDevice = connectedDevice,
+                    statusMessage = bluetoothStatusMessage,
+                    printerBluetoothViewModel = printerBluetoothViewModel
+                )
+            }
+
             // Recent Readings
             item {
                 RecentReadingsSection(
@@ -185,19 +164,8 @@ fun HomeScreen(
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel
                 )
-
             }
 
-            // Bluetooth Status Card
-            item {
-                BluetoothStatusComponent(
-                    connectionState = bluetoothConnectionState,
-                    isBluetoothEnabled = isBluetoothEnabled,
-                    connectedDevice = connectedDevice,
-                    statusMessage = bluetoothStatusMessage,
-                    bluetoothViewModel = bluetoothViewModel
-                )
-            }
             // Add some bottom padding
             item {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -233,154 +201,10 @@ fun HomeScreen(
 
 
 @Composable
-private fun QuickActionsSection(
-    userRole: UserRole,
-    onNavigateToFileUpload: () -> Unit,
-    onNavigateToReceiptTemplate: () -> Unit,
-    onNavigateToMeterReading: () -> Unit,
-    isMeterDataAvailable: Boolean
-) {
-    Column {
-        Text(
-            text = stringResource(R.string.quick_actions),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp)
-        ) {
-            val quickActions = getQuickActions(userRole)
-
-            items(quickActions) { action ->
-                QuickActionCard(
-                    action = action,
-                    onNavigateToFileUpload = onNavigateToFileUpload,
-                    onNavigateToReceiptTemplate = onNavigateToReceiptTemplate,
-                    onNavigateToMeterReading = onNavigateToMeterReading,
-                    isMeterDataAvailable = isMeterDataAvailable
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickActionCard(
-    action: QuickAction,
-    onNavigateToFileUpload: () -> Unit,
-    onNavigateToReceiptTemplate: () -> Unit,
-    onNavigateToMeterReading: () -> Unit,
-    isMeterDataAvailable: Boolean
-) {
-    val isEnabled = when (action.title) {
-        "Meter Reading" -> isMeterDataAvailable
-        "Receipt Template" -> isMeterDataAvailable  // Enable only when meter data is available
-        else -> true
-    }
-
-    Card(
-        onClick = {
-            when (action.title) {
-                "Import Data" -> {
-                    Log.d(TAG, "Navigating to File Upload")
-                    onNavigateToFileUpload()
-                }
-                "Receipt Template" -> {
-                    if (isMeterDataAvailable) {
-                        Log.d(TAG, "Navigating to Receipt Template")
-                        onNavigateToReceiptTemplate()
-                    } else {
-                        Log.d(TAG, "Receipt Template unavailable - no meter data")
-                    }
-                }
-                "Meter Reading" -> {
-                    if (isMeterDataAvailable) {
-                        Log.d(TAG, "Navigating to Meter Reading")
-                        onNavigateToMeterReading()
-                    } else {
-                        Log.d(TAG, "Meter Reading unavailable - no data")
-                    }
-                }
-                "View All Readings" -> {
-                    Log.d(TAG, "Navigating to Meter Reading")
-                    onNavigateToMeterReading()
-                }
-                else -> {
-                    Log.d(TAG, "Action '${action.title}' not implemented yet")
-                }
-            }
-        },
-        modifier = Modifier
-            .width(120.dp)
-            .height(100.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isEnabled) {
-                MaterialTheme.colorScheme.surface
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-            }
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.12f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = action.icon,
-                contentDescription = null,
-                tint = if (isEnabled) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                },
-                modifier = Modifier.size(32.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = action.title,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = if (isEnabled) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                }
-            )
-
-            if (!isEnabled && action.title == "Meter Reading") {
-                Text(
-                    text = "Upload CSV",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun SystemOverviewSection(
     overview: SystemOverview,
     isLoading: Boolean,
-    isMeterDataLoaded: Boolean,
-    bluetoothConnectionState: BluetoothManager.ConnectionState?,
-    isBluetoothEnabled: Boolean
+    isMeterDataLoaded: Boolean
 ) {
     Column {
         Text(
@@ -391,54 +215,50 @@ private fun SystemOverviewSection(
         )
 
         if (isLoading) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.padding(24.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text("Loading meter data...")
-                }
+                CircularProgressIndicator()
             }
         } else {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
+                // Total Meters
                 item {
-                    StatCard(
+                    OverviewCard(
                         title = stringResource(R.string.total_meters),
-                        value = if (isMeterDataLoaded) overview.totalMeters.toString() else "0",
+                        value = overview.totalMeters.toString(),
                         icon = Icons.Default.ElectricMeter,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.width(140.dp)
                     )
                 }
+
+                // Online Meters
                 item {
-                    StatCard(
-                        title = stringResource(R.string.active_meters),
-                        value = if (isMeterDataLoaded) overview.activeMeters.toString() else "0",
+                    OverviewCard(
+                        title = "Online Meters",
+                        value = overview.activeMeters.toString(),
                         icon = Icons.Default.CheckCircle,
-                        color = Color(0xFF4CAF50)
+                        color = Color(0xFF4CAF50),
+                        modifier = Modifier.width(140.dp)
                     )
                 }
+
+                // CSV Status
                 item {
-                    BluetoothPrinterStatusCard(
-                        connectionState = bluetoothConnectionState,
-                        isBluetoothEnabled = isBluetoothEnabled
-                    )
-                }
-                item {
-                    StatCard(
+                    OverviewCard(
                         title = "CSV Status",
-                        value = if (isMeterDataLoaded) "✓" else "!",
+                        value = if (isMeterDataLoaded) "Loaded" else "No Data",
                         icon = Icons.Default.Description,
-                        color = if (isMeterDataLoaded) Color(0xFF4CAF50) else Color(0xFFFF9800)
+                        color = if (isMeterDataLoaded) Color(0xFF4CAF50) else Color(0xFFFF9800),
+                        modifier = Modifier.width(140.dp)
                     )
                 }
             }
@@ -446,110 +266,21 @@ private fun SystemOverviewSection(
     }
 }
 
-
 @Composable
-private fun BluetoothPrinterStatusCard(
-    connectionState: BluetoothManager.ConnectionState?,
-    isBluetoothEnabled: Boolean
-) {
-    // Determine status based on Bluetooth state
-    val (statusText, statusIcon, statusColor) = when {
-        !isBluetoothEnabled -> Triple(
-            "Off",
-            Icons.Default.BluetoothDisabled,
-            colorResource(R.color.csv_error_foreground)
-        )
-        connectionState == BluetoothManager.ConnectionState.CONNECTED -> Triple(
-            "ON",
-            Icons.Default.CheckCircle,
-            colorResource(R.color.csv_success_foreground)
-        )
-        connectionState == BluetoothManager.ConnectionState.CONNECTING -> Triple(
-            "...",
-            Icons.Default.Sync,
-            colorResource(R.color.csv_warning_foreground)
-        )
-        connectionState == BluetoothManager.ConnectionState.ERROR -> Triple(
-            "Error",
-            Icons.Default.Error,
-            colorResource(R.color.csv_error_foreground)
-        )
-        else -> Triple(
-            "Off",
-            Icons.Default.Warning,
-            colorResource(R.color.csv_error_foreground)
-        )
-    }
-
-    Card(
-        modifier = Modifier
-            .width(140.dp)
-            .height(120.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = statusColor.copy(alpha = 0.08f)
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.5.dp,
-            statusColor.copy(alpha = 0.2f)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = statusIcon,
-                contentDescription = null,
-                tint = statusColor,
-                modifier = Modifier.size(28.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = statusColor,
-                textAlign = TextAlign.Center
-            )
-
-            Text(
-                text = "Printer Status",
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-
-@Composable
-private fun StatCard(
+private fun OverviewCard(
     title: String,
     value: String,
     icon: ImageVector,
-    color: Color
+    color: Color,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
-            .width(140.dp)
-            .height(120.dp),
+        modifier = modifier.height(120.dp),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = color.copy(alpha = 0.08f)
         ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.5.dp,
-            color.copy(alpha = 0.2f)
-        )
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.2f))
     ) {
         Column(
             modifier = Modifier
@@ -605,14 +336,6 @@ private fun RecentReadingsSection(
 }
 
 
-
-// Data classes for quick actions
-data class QuickAction(
-    val title: String,
-    val icon: ImageVector,
-    val requiredPermission: Permission? = null
-)
-
 // Helper functions for real data processing
 private fun calculateSystemOverview(meters: List<Meter>): SystemOverview {
     val rankDistribution = meters.groupBy { it.id }.mapValues { it.value.size }
@@ -640,40 +363,6 @@ private fun recentReadings(meters: List<Meter>): List<MeterReading> {
             timestamp = Date(System.currentTimeMillis() - random.nextLong() % (24 * 60 * 60 * 1000)),
             quality = ReadingQuality.entries[random.nextInt(ReadingQuality.entries.size)]
         )
-    }
-}
-
-private fun getQuickActions(userRole: UserRole): List<QuickAction> {
-    val userPermissions = userRole.getPermissions()
-
-    return listOf(
-        QuickAction(
-            title = "Meter Reading",
-            icon = Icons.Default.ElectricBolt,
-            requiredPermission = Permission.READ_DASHBOARD
-        ),
-        QuickAction(
-            title = "Import Data",
-            icon = Icons.Default.FileUpload,
-            requiredPermission = Permission.VIEW_REPORTS
-        ),
-        QuickAction(
-            title = "Receipt Template",
-            icon = Icons.Default.Receipt,
-            requiredPermission = Permission.READ_DASHBOARD
-        ),
-        QuickAction(
-            title = "Add Meter",
-            icon = Icons.Default.Add,
-            requiredPermission = Permission.MANAGE_USERS
-        ),
-        QuickAction(
-            title = "Settings",
-            icon = Icons.Default.Settings,
-            requiredPermission = Permission.SYSTEM_SETTINGS
-        ),
-    ).filter { action ->
-        action.requiredPermission == null || userPermissions.contains(action.requiredPermission)
     }
 }
 

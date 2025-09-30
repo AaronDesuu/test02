@@ -17,7 +17,7 @@ import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.screen.MeterCardTestScreen // Add this import
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 
@@ -26,7 +26,7 @@ fun MeterKenshinApp(
     sessionManager: SessionManager,
     fileUploadViewModel: FileUploadViewModel,
     meterReadingViewModel: MeterReadingViewModel,
-    bluetoothViewModel: BluetoothViewModel
+    printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     val context = LocalContext.current
 
@@ -76,7 +76,7 @@ fun MeterKenshinApp(
         sessionManager = sessionManager,
         fileUploadViewModel = fileUploadViewModel,
         meterReadingViewModel = meterReadingViewModel,
-        bluetoothViewModel = bluetoothViewModel,
+        printerBluetoothViewModel = printerBluetoothViewModel,
         currentScreen = currentAppScreen,
         onNavigateToScreen = { screen ->
             // Handle navigation from drawer
@@ -119,12 +119,10 @@ fun MeterKenshinApp(
                         isLoggedIn = false
                         currentScreen = "login"
                     },
-                    onNavigateToFileUpload = { currentScreen = "file_upload" },
-                    onNavigateToReceiptTemplate = { currentScreen = "receipt" },
                     onNavigateToMeterReading = { currentScreen = "meter_reading" },
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel,
-                    bluetoothViewModel = bluetoothViewModel
+                    printerBluetoothViewModel = printerBluetoothViewModel
                 )
             }
             currentScreen == "file_upload" -> {
@@ -141,7 +139,7 @@ fun MeterKenshinApp(
             currentScreen == "receipt" -> {
                 ReceiptScreen(
                     fileUploadViewModel = fileUploadViewModel,
-                    bluetoothViewModel = bluetoothViewModel,
+                    printerBluetoothViewModel = printerBluetoothViewModel,
                     onBackPressed = { currentScreen = "home" },
                     onNavigateToFileUpload = { currentScreen = "file_upload" }
                 )

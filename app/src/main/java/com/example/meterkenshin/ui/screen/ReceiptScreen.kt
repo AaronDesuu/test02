@@ -61,7 +61,7 @@ import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.component.ReceiptPrintButton
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
 import com.example.meterkenshin.ui.component.createSampleReceiptData
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import java.io.BufferedReader
 import java.io.File
@@ -75,7 +75,7 @@ import java.util.Locale
 @Composable
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
-    bluetoothViewModel: BluetoothViewModel = viewModel(),
+    printerBluetoothViewModel: PrinterBluetoothViewModel = viewModel(),
     onBackPressed: () -> Unit = {},
     onNavigateToFileUpload: () -> Unit = {}
 ) {
@@ -85,8 +85,8 @@ fun ReceiptScreen(
     // Observe upload state from FileUploadViewModel
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
 
-    val bluetoothConnectionState by bluetoothViewModel.connectionState.collectAsState()
-    val isBluetoothEnabled by bluetoothViewModel.isBluetoothEnabled.collectAsState()
+    val bluetoothConnectionState by printerBluetoothViewModel.connectionState.collectAsState()
+    val isBluetoothEnabled by printerBluetoothViewModel.isBluetoothEnabled.collectAsState()
 
 
     var rateData by remember { mutableStateOf<FloatArray?>(null) }
@@ -417,7 +417,7 @@ fun ReceiptScreen(
                                     reader = billingData.reader
                                 )
                             },
-                            bluetoothViewModel = bluetoothViewModel,
+                            printerBluetoothViewModel = printerBluetoothViewModel,
                             bluetoothConnectionState = bluetoothConnectionState,
                             isBluetoothEnabled = isBluetoothEnabled
                         )

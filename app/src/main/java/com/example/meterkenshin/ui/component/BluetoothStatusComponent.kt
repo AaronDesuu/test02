@@ -16,7 +16,6 @@ import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.BluetoothDisabled
-import androidx.compose.material.icons.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Print
@@ -42,7 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.bluetooth.BluetoothManager
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 
 @Composable
 fun BluetoothStatusComponent(
@@ -50,7 +49,7 @@ fun BluetoothStatusComponent(
     isBluetoothEnabled: Boolean,
     connectedDevice: android.bluetooth.BluetoothDevice?,
     statusMessage: String?,
-    bluetoothViewModel: BluetoothViewModel
+    printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -114,7 +113,7 @@ fun BluetoothStatusComponent(
             BluetoothActionButtons(
                 connectionState = connectionState,
                 isBluetoothEnabled = isBluetoothEnabled,
-                bluetoothViewModel = bluetoothViewModel
+                printerBluetoothViewModel = printerBluetoothViewModel
             )
         }
     }
@@ -242,7 +241,7 @@ private fun BluetoothConnectionStatusCard(
 private fun BluetoothActionButtons(
     connectionState: BluetoothManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
-    bluetoothViewModel: BluetoothViewModel
+    printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -265,7 +264,7 @@ private fun BluetoothActionButtons(
             }
             connectionState == BluetoothManager.ConnectionState.ERROR -> {
                 OutlinedButton(
-                    onClick = { bluetoothViewModel.retryConnection() },
+                    onClick = { printerBluetoothViewModel.retryConnection() },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -279,7 +278,7 @@ private fun BluetoothActionButtons(
             }
             connectionState == BluetoothManager.ConnectionState.CONNECTED -> {
                 OutlinedButton(
-                    onClick = { bluetoothViewModel.printSampleData() },
+                    onClick = { printerBluetoothViewModel.printSampleData() },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -292,7 +291,7 @@ private fun BluetoothActionButtons(
                 }
 
                 OutlinedButton(
-                    onClick = { bluetoothViewModel.disconnect() },
+                    onClick = { printerBluetoothViewModel.disconnect() },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -306,7 +305,7 @@ private fun BluetoothActionButtons(
             }
             else -> {
                 OutlinedButton(
-                    onClick = { bluetoothViewModel.startAutoConnect() },
+                    onClick = { printerBluetoothViewModel.startAutoConnect() },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(

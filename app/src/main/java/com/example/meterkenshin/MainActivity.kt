@@ -21,7 +21,7 @@ import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.permissions.BluetoothPermissionHandler
 import com.example.meterkenshin.ui.component.MeterKenshinApp
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import kotlinx.coroutines.launch
@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var sessionManager: SessionManager
     private val fileUploadViewModel: FileUploadViewModel by viewModels()
     private val meterReadingViewModel: MeterReadingViewModel by viewModels()
-    private val bluetoothViewModel: BluetoothViewModel by viewModels()
+    private val printerBluetoothViewModel: PrinterBluetoothViewModel by viewModels()
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private lateinit var bluetoothPermissionHandler: BluetoothPermissionHandler
@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
                         sessionManager = sessionManager,
                         fileUploadViewModel = fileUploadViewModel,
                         meterReadingViewModel = meterReadingViewModel,
-                        bluetoothViewModel = bluetoothViewModel
+                        printerBluetoothViewModel = printerBluetoothViewModel
                     )
                 }
             }
@@ -143,7 +143,7 @@ class MainActivity : ComponentActivity() {
         // Initialize custom Bluetooth manager
         customBluetoothManager = CustomBluetoothManager(this).apply {
             // Initialize Bluetooth ViewModel with manager
-            bluetoothViewModel.initializeBluetoothManager(this)
+            printerBluetoothViewModel.initializeBluetoothManager(this)
 
             // DO NOT auto-connect here
             // Connection will happen when user:

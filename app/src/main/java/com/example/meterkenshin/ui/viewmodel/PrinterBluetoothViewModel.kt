@@ -2,8 +2,6 @@ package com.example.meterkenshin.ui.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.bluetooth.BluetoothManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +13,7 @@ import kotlinx.coroutines.launch
  * ViewModel for managing Bluetooth connection state in Compose UI
  * Enhanced with better state management and error handling
  */
-class BluetoothViewModel(application: Application) : AndroidViewModel(application) {
+class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(application) {
 
     private var bluetoothManager: BluetoothManager? = null
 
@@ -33,13 +31,10 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
     private val _isInitialized = MutableStateFlow(false)
-    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
     private val _printerConfigInfo = MutableStateFlow<String?>(null)
-    val printerConfigInfo: StateFlow<String?> = _printerConfigInfo.asStateFlow()
 
     private val _isAutoConnecting = MutableStateFlow(false)
-    val isAutoConnecting: StateFlow<Boolean> = _isAutoConnecting.asStateFlow()
 
     /**
      * Initialize the Bluetooth manager
@@ -80,16 +75,6 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Connect to the specific Woosim device using hardcoded MAC address
-     */
-    fun connectToWoosimDevice() {
-        viewModelScope.launch {
-            _isAutoConnecting.value = true
-            bluetoothManager?.connectToSpecificDevice()
-        }
-    }
-
-    /**
      * Start auto-connection process
      */
     fun startAutoConnect() {
@@ -100,37 +85,11 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Start Bluetooth device scan
-     */
-    fun startScan() {
-        bluetoothManager?.startScan()
-    }
-
-    /**
      * Disconnect from current device
      */
     fun disconnect() {
         bluetoothManager?.disconnect()
     }
-
-    /**
-     * Ensure the correct device is connected
-     */
-    fun ensureCorrectDeviceConnected() {
-        bluetoothManager?.ensureCorrectDeviceConnected()
-    }
-
-    /**
-     * Check if device is currently connected
-     */
-    fun isConnected(): Boolean {
-        return bluetoothManager?.isConnected() == true
-    }
-
-    /**
-     * Get the current print service
-     */
-    fun getPrintService() = bluetoothManager?.getPrintService()
 
     /**
      * Write data to connected printer
@@ -140,66 +99,10 @@ class BluetoothViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     /**
-     * Check if Bluetooth is supported
-     */
-    fun isBluetoothSupported(): Boolean {
-        return bluetoothManager?.isBluetoothSupported() == true
-    }
-
-    /**
-     * Check if printer configuration is valid
-     */
-    fun isPrinterConfigurationValid(): Boolean {
-        return bluetoothManager?.isPrinterConfigurationValid() == true
-    }
-
-    /**
-     * Get the configured printer MAC address
-     */
-    fun getConfiguredPrinterMacAddress(): String? {
-        return bluetoothManager?.getConfiguredPrinterMacAddress()
-    }
-
-    /**
      * Update printer configuration information
      */
     private fun updatePrinterConfigInfo() {
         _printerConfigInfo.value = bluetoothManager?.getPrinterConfigInfo()
-    }
-
-    /**
-     * Refresh printer configuration info
-     */
-    fun refreshPrinterConfigInfo() {
-        updatePrinterConfigInfo()
-    }
-
-    /**
-     * Get connection status as a user-friendly string
-     */
-    fun getConnectionStatusString(): String {
-        return when (_connectionState.value) {
-            BluetoothManager.ConnectionState.CONNECTED -> {
-                val deviceInfo = try {
-                    val device = _connectedDevice.value
-                    device?.name ?: device?.address ?: "Unknown Device"
-                } catch (e: SecurityException) {
-                    _connectedDevice.value?.address ?: "Unknown Device"
-                }
-                "Connected to $deviceInfo"
-            }
-            BluetoothManager.ConnectionState.CONNECTING -> "Connecting..."
-            BluetoothManager.ConnectionState.DISCONNECTED -> "Disconnected"
-            BluetoothManager.ConnectionState.ERROR -> "Connection Error"
-            null -> "Unknown Status"
-        }
-    }
-
-    /**
-     * Check if currently trying to connect
-     */
-    fun isConnecting(): Boolean {
-        return _connectionState.value == BluetoothManager.ConnectionState.CONNECTING
     }
 
     /**

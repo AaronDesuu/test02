@@ -294,8 +294,8 @@ class MeterTestViewModel : ViewModel() {
                     id = meterIndex.toString(),
                     serialNumber = (3000 + i).toString(),
                     location = "Test Location ${('A'..'Z').random()}$i",
-                    type = MeterType.values().random(),
-                    status = MeterStatus.values().random(),
+                    type = MeterType.entries.toTypedArray().random(),
+                    status = MeterStatus.entries.toTypedArray().random(),
                     installationDate = Date(System.currentTimeMillis() - Random.nextLong(1, 1000) * 24 * 60 * 60 * 1000),
                     lastMaintenanceDate = if (Random.nextBoolean()) Date(System.currentTimeMillis() - Random.nextLong(1, 100) * 24 * 60 * 60 * 1000) else null,
                     coordinates = Coordinates(
@@ -326,28 +326,4 @@ class MeterTestViewModel : ViewModel() {
         generateTestMeters()
     }
 
-    /**
-     * Get test meter readings for specific scenarios
-     */
-    fun generateTestReadings(): List<MeterReading> {
-        return _testMeters.value.map { meter ->
-            MeterReading(
-                id = "reading_${meter.id}",
-                meterId = meter.id,
-                reading = meter.impKWh ?: 0.0,
-                timestamp = Date(),
-                readBy = "System Test",
-                readingType = ReadingType.BLUETOOTH,
-                quality = ReadingQuality.values().random(),
-                notes = "Test reading for meter ${meter.serialNumber}",
-                importReading = meter.impKWh,
-                exportReading = meter.expKWh,
-                maxDemandImport = meter.impMaxDemandKW,
-                maxDemandExport = meter.expMaxDemandKW,
-                minVoltage = meter.minVoltV,
-                alertLevel = meter.alert,
-                bluetoothId = meter.bluetoothId
-            )
-        }
-    }
 }

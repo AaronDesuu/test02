@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.viewmodel
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -9,15 +10,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.FileUploadState
 import com.example.meterkenshin.model.RequiredFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
 
 class FileUploadViewModel : ViewModel() {
     private val _uploadState = MutableStateFlow(FileUploadState())
@@ -77,7 +77,7 @@ class FileUploadViewModel : ViewModel() {
 
                 val updatedFiles = _uploadState.value.requiredFiles.map { file ->
                     val existingFile = File(appFilesDir, file.fileName)
-                    if (existingFile.exists() && existingFile.isFile()) {
+                    if (existingFile.exists() && existingFile.isFile) {
                         file.copy(
                             status = FileUploadState.FileStatus.UPLOADED,
                             fileSize = existingFile.length(),
@@ -176,30 +176,6 @@ class FileUploadViewModel : ViewModel() {
                     FileUploadState.FileStatus.ERROR,
                     errorMessage = e.localizedMessage ?: context.getString(R.string.upload_failed)
                 )
-            }
-        }
-    }
-
-    /**
-     * Replace an existing file - delete the old one and upload the new one
-     */
-    fun replaceFile(fileType: RequiredFile.FileType, context: Context) {
-        viewModelScope.launch {
-            try {
-                // First, delete the existing file
-                val deleteSuccess = deleteExistingFile(fileType, context)
-                if (!deleteSuccess) {
-                    Log.w(TAG, "Failed to delete existing file for replacement: $fileType")
-                    updateUploadError(context.getString(R.string.failed_to_delete_existing_file))
-                    return@launch
-                }
-
-                // Then upload the new file
-                uploadFile(fileType, context)
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error replacing file", e)
-                updateUploadError(e.localizedMessage ?: context.getString(R.string.file_replacement_failed))
             }
         }
     }
@@ -508,9 +484,10 @@ class FileUploadViewModel : ViewModel() {
     /**
      * Format file size for display
      */
+    @SuppressLint("DefaultLocale")
     private fun formatFileSize(bytes: Long): String {
         return when {
-            bytes < 1024 -> "${bytes} B"
+            bytes < 1024 -> "$bytes B"
             bytes < 1024 * 1024 -> "${bytes / 1024} KB"
             else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
         }

@@ -1,10 +1,7 @@
 package com.example.meterkenshin.ui.component
 
 import android.util.Log
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,7 +18,7 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.bluetooth.BluetoothManager
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.woosim.WoosimCmd
 
 // Data class for receipt printing
@@ -50,7 +47,7 @@ data class ReceiptData(
 @Composable
 fun ReceiptPrintButton(
     receiptData: ReceiptData,
-    bluetoothViewModel: BluetoothViewModel,
+    printerBluetoothViewModel: PrinterBluetoothViewModel,
     bluetoothConnectionState: BluetoothManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
     modifier: Modifier = Modifier
@@ -61,7 +58,7 @@ fun ReceiptPrintButton(
     Button(
         onClick = {
             if (canPrint) {
-                printReceipt(receiptData, bluetoothViewModel)
+                printReceipt(receiptData, printerBluetoothViewModel)
             }
         },
         enabled = canPrint,
@@ -92,7 +89,7 @@ fun ReceiptPrintButton(
 // Print function that handles the actual printing
 private fun printReceipt(
     receiptData: ReceiptData,
-    bluetoothViewModel: BluetoothViewModel
+    printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     // Build receipt using proper Woosim commands for formatting
     val commands = mutableListOf<ByteArray>()
@@ -258,7 +255,7 @@ private fun printReceipt(
 
     // Send all commands to printer
     commands.forEach { command ->
-        val success = bluetoothViewModel.writeData(command)
+        val success = printerBluetoothViewModel.writeData(command)
         if (!success) {
             Log.e("ReceiptPrinter", "Failed to send command to printer")
             return

@@ -38,33 +38,5 @@ data class UserSession(
     }
 }
 
-// Permission levels for different user roles
-enum class Permission {
-    READ_DASHBOARD,
-    MANAGE_USERS,
-    VIEW_REPORTS,
-    SYSTEM_SETTINGS,
-    ROOT_ACCESS
-}
 
-fun UserRole.getPermissions(): Set<Permission> {
-    return when (this) {
-        UserRole.ROOT -> setOf(
-            Permission.READ_DASHBOARD,
-            Permission.MANAGE_USERS,
-            Permission.VIEW_REPORTS,
-            Permission.SYSTEM_SETTINGS,
-            Permission.ROOT_ACCESS
-        )
-        UserRole.ADMIN -> setOf(
-            Permission.READ_DASHBOARD,
-            Permission.MANAGE_USERS,
-            Permission.VIEW_REPORTS,
-            Permission.SYSTEM_SETTINGS
-        )
-        UserRole.READER -> setOf(
-            Permission.READ_DASHBOARD,
-            Permission.VIEW_REPORTS
-        )
-    }
-}
+

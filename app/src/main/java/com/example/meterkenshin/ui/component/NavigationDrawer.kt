@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,7 +57,7 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.model.UserSession
-import com.example.meterkenshin.ui.viewmodel.BluetoothViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import kotlinx.coroutines.launch
@@ -90,7 +89,7 @@ fun AppWithDrawer(
     sessionManager: SessionManager,
     fileUploadViewModel: FileUploadViewModel,
     meterReadingViewModel: MeterReadingViewModel,
-    bluetoothViewModel: BluetoothViewModel,
+    printerBluetoothViewModel: PrinterBluetoothViewModel,
     currentScreen: AppScreen = AppScreen.HOME,
     onNavigateToScreen: (AppScreen) -> Unit = {},
     onNavigateToTest: () -> Unit = {}, // Add this parameter for test navigation

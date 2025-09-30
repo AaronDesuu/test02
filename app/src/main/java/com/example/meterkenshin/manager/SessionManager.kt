@@ -1,5 +1,6 @@
 package com.example.meterkenshin.manager
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.meterkenshin.data.UserDatabase
@@ -31,6 +32,7 @@ class SessionManager private constructor(context: Context) {
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
     private val userDatabase = UserDatabase.getInstance()
 
+    @SuppressLint("UseKtx")
     fun saveSession(session: UserSession) {
         with(sharedPreferences.edit()) {
             putString(KEY_USER_ID, session.userId)
@@ -72,12 +74,13 @@ class SessionManager private constructor(context: Context) {
                 clearSession()
                 null
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             clearSession()
             null
         }
     }
 
+    @SuppressLint("UseKtx")
     fun clearSession() {
         with(sharedPreferences.edit()) {
             clear()

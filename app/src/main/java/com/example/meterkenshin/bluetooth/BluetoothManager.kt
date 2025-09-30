@@ -14,7 +14,6 @@ import androidx.core.app.ActivityCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.meterkenshin.data.parser.PrinterCsvParser
-import kotlinx.coroutines.*
 
 /**
  * Bluetooth Manager for handling Woosim printer connectivity
@@ -172,7 +171,7 @@ class BluetoothManager(private val context: Context) {
      */
     private fun initializePrintService() {
         if (printService == null) {
-            printService = BluetoothPrintService(handler) { state, device, message ->
+            printService = BluetoothPrintService() { state, device, message ->
                 handleConnectionStateChange(state, device, message)
             }
             Log.d(TAG, "BluetoothPrintService initialized")
@@ -438,7 +437,7 @@ class BluetoothManager(private val context: Context) {
                 // Get MAC address - prioritize device object, fall back to CSV
                 val macAddress = device?.address ?: printerConfig?.bluetoothMacAddress ?: "Unknown"
 
-                updateStatus("x$displayName\nMAC Address: $macAddress")
+                updateStatus("$displayName\nMAC Address: $macAddress")
                 Log.d(TAG, "Successfully connected to $macAddress ($displayName)")
             }
 

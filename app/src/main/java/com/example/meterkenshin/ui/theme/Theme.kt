@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.example.meterkenshin.ui.theme
 
 import android.app.Activity

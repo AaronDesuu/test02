@@ -1,24 +1,22 @@
 package com.example.meterkenshin.bluetooth
 
-import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.annotation.RequiresPermission
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.*
+import java.util.UUID
 
 /**
  * Bluetooth Print Service for managing connection and communication with Woosim printer
  * Fixed threading issues and improved error handling
  */
+@Suppress("DEPRECATION")
 class BluetoothPrintService(
-    private val handler: Handler,
     private val stateCallback: ((Int, BluetoothDevice?, String?) -> Unit)? = null
 ) {
 
@@ -303,11 +301,10 @@ class BluetoothPrintService(
                     bytes = inputStream?.read(buffer) ?: -1
                     if (bytes > 0) {
                         // Send the obtained bytes to the UI Activity
-                        val readBuffer = buffer.copyOf(bytes)
                         mainHandler.post {
                             // Handle received data if needed
                             // For now, just log it
-                            Log.d(TAG, "Received ${bytes} bytes")
+                            Log.d(TAG, "Received $bytes bytes")
                         }
                     }
                 } catch (e: IOException) {
