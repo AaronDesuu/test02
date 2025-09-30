@@ -18,7 +18,7 @@ import kotlinx.coroutines.*
 
 /**
  * Bluetooth Manager for handling Woosim printer connectivity
- * Enhanced with direct MAC address connection capability
+ * Enhanced to prioritize printer.csv configuration over hardcoded MAC address
  */
 class BluetoothManager(private val context: Context) {
 
@@ -28,7 +28,6 @@ class BluetoothManager(private val context: Context) {
         private const val SCAN_DURATION = 10000L // 10 seconds scan duration
         private const val AUTO_CONNECT_RETRY_COUNT = 3
         private const val AUTO_CONNECT_RETRY_DELAY = 2000L // 2 seconds
-        private const val WOOSIM_MAC_ADDRESS = "1C:B8:57:50:01:D9" // Hardcoded MAC address
     }
 
     enum class ConnectionState {
@@ -42,43 +41,46 @@ class BluetoothManager(private val context: Context) {
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
     private var printService: BluetoothPrintService? = null
-    private val printerCsvParser = PrinterCsvParser(context)
     private val handler = Handler(Looper.getMainLooper())
+    private val printerCsvParser = PrinterCsvParser(context)
 
-    // LiveData for observing states
+    // LiveData for connection state
     private val _connectionState = MutableLiveData<ConnectionState>()
     val connectionState: LiveData<ConnectionState> = _connectionState
 
+    // LiveData for connected device
     private val _connectedDevice = MutableLiveData<BluetoothDevice?>()
     val connectedDevice: LiveData<BluetoothDevice?> = _connectedDevice
 
-    private val _statusMessage = MutableLiveData<String>()
-    val statusMessage: LiveData<String> = _statusMessage
+    // LiveData for status messages
+    private val _statusMessage = MutableLiveData<String?>()
+    val statusMessage: LiveData<String?> = _statusMessage
 
+    // LiveData for Bluetooth enabled state
     private val _isBluetoothEnabled = MutableLiveData<Boolean>()
     val isBluetoothEnabled: LiveData<Boolean> = _isBluetoothEnabled
 
-    // Scan-related variables
+    // Scanning state
     private var isScanning = false
     private var autoConnectAttempts = 0
-    private val discoveredDevices = mutableSetOf<BluetoothDevice>()
 
     init {
+        _connectionState.value = ConnectionState.DISCONNECTED
+        _connectedDevice.value = null
         updateBluetoothEnabledState()
         initializePrintService()
 
-        // Initial status
-        _connectionState.value = ConnectionState.DISCONNECTED
-        updateStatus("Bluetooth Manager initialized")
+        Log.d(TAG, "BluetoothManager initialized")
+        Log.d(TAG, "Bluetooth enabled: ${_isBluetoothEnabled.value}")
+        Log.d(TAG, "Printer CSV available: ${printerCsvParser.isPrinterCsvAvailable()}")
+        Log.d(TAG, "Configuration: ${printerCsvParser.getConfigurationSummary()}")
     }
 
+    /**
+     * Update Bluetooth enabled state
+     */
     private fun updateBluetoothEnabledState() {
         _isBluetoothEnabled.value = bluetoothAdapter?.isEnabled == true
-    }
-
-    private fun updateStatus(message: String) {
-        Log.d(TAG, message)
-        _statusMessage.value = message
     }
 
     /**
@@ -89,7 +91,7 @@ class BluetoothManager(private val context: Context) {
     }
 
     /**
-     * Check if Bluetooth is enabled
+     * Check if Bluetooth is currently enabled
      */
     fun isBluetoothEnabled(): Boolean {
         updateBluetoothEnabledState()
@@ -100,11 +102,56 @@ class BluetoothManager(private val context: Context) {
      * Check if device is currently connected
      */
     fun isConnected(): Boolean {
-        return _connectionState.value == ConnectionState.CONNECTED
+        return _connectionState.value == ConnectionState.CONNECTED &&
+                _connectedDevice.value != null
     }
 
     /**
-     * Check if required Bluetooth permissions are granted
+     * Get the print service instance
+     */
+    fun getPrintService(): BluetoothPrintService? = printService
+
+    /**
+     * Write data to connected printer
+     */
+    fun write(data: ByteArray): Boolean {
+        return try {
+            if (printService?.getState() == BluetoothPrintService.STATE_CONNECTED) {
+                printService?.write(data)
+                Log.d(TAG, "Data written to printer: ${data.size} bytes")
+                true
+            } else {
+                Log.w(TAG, "Cannot write: printer not connected")
+                updateStatus("ERROR: Printer not connected")
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error writing data to printer", e)
+            updateStatus("ERROR: Failed to write to printer")
+            false
+        }
+    }
+
+    /**
+     * Disconnect from current device
+     */
+    fun disconnect() {
+        printService?.disconnect()
+        _connectionState.value = ConnectionState.DISCONNECTED
+        _connectedDevice.value = null
+        updateStatus("Disconnected")
+    }
+
+    /**
+     * Update status message
+     */
+    private fun updateStatus(message: String) {
+        Log.d(TAG, "Status: $message")
+        _statusMessage.value = message
+    }
+
+    /**
+     * Check if app has required Bluetooth permissions
      */
     private fun hasBluetoothPermissions(): Boolean {
         return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -133,9 +180,10 @@ class BluetoothManager(private val context: Context) {
     }
 
     /**
-     * Connect to the Woosim printer using the hardcoded MAC address
+     * Connect to the Woosim printer using configured MAC address
+     * Prioritizes printer.csv over fallback hardcoded address
      */
-    suspend fun connectToSpecificDevice(macAddress: String = WOOSIM_MAC_ADDRESS) {
+    suspend fun connectToSpecificDevice(macAddress: String? = null) {
         if (!isBluetoothEnabled()) {
             updateStatus("Bluetooth is not enabled")
             _connectionState.value = ConnectionState.ERROR
@@ -148,20 +196,29 @@ class BluetoothManager(private val context: Context) {
             return
         }
 
-        Log.d(TAG, "Attempting to connect to device: $macAddress")
+        // Determine which MAC address to use
+        val targetMacAddress = macAddress ?: getConfiguredPrinterMacAddress()
+
+        if (targetMacAddress == null) {
+            updateStatus("No printer configured")
+            _connectionState.value = ConnectionState.ERROR
+            return
+        }
+
+        Log.d(TAG, "Attempting to connect to device: $targetMacAddress")
         updateStatus("Connecting to Woosim printer...")
 
         try {
-            val device = bluetoothAdapter?.getRemoteDevice(macAddress)
+            val device = bluetoothAdapter?.getRemoteDevice(targetMacAddress)
             if (device != null) {
                 connectToDevice(device)
             } else {
-                updateStatus("Could not get device for MAC address: $macAddress")
+                updateStatus("Could not get device for MAC address: $targetMacAddress")
                 _connectionState.value = ConnectionState.ERROR
             }
         } catch (e: IllegalArgumentException) {
-            Log.e(TAG, "Invalid MAC address format: $macAddress", e)
-            updateStatus("Invalid MAC address format: $macAddress")
+            Log.e(TAG, "Invalid MAC address format: $targetMacAddress", e)
+            updateStatus("Invalid MAC address format: $targetMacAddress")
             _connectionState.value = ConnectionState.ERROR
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception: Missing Bluetooth permissions", e)
@@ -172,8 +229,7 @@ class BluetoothManager(private val context: Context) {
 
     /**
      * Start automatic connection process to Woosim printer
-     * First tries to connect using MAC address from printer.csv
-     * Falls back to scanning if CSV not available or connection fails
+     * Requires printer.csv configuration to be uploaded
      */
     fun startAutoConnect() {
         if (!isBluetoothEnabled()) {
@@ -185,72 +241,36 @@ class BluetoothManager(private val context: Context) {
         Log.d(TAG, "Starting auto-connect process")
         autoConnectAttempts = 0
 
-        // First, try to connect using hardcoded MAC address
-        if (connectDirectToWoosim()) {
-            return
-        }
-
-        // If direct connection fails, try CSV configuration
+        // Try to connect using printer.csv configuration
         if (connectUsingCsvConfiguration()) {
             return
         }
 
-        // If CSV method fails, fall back to scanning
-        updateStatus("Falling back to device scanning")
-        attemptAutoConnect()
-    }
-
-    /**
-     * Try to connect directly using the hardcoded Woosim MAC address
-     */
-    private fun connectDirectToWoosim(): Boolean {
-        if (!hasBluetoothPermissions()) {
-            updateStatus("Missing Bluetooth permissions")
-            return false
-        }
-
-        Log.d(TAG, "Attempting direct connection to Woosim: $WOOSIM_MAC_ADDRESS")
-        updateStatus("Connecting to Woosim printer: $WOOSIM_MAC_ADDRESS")
-
-        return try {
-            val device = bluetoothAdapter?.getRemoteDevice(WOOSIM_MAC_ADDRESS)
-            if (device != null) {
-                connectToDevice(device)
-                true
-            } else {
-                Log.e(TAG, "Could not get device for MAC address: $WOOSIM_MAC_ADDRESS")
-                updateStatus("Failed to get Woosim device")
-                false
-            }
-        } catch (e: IllegalArgumentException) {
-            Log.e(TAG, "Invalid MAC address format: $WOOSIM_MAC_ADDRESS", e)
-            updateStatus("Invalid Woosim MAC address")
-            false
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception: Missing Bluetooth permissions", e)
-            updateStatus("Missing Bluetooth permissions")
-            false
-        }
+        // If CSV not available or no active printer, show error
+        updateStatus("ERROR: No printer configured. Please upload printer.csv with active printer.")
+        _connectionState.value = ConnectionState.ERROR
+        Log.e(TAG, "Cannot connect: printer.csv not found or no active printer configured")
     }
 
     /**
      * Try to connect using MAC address from printer.csv file
+     * This is the ONLY connection method
      */
     private fun connectUsingCsvConfiguration(): Boolean {
         if (!printerCsvParser.isPrinterCsvAvailable()) {
-            Log.d(TAG, "Printer CSV file not found")
-            updateStatus("Printer CSV file not uploaded")
+            Log.e(TAG, "Printer CSV file not found")
+            updateStatus("ERROR: printer.csv not uploaded")
             return false
         }
 
         val macAddress = printerCsvParser.getActivePrinterMacAddress()
         if (macAddress == null) {
-            Log.d(TAG, "No active printer found in CSV or invalid MAC address")
-            updateStatus("No active printer configured in CSV")
+            Log.e(TAG, "No active printer found in CSV or invalid MAC address")
+            updateStatus("ERROR: No active printer in printer.csv (Activate must be 1)")
             return false
         }
 
-        Log.d(TAG, "Found printer MAC address in CSV: $macAddress")
+        Log.d(TAG, "Using MAC address from printer.csv: $macAddress")
         updateStatus("Connecting to configured printer: $macAddress")
 
         // Get device by MAC address and connect
@@ -262,7 +282,7 @@ class BluetoothManager(private val context: Context) {
      */
     private fun connectToDeviceByMacAddress(macAddress: String): Boolean {
         if (!hasBluetoothPermissions()) {
-            updateStatus("Missing Bluetooth permissions")
+            updateStatus("ERROR: Missing Bluetooth permissions")
             return false
         }
 
@@ -274,87 +294,70 @@ class BluetoothManager(private val context: Context) {
                 true
             } else {
                 Log.e(TAG, "Could not get device for MAC address: $macAddress")
-                updateStatus("Invalid MAC address: $macAddress")
+                updateStatus("ERROR: Invalid MAC address in printer.csv: $macAddress")
                 false
             }
         } catch (e: IllegalArgumentException) {
             Log.e(TAG, "Invalid MAC address format: $macAddress", e)
-            updateStatus("Invalid MAC address format: $macAddress")
+            updateStatus("ERROR: Invalid MAC address format in printer.csv: $macAddress")
             false
         } catch (e: SecurityException) {
             Log.e(TAG, "Security exception: Missing Bluetooth permissions", e)
-            updateStatus("Missing Bluetooth permissions")
+            updateStatus("ERROR: Missing Bluetooth permissions")
             false
         }
     }
 
     /**
      * Attempt to connect to a previously paired Woosim device or scan for new ones
-     * This is now used as a fallback method when direct and CSV connection fails
      */
     private fun attemptAutoConnect() {
-        if (autoConnectAttempts >= AUTO_CONNECT_RETRY_COUNT) {
-            updateStatus("Auto-connect failed after $AUTO_CONNECT_RETRY_COUNT attempts")
+        if (!hasBluetoothPermissions()) {
+            updateStatus("Missing Bluetooth permissions")
             _connectionState.value = ConnectionState.ERROR
             return
         }
 
-        autoConnectAttempts++
-        updateStatus("Scanning attempt $autoConnectAttempts of $AUTO_CONNECT_RETRY_COUNT")
+        try {
+            autoConnectAttempts++
+            Log.d(TAG, "Auto-connect attempt $autoConnectAttempts of $AUTO_CONNECT_RETRY_COUNT")
 
-        // Try to connect to paired devices first
-        if (connectToPairedWoosimDevice()) {
-            return
-        }
+            if (autoConnectAttempts > AUTO_CONNECT_RETRY_COUNT) {
+                updateStatus("Auto-connect failed after $AUTO_CONNECT_RETRY_COUNT attempts")
+                _connectionState.value = ConnectionState.ERROR
+                return
+            }
 
-        // If no paired device found, scan for new devices
-        startScan()
-    }
-
-    /**
-     * Try to connect to an already paired Woosim device
-     */
-    private fun connectToPairedWoosimDevice(): Boolean {
-        if (!hasBluetoothPermissions()) {
-            updateStatus("Missing Bluetooth permissions")
-            return false
-        }
-
-        return try {
+            // Try to find paired Woosim devices
             val pairedDevices = bluetoothAdapter?.bondedDevices
             val woosimDevice = pairedDevices?.find { device ->
-                try {
-                    device.name?.contains(WOOSIM_DEVICE_PREFIX, ignoreCase = true) == true ||
-                            device.address == WOOSIM_MAC_ADDRESS
-                } catch (e: SecurityException) {
-                    Log.w(TAG, "Cannot access device name due to permissions", e)
-                    device.address == WOOSIM_MAC_ADDRESS
-                }
+                device.name?.contains(WOOSIM_DEVICE_PREFIX, ignoreCase = true) == true
             }
 
             if (woosimDevice != null) {
-                try {
-                    Log.d(TAG, "Found paired Woosim device: ${woosimDevice.name} (${woosimDevice.address})")
-                } catch (e: SecurityException) {
-                    Log.d(TAG, "Found paired Woosim device: (${woosimDevice.address})")
-                }
+                Log.d(TAG, "Found paired Woosim device: ${woosimDevice.name} (${woosimDevice.address})")
                 connectToDevice(woosimDevice)
-                true
             } else {
-                Log.d(TAG, "No paired Woosim device found")
-                false
+                Log.d(TAG, "No paired Woosim devices found, starting scan")
+                startScan()
             }
         } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception while accessing paired devices", e)
+            Log.e(TAG, "Security exception during auto-connect", e)
             updateStatus("Missing Bluetooth permissions")
-            false
+            _connectionState.value = ConnectionState.ERROR
         }
     }
 
     /**
      * Start scanning for Bluetooth devices
      */
+    @RequiresPermission(allOf = [Manifest.permission.BLUETOOTH_SCAN])
     fun startScan() {
+        if (!isBluetoothEnabled()) {
+            updateStatus("Bluetooth is not enabled")
+            return
+        }
+
         if (!hasBluetoothPermissions()) {
             updateStatus("Missing Bluetooth permissions")
             return
@@ -365,133 +368,45 @@ class BluetoothManager(private val context: Context) {
             return
         }
 
-        discoveredDevices.clear()
-        isScanning = true
-        updateStatus("Scanning for Woosim devices...")
-
         try {
-            // Start discovery
+            isScanning = true
+            updateStatus("Scanning for devices...")
+
             bluetoothAdapter?.startDiscovery()
 
-            // Stop scanning after duration
+            // Stop scan after duration
             handler.postDelayed({
-                stopScan()
-                handleScanResults()
+                try {
+                    bluetoothAdapter?.cancelDiscovery()
+                    isScanning = false
+                    updateStatus("Scan completed")
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Error stopping discovery", e)
+                }
             }, SCAN_DURATION)
+
         } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception during scan start", e)
-            updateStatus("Missing Bluetooth scan permissions")
+            Log.e(TAG, "Missing permissions for device scan", e)
+            updateStatus("Missing Bluetooth permissions")
             isScanning = false
-        }
-    }
-
-    /**
-     * Stop scanning for devices
-     */
-    private fun stopScan() {
-        if (isScanning) {
-            try {
-                bluetoothAdapter?.cancelDiscovery()
-                isScanning = false
-                Log.d(TAG, "Bluetooth scanning stopped")
-            } catch (e: SecurityException) {
-                Log.w(TAG, "Security exception during scan stop", e)
-                isScanning = false
-            }
-        }
-    }
-
-    /**
-     * Handle scan results
-     */
-    private fun handleScanResults() {
-        val woosimDevices = discoveredDevices.filter { device ->
-            try {
-                device.name?.contains(WOOSIM_DEVICE_PREFIX, ignoreCase = true) == true ||
-                        device.address == WOOSIM_MAC_ADDRESS
-            } catch (e: SecurityException) {
-                Log.w(TAG, "Cannot access device name during filtering", e)
-                device.address == WOOSIM_MAC_ADDRESS
-            }
-        }
-
-        Log.d(TAG, "Found ${woosimDevices.size} Woosim devices")
-
-        if (woosimDevices.isNotEmpty()) {
-            // Connect to the first discovered device
-            val device = woosimDevices.first()
-            connectToDevice(device)
-        } else {
-            // Retry auto-connect after delay
-            updateStatus("No Woosim devices found. Retrying...")
-            handler.postDelayed({
-                attemptAutoConnect()
-            }, AUTO_CONNECT_RETRY_DELAY)
         }
     }
 
     /**
      * Connect to a specific Bluetooth device
      */
-    fun connectToDevice(device: BluetoothDevice) {
-        if (!hasBluetoothPermissions()) {
-            updateStatus("Missing Bluetooth permissions")
+    private fun connectToDevice(device: BluetoothDevice) {
+        if (_connectionState.value == ConnectionState.CONNECTING ||
+            _connectionState.value == ConnectionState.CONNECTED
+        ) {
+            Log.d(TAG, "Already connecting or connected")
             return
         }
 
-        try {
-            val deviceName = try {
-                device.name ?: "Unknown"
-            } catch (e: SecurityException) {
-                "Unknown"
-            }
+        _connectionState.value = ConnectionState.CONNECTING
+        updateStatus("Connecting to ${device.name ?: device.address}...")
 
-            Log.d(TAG, "Connecting to device: $deviceName (${device.address})")
-            _connectionState.value = ConnectionState.CONNECTING
-            updateStatus("Connecting to $deviceName...")
-
-            printService?.connect(device)
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Security exception during device connection", e)
-            updateStatus("Missing Bluetooth permissions")
-            _connectionState.value = ConnectionState.ERROR
-        }
-    }
-
-    /**
-     * Disconnect from current device
-     */
-    fun disconnect() {
-        Log.d(TAG, "Disconnecting from device")
-        printService?.disconnect()
-        _connectedDevice.value = null
-        _connectionState.value = ConnectionState.DISCONNECTED
-        updateStatus("Disconnected")
-    }
-
-    /**
-     * Write data to connected printer
-     */
-    fun write(data: ByteArray): Boolean {
-        return try {
-            if (printService?.getState() == BluetoothPrintService.STATE_CONNECTED) {
-                printService?.write(data)
-                true
-            } else {
-                Log.w(TAG, "Cannot write: printer not connected")
-                false
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error writing data to printer", e)
-            false
-        }
-    }
-
-    /**
-     * Get the print service instance
-     */
-    fun getPrintService(): BluetoothPrintService? {
-        return printService
+        printService?.connect(device)
     }
 
     /**
@@ -502,87 +417,96 @@ class BluetoothManager(private val context: Context) {
         device: BluetoothDevice?,
         message: String?
     ) {
-        // Ensure UI updates happen on main thread
-        handler.post {
-            when (state) {
-                BluetoothPrintService.STATE_CONNECTING -> {
-                    _connectionState.value = ConnectionState.CONNECTING
-                    updateStatus("Connecting...")
-                }
-                BluetoothPrintService.STATE_CONNECTED -> {
-                    _connectionState.value = ConnectionState.CONNECTED
-                    _connectedDevice.value = device
-                    autoConnectAttempts = 0 // Reset retry count on successful connection
+        when (state) {
+            BluetoothPrintService.STATE_CONNECTED -> {
+                _connectionState.value = ConnectionState.CONNECTED
+                _connectedDevice.value = device
 
-                    // Safely get device info
-                    val deviceInfo = try {
-                        device?.name ?: device?.address ?: "Unknown"
-                    } catch (e: SecurityException) {
-                        device?.address ?: "Unknown Device"
-                    }
-
-                    updateStatus("Connected to $deviceInfo")
-                    Log.d(TAG, "Successfully connected to Woosim printer")
-                }
-                BluetoothPrintService.STATE_NONE -> {
-                    _connectionState.value = ConnectionState.DISCONNECTED
-                    _connectedDevice.value = null
-                    updateStatus("Disconnected")
-
-                    // If we were trying to auto-connect, retry with fallback methods
-                    if (autoConnectAttempts < AUTO_CONNECT_RETRY_COUNT) {
-                        Log.d(TAG, "Connection failed, attempting retry...")
-                        handler.postDelayed({
-                            attemptAutoConnect()
-                        }, AUTO_CONNECT_RETRY_DELAY)
-                    } else {
-                        Log.d(TAG, "Max retry attempts reached")
-                        updateStatus("Failed to connect after $AUTO_CONNECT_RETRY_COUNT attempts")
+                // Get printer info from CSV for better display name
+                val printerConfig = printerCsvParser.getActivePrinterConfig()
+                val displayName = when {
+                    printerConfig?.printerModel != null -> printerConfig.printerModel
+                    else -> {
+                        try {
+                            device?.name ?: device?.address ?: "Woosim Printer"
+                        } catch (e: SecurityException) {
+                            device?.address ?: "Woosim Printer"
+                        }
                     }
                 }
-                else -> {
-                    _connectionState.value = ConnectionState.ERROR
-                    updateStatus(message ?: "Connection error")
 
-                    // Retry on error as well
-                    if (autoConnectAttempts < AUTO_CONNECT_RETRY_COUNT) {
-                        Log.d(TAG, "Connection error, attempting retry...")
-                        handler.postDelayed({
-                            attemptAutoConnect()
-                        }, AUTO_CONNECT_RETRY_DELAY)
-                    }
+                // Get MAC address - prioritize device object, fall back to CSV
+                val macAddress = device?.address ?: printerConfig?.bluetoothMacAddress ?: "Unknown"
+
+                updateStatus("x$displayName\nMAC Address: $macAddress")
+                Log.d(TAG, "Successfully connected to $macAddress ($displayName)")
+            }
+
+            BluetoothPrintService.STATE_CONNECTING -> {
+                _connectionState.value = ConnectionState.CONNECTING
+                updateStatus("Connecting to device...")
+            }
+
+            BluetoothPrintService.STATE_NONE -> {
+                val wasConnecting = _connectionState.value == ConnectionState.CONNECTING
+                _connectionState.value = ConnectionState.DISCONNECTED
+                _connectedDevice.value = null
+
+                if (wasConnecting) {
+                    // Connection failed while trying to connect
+                    updateStatus("Connection failed: Printer not responding. Check if printer is ON and paired in Bluetooth settings.")
+                    Log.e(TAG, "Connection failed - printer may not be paired or is not responding")
+                } else {
+                    updateStatus(message ?: "Disconnected")
+                }
+
+                // Retry on disconnection during auto-connect
+                if (autoConnectAttempts > 0 && autoConnectAttempts < AUTO_CONNECT_RETRY_COUNT) {
+                    Log.d(TAG, "Connection lost, attempting retry...")
+                    handler.postDelayed({
+                        attemptAutoConnect()
+                    }, AUTO_CONNECT_RETRY_DELAY)
+                }
+            }
+
+            else -> {
+                _connectionState.value = ConnectionState.ERROR
+                updateStatus("Connection error: ${message ?: "Unknown error"}. Ensure printer is paired in Bluetooth settings.")
+
+                // Retry on error as well
+                if (autoConnectAttempts < AUTO_CONNECT_RETRY_COUNT) {
+                    Log.d(TAG, "Connection error, attempting retry...")
+                    handler.postDelayed({
+                        attemptAutoConnect()
+                    }, AUTO_CONNECT_RETRY_DELAY)
                 }
             }
         }
     }
 
     /**
-     * Ensure correct device is connected if CSV configuration is available
+     * Ensure correct device is connected based on CSV configuration
      */
     fun ensureCorrectDeviceConnected() {
         val currentDevice = _connectedDevice.value
+        val configuredMac = getConfiguredPrinterMacAddress()
 
-        // First priority: hardcoded MAC address
-        if (currentDevice?.address == WOOSIM_MAC_ADDRESS) {
-            Log.d(TAG, "Already connected to correct Woosim device")
+        if (configuredMac == null) {
+            Log.w(TAG, "No printer configured")
             return
         }
 
-        // Second priority: CSV configuration
-        val configuredMac = printerCsvParser.getActivePrinterMacAddress()
-        if (configuredMac != null && currentDevice?.address == configuredMac) {
-            if (configuredMac == WOOSIM_MAC_ADDRESS) {
-                Log.d(TAG, "Connected to correct printer from CSV configuration")
-                return
-            } else {
-                Log.d(TAG, "Current device doesn't match hardcoded MAC, reconnecting")
-                disconnect()
-            }
+        if (currentDevice?.address == configuredMac) {
+            Log.d(TAG, "Already connected to correct printer: $configuredMac")
+            return
         }
 
-        // Wait a moment for disconnection to complete, then connect to Woosim
+        Log.d(TAG, "Current device doesn't match configuration, reconnecting")
+        disconnect()
+
+        // Wait a moment for disconnection to complete, then connect to configured printer
         handler.postDelayed({
-            connectDirectToWoosim()
+            connectToDeviceByMacAddress(configuredMac)
         }, 1000)
     }
 
@@ -590,17 +514,19 @@ class BluetoothManager(private val context: Context) {
      * Get printer configuration information for display
      */
     fun getPrinterConfigInfo(): String {
-        val hardcodedInfo = "Hardcoded MAC: $WOOSIM_MAC_ADDRESS"
+        val csvMac = printerCsvParser.getActivePrinterMacAddress()
 
-        return if (printerCsvParser.isPrinterCsvAvailable()) {
-            val config = printerCsvParser.parsePrinterConfig()
-            if (config != null) {
-                "$hardcodedInfo\nCSV: Active=${config.isActive}, MAC=${config.bluetoothMacAddress}"
+        return if (csvMac != null) {
+            val config = printerCsvParser.getActivePrinterConfig()
+            if (config?.printerModel != null) {
+                "Printer: ${config.printerModel}\nMAC: $csvMac"
             } else {
-                "$hardcodedInfo\nCSV: Invalid configuration"
+                "Active Printer MAC: $csvMac"
             }
+        } else if (printerCsvParser.isPrinterCsvAvailable()) {
+            "ERROR: printer.csv uploaded but no active printer (set Activate=1)"
         } else {
-            "$hardcodedInfo\nCSV: Not uploaded"
+            "ERROR: printer.csv not uploaded"
         }
     }
 
@@ -608,18 +534,21 @@ class BluetoothManager(private val context: Context) {
      * Check if printer CSV configuration is available and valid
      */
     fun isPrinterConfigurationValid(): Boolean {
-        return printerCsvParser.getActivePrinterMacAddress() != null || WOOSIM_MAC_ADDRESS.isNotEmpty()
+        return printerCsvParser.getActivePrinterMacAddress() != null
     }
 
     /**
-     * Get the configured printer MAC address (priority: hardcoded, then CSV)
+     * Get the configured printer MAC address from CSV only
      */
     fun getConfiguredPrinterMacAddress(): String? {
-        return if (WOOSIM_MAC_ADDRESS.isNotEmpty()) {
-            WOOSIM_MAC_ADDRESS
-        } else {
-            printerCsvParser.getActivePrinterMacAddress()
+        val csvMac = printerCsvParser.getActivePrinterMacAddress()
+        if (csvMac != null) {
+            Log.d(TAG, "Using MAC from CSV: $csvMac")
+            return csvMac
         }
+
+        Log.e(TAG, "No printer configured in CSV")
+        return null
     }
 
     /**

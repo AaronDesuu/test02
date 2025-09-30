@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -144,27 +145,19 @@ class MainActivity : ComponentActivity() {
             // Initialize Bluetooth ViewModel with manager
             bluetoothViewModel.initializeBluetoothManager(this)
 
-            // Start automatic connection using hardcoded MAC address
-            lifecycleScope.launch {
-                // Use the specific MAC address: 1C:B8:57:50:01:D9
-                connectToSpecificDevice("1C:B8:57:50:01:D9")
-            }
+            // DO NOT auto-connect here
+            // Connection will happen when user:
+            // 1. Uploads printer.csv with active printer
+            // 2. Manually triggers connection from UI
+            Log.d("MainActivity", "Bluetooth manager initialized. Waiting for printer.csv or manual connection.")
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // Check Bluetooth connection when app resumes (non-blocking)
-        customBluetoothManager?.let { manager ->
-            if (bluetoothPermissionHandler.hasAllPermissions() &&
-                bluetoothAdapter?.isEnabled == true &&
-                !manager.isConnected()) {
-
-                lifecycleScope.launch {
-                    manager.connectToSpecificDevice("1C:B8:57:50:01:D9")
-                }
-            }
-        }
+        // DO NOT auto-connect when app resumes
+        // Let the user control when to connect
+        Log.d("MainActivity", "MainActivity resumed. Bluetooth manager ready.")
     }
 
     override fun onDestroy() {

@@ -10,8 +10,8 @@ import java.io.BufferedReader
 /**
  * Parser for printer.csv file to extract Bluetooth configuration
  * Expected CSV format:
- * Activate,Bluetooth ID
- * 1,1C:B8:57:50:01:D9
+ * Activate,Bluetooth ID,printer model
+ * 1,1C:B8:57:50:01:D9,WISP-i350
  */
 class PrinterCsvParser(private val context: Context) {
 
@@ -23,6 +23,7 @@ class PrinterCsvParser(private val context: Context) {
         // Expected headers
         private const val ACTIVATE_HEADER = "Activate"
         private const val BLUETOOTH_ID_HEADER = "Bluetooth ID"
+        private const val PRINTER_MODEL_HEADER = "printer model"
     }
 
     /**
@@ -30,7 +31,8 @@ class PrinterCsvParser(private val context: Context) {
      */
     data class PrinterConfig(
         val isActive: Boolean,
-        val bluetoothMacAddress: String
+        val bluetoothMacAddress: String,
+        val printerModel: String? = null
     )
 
     /**
@@ -52,16 +54,11 @@ class PrinterCsvParser(private val context: Context) {
     }
 
     /**
-     * Get the printer MAC address from the CSV file
+     * Get the printer MAC address from the CSV file (deprecated, use getActivePrinterMacAddress)
      */
+    @Deprecated("Use getActivePrinterMacAddress() instead")
     fun getPrinterMacAddress(): String? {
-        val config = parsePrinterConfig()
-        return if (config?.isActive == true) {
-            config.bluetoothMacAddress
-        } else {
-            Log.w(TAG, "Printer is not active or configuration not found")
-            null
-        }
+        return getActivePrinterMacAddress()
     }
 
     /**
@@ -73,10 +70,40 @@ class PrinterCsvParser(private val context: Context) {
 
     /**
      * Get the printer CSV file from app storage
+     * Checks both external and internal storage locations
      */
     private fun getPrinterCsvFile(): File {
+        // Priority 1: Check external storage (where FileUploadViewModel saves files)
+        val externalFilesDir = context.getExternalFilesDir(null)
+        if (externalFilesDir != null) {
+            val externalAppFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
+            val externalFile = File(externalAppFilesDir, PRINTER_CSV_FILENAME)
+            if (externalFile.exists()) {
+                Log.d(TAG, "Found printer.csv in external storage: ${externalFile.absolutePath}")
+                return externalFile
+            }
+        }
+
+        // Priority 2: Check internal storage (fallback)
         val appFilesDir = File(context.filesDir, APP_FILES_FOLDER)
-        return File(appFilesDir, PRINTER_CSV_FILENAME)
+        val internalFile = File(appFilesDir, PRINTER_CSV_FILENAME)
+        if (internalFile.exists()) {
+            Log.d(TAG, "Found printer.csv in internal storage: ${internalFile.absolutePath}")
+            return internalFile
+        }
+
+        // Return external path as default (for error logging)
+        val defaultPath = if (externalFilesDir != null) {
+            File(File(externalFilesDir, APP_FILES_FOLDER), PRINTER_CSV_FILENAME)
+        } else {
+            internalFile
+        }
+
+        Log.w(TAG, "printer.csv not found. Expected locations:")
+        Log.w(TAG, "  - External: ${if (externalFilesDir != null) File(File(externalFilesDir, APP_FILES_FOLDER), PRINTER_CSV_FILENAME).absolutePath else "N/A"}")
+        Log.w(TAG, "  - Internal: ${internalFile.absolutePath}")
+
+        return defaultPath
     }
 
     /**
@@ -100,6 +127,9 @@ class PrinterCsvParser(private val context: Context) {
                 val bluetoothIdIndex = headers.indexOfFirst {
                     it.equals(BLUETOOTH_ID_HEADER, ignoreCase = true)
                 }
+                val printerModelIndex = headers.indexOfFirst {
+                    it.equals(PRINTER_MODEL_HEADER, ignoreCase = true)
+                }
 
                 if (activateIndex == -1 || bluetoothIdIndex == -1) {
                     Log.e(TAG, "Required headers not found. Expected: '$ACTIVATE_HEADER', '$BLUETOOTH_ID_HEADER'")
@@ -107,7 +137,7 @@ class PrinterCsvParser(private val context: Context) {
                     return null
                 }
 
-                Log.d(TAG, "CSV headers parsed - Activate: $activateIndex, Bluetooth ID: $bluetoothIdIndex")
+                Log.d(TAG, "CSV headers parsed - Activate: $activateIndex, Bluetooth ID: $bluetoothIdIndex, Model: $printerModelIndex")
 
                 // Parse data row (assuming first data row contains the printer config)
                 if (lines.size < 2) {
@@ -127,14 +157,21 @@ class PrinterCsvParser(private val context: Context) {
                         values[activateIndex].equals("true", ignoreCase = true)
                 val macAddress = values[bluetoothIdIndex]
 
+                // Get printer model if column exists
+                val printerModel = if (printerModelIndex != -1 && values.size > printerModelIndex) {
+                    values[printerModelIndex]
+                } else {
+                    null
+                }
+
                 // Validate MAC address format
                 if (!isValidMacAddress(macAddress)) {
                     Log.e(TAG, "Invalid MAC address format: $macAddress")
                     return null
                 }
 
-                val config = PrinterConfig(isActive, macAddress)
-                Log.d(TAG, "Printer config parsed - Active: $isActive, MAC: $macAddress")
+                val config = PrinterConfig(isActive, macAddress, printerModel)
+                Log.d(TAG, "Printer config parsed - Active: $isActive, MAC: $macAddress, Model: $printerModel")
                 return config
             }
         } catch (e: Exception) {
@@ -180,6 +217,9 @@ class PrinterCsvParser(private val context: Context) {
                 val bluetoothIdIndex = headers.indexOfFirst {
                     it.equals(BLUETOOTH_ID_HEADER, ignoreCase = true)
                 }
+                val printerModelIndex = headers.indexOfFirst {
+                    it.equals(PRINTER_MODEL_HEADER, ignoreCase = true)
+                }
 
                 if (activateIndex == -1 || bluetoothIdIndex == -1) {
                     Log.e(TAG, "Required headers not found for getAllPrinterConfigs")
@@ -195,8 +235,16 @@ class PrinterCsvParser(private val context: Context) {
                                 values[activateIndex].equals("true", ignoreCase = true)
                         val macAddress = values[bluetoothIdIndex]
 
+                        // Get printer model if available
+                        val printerModel = if (printerModelIndex != -1 && values.size > printerModelIndex) {
+                            values[printerModelIndex]
+                        } else {
+                            null
+                        }
+
                         if (isValidMacAddress(macAddress)) {
-                            configs.add(PrinterConfig(isActive, macAddress))
+                            configs.add(PrinterConfig(isActive, macAddress, printerModel))
+                            Log.d(TAG, "Added printer config: Active=$isActive, MAC=$macAddress, Model=$printerModel")
                         } else {
                             Log.w(TAG, "Invalid MAC address in row ${i + 1}: $macAddress")
                         }
@@ -220,12 +268,20 @@ class PrinterCsvParser(private val context: Context) {
         val activeConfig = allConfigs.find { it.isActive }
 
         return if (activeConfig != null) {
-            Log.d(TAG, "Found active printer: ${activeConfig.bluetoothMacAddress}")
+            Log.d(TAG, "Found active printer: ${activeConfig.bluetoothMacAddress} (${activeConfig.printerModel ?: "Unknown model"})")
             activeConfig.bluetoothMacAddress
         } else {
             Log.w(TAG, "No active printer found in CSV")
             null
         }
+    }
+
+    /**
+     * Get the active printer configuration (including model information)
+     */
+    fun getActivePrinterConfig(): PrinterConfig? {
+        val allConfigs = getAllPrinterConfigs()
+        return allConfigs.find { it.isActive }
     }
 
     /**
@@ -244,12 +300,34 @@ class PrinterCsvParser(private val context: Context) {
             if (allConfigs.isEmpty()) {
                 "No printer configurations found"
             } else {
+                val activeConfig = allConfigs.find { it.isActive }
                 val activeCount = allConfigs.count { it.isActive }
                 val totalCount = allConfigs.size
-                "Found $totalCount printer(s), $activeCount active"
+
+                if (activeConfig != null) {
+                    "Active: ${activeConfig.bluetoothMacAddress} (${activeConfig.printerModel ?: "Unknown"}), Total: $totalCount printer(s)"
+                } else {
+                    "Found $totalCount printer(s), $activeCount active"
+                }
             }
         } catch (e: Exception) {
             "Error reading configuration: ${e.message}"
+        }
+    }
+
+    /**
+     * Get detailed printer information for display
+     */
+    fun getPrinterDetails(): String {
+        val config = getActivePrinterConfig()
+        return if (config != null) {
+            buildString {
+                append("Printer Model: ${config.printerModel ?: "Unknown"}\n")
+                append("Bluetooth MAC: ${config.bluetoothMacAddress}\n")
+                append("Status: ${if (config.isActive) "Active" else "Inactive"}")
+            }
+        } else {
+            "No active printer configured"
         }
     }
 }
