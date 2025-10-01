@@ -17,6 +17,7 @@ import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.screen.MeterCardTestScreen // Add this import
+import com.example.meterkenshin.ui.screen.SettingsScreen
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
@@ -44,6 +45,7 @@ fun MeterKenshinApp(
             "file_upload" -> AppScreen.IMPORT_DATA
             "receipt" -> AppScreen.RECEIPT_TEMPLATE
             "meter_detail" -> AppScreen.METER_DETAIL
+            "settings" -> AppScreen.SETTINGS
             "meter_card_test" -> AppScreen.UNKNOWN // Use UNKNOWN for test screen since we don't need a specific enum
             else -> AppScreen.HOME
         }
@@ -79,14 +81,13 @@ fun MeterKenshinApp(
         printerBluetoothViewModel = printerBluetoothViewModel,
         currentScreen = currentAppScreen,
         onNavigateToScreen = { screen ->
-            // Handle navigation from drawer
             when (screen) {
                 AppScreen.HOME -> currentScreen = "home"
                 AppScreen.METER_READING -> currentScreen = "meter_reading"
                 AppScreen.IMPORT_DATA -> currentScreen = "file_upload"
                 AppScreen.RECEIPT_TEMPLATE -> currentScreen = "receipt"
-                AppScreen.UNKNOWN -> { /* Settings not implemented yet */ }
-                else -> { /* Handle other screens */ }
+                AppScreen.SETTINGS -> currentScreen = "settings"  // Add this line
+                else -> { }
             }
         },
         onNavigateToTest = { // Add this parameter - this is what was missing!
@@ -154,6 +155,12 @@ fun MeterKenshinApp(
                     )
                 }
             }
+            currentScreen == "settings" -> {
+                SettingsScreen(
+                    sessionManager = sessionManager
+                )
+            }
+
             // Add this new case for the test screen - this was missing!
             currentScreen == "meter_card_test" -> {
                 MeterCardTestScreen(

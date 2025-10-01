@@ -8,6 +8,11 @@ android {
     namespace = "com.example.meterkenshin"
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig = true
+        compose = true
+    }
+
     defaultConfig {
         applicationId = "com.example.meterkenshin"
         minSdk = 26

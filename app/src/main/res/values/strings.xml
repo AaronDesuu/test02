@@ -708,5 +708,7 @@
     <string name="batch_reading_description">Batch read all BLE Meters on the list that are not yet inspected, then automatically initiate batch printing</string>
     <string name="batch_printing_description">Batch print all inspected BLE meters on the list that are not yet printed</string>
     <string name="select_and_print_description">Select meter(s) from the list that are not yet printed, then print the receipts of all selected meter(s)</string>
+    <string name="settings_title">Settings</string>
+    <string name="test">test</string>
 
 </resources>

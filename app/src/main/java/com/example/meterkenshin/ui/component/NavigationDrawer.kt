@@ -80,7 +80,9 @@ enum class AppScreen(val titleRes: Int) {
     IMPORT_DATA(R.string.file_upload_title),
     RECEIPT_TEMPLATE(R.string.receipt_template_title),
     METER_DETAIL(R.string.meter_detail_title),
-    UNKNOWN(R.string.app_name)
+    SETTINGS(R.string.settings_title),
+    UNKNOWN(R.string.test),
+
 }
 
 @Suppress("unused")
@@ -249,10 +251,10 @@ private fun DrawerContentWithTest(
                     title = stringResource(R.string.nav_settings),
                     icon = Icons.Default.Settings,
                     action = {
-                        onNavigationItemClick(AppScreen.UNKNOWN)
+                        onNavigationItemClick(AppScreen.SETTINGS)
                         onCloseDrawer()
                     },
-                    screen = AppScreen.UNKNOWN
+                    screen = AppScreen.SETTINGS
                 )
             )
 
