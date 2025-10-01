@@ -132,4 +132,10 @@ dependencies {
 
     // State management
     implementation("androidx.compose.runtime:runtime-tracing:1.0.0-beta01")
+
+    // Woosim Printer Library
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
+
+    // Or specifically:
+    implementation(files("libs/WoosimLib262.jar"))
 }
