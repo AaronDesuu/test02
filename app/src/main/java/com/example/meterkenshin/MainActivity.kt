@@ -25,7 +25,7 @@ import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import kotlinx.coroutines.launch
-import com.example.meterkenshin.bluetooth.BluetoothManager as CustomBluetoothManager
+import com.example.meterkenshin.printer.BluetoothPrinterManager as CustomBluetoothManager
 
 class MainActivity : ComponentActivity() {
 

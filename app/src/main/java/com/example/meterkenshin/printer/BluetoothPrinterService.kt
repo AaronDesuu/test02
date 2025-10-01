@@ -1,4 +1,4 @@
-package com.example.meterkenshin.bluetooth
+package com.example.meterkenshin.printer
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
@@ -16,12 +16,12 @@ import java.util.UUID
  * Fixed threading issues and improved error handling
  */
 @Suppress("DEPRECATION")
-class BluetoothPrintService(
+class BluetoothPrinterService(
     private val stateCallback: ((Int, BluetoothDevice?, String?) -> Unit)? = null
 ) {
 
     companion object {
-        private const val TAG = "BluetoothPrintService"
+        private const val TAG = "BluetoothPrinterService"
         private const val D = true
 
         // SPP UUID for Bluetooth Serial communication
@@ -43,7 +43,7 @@ class BluetoothPrintService(
     private val mainHandler = Handler(Looper.getMainLooper())
 
     init {
-        if (D) Log.d(TAG, "BluetoothPrintService initialized")
+        if (D) Log.d(TAG, "BluetoothPrinterService initialized")
     }
 
     /**
@@ -249,7 +249,7 @@ class BluetoothPrintService(
             }
 
             // Reset the ConnectThread because we're done
-            synchronized(this@BluetoothPrintService) {
+            synchronized(this@BluetoothPrinterService) {
                 connectThread = null
             }
 

@@ -171,11 +171,11 @@ class BluetoothLeService : Service() {
      */
     fun initialize(): Boolean {
         // For API level 18 and above, get a reference to BluetoothAdapter through
-        // BluetoothManager.
+        // BluetoothPrinterManager.
         if (mBluetoothManager == null) {
             mBluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager?
             if (mBluetoothManager == null) {
-                Log.e(TAG, "Unable to initialize BluetoothManager.")
+                Log.e(TAG, "Unable to initialize BluetoothPrinterManager.")
                 return false
             }
         }

@@ -17,7 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
-import com.example.meterkenshin.bluetooth.BluetoothManager
+import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.woosim.WoosimCmd
 
@@ -48,11 +48,11 @@ data class ReceiptData(
 fun ReceiptPrintButton(
     receiptData: ReceiptData,
     printerBluetoothViewModel: PrinterBluetoothViewModel,
-    bluetoothConnectionState: BluetoothManager.ConnectionState?,
+    bluetoothConnectionState: BluetoothPrinterManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val isPrinterReady = bluetoothConnectionState == BluetoothManager.ConnectionState.CONNECTED
+    val isPrinterReady = bluetoothConnectionState == BluetoothPrinterManager.ConnectionState.CONNECTED
     val canPrint = isPrinterReady && isBluetoothEnabled
 
     Button(

@@ -40,12 +40,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
-import com.example.meterkenshin.bluetooth.BluetoothManager
+import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 
 @Composable
 fun BluetoothStatusComponent(
-    connectionState: BluetoothManager.ConnectionState?,
+    connectionState: BluetoothPrinterManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
     connectedDevice: android.bluetooth.BluetoothDevice?,
     statusMessage: String?,
@@ -87,8 +87,8 @@ fun BluetoothStatusComponent(
                 Icon(
                     imageVector = when {
                         !isBluetoothEnabled -> Icons.Default.BluetoothDisabled
-                        connectionState == BluetoothManager.ConnectionState.CONNECTED -> Icons.Default.BluetoothConnected
-                        connectionState == BluetoothManager.ConnectionState.CONNECTING -> Icons.AutoMirrored.Filled.BluetoothSearching
+                        connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED -> Icons.Default.BluetoothConnected
+                        connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING -> Icons.AutoMirrored.Filled.BluetoothSearching
                         else -> Icons.Default.Bluetooth
                     },
                     contentDescription = null,
@@ -121,7 +121,7 @@ fun BluetoothStatusComponent(
 
 @Composable
 private fun BluetoothConnectionStatusCard(
-    connectionState: BluetoothManager.ConnectionState?,
+    connectionState: BluetoothPrinterManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
     connectedDevice: android.bluetooth.BluetoothDevice?,
     statusMessage: String?
@@ -134,21 +134,21 @@ private fun BluetoothConnectionStatusCard(
             "Bluetooth Disabled",
             Icons.Default.BluetoothDisabled
         )
-        connectionState == BluetoothManager.ConnectionState.CONNECTED -> listOf(
+        connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED -> listOf(
             colorResource(R.color.csv_success_background),
             colorResource(R.color.csv_success_foreground),
             colorResource(R.color.printer_connected),
             stringResource(R.string.connection_state_connected),
             Icons.Default.CheckCircle
         )
-        connectionState == BluetoothManager.ConnectionState.CONNECTING -> listOf(
+        connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING -> listOf(
             colorResource(R.color.csv_warning_background),
             colorResource(R.color.csv_warning_foreground),
             colorResource(R.color.printer_connecting),
             stringResource(R.string.connection_state_connecting),
             Icons.Default.Sync
         )
-        connectionState == BluetoothManager.ConnectionState.ERROR -> listOf(
+        connectionState == BluetoothPrinterManager.ConnectionState.ERROR -> listOf(
             colorResource(R.color.csv_error_background),
             colorResource(R.color.csv_error_foreground),
             colorResource(R.color.printer_disconnected),
@@ -199,7 +199,7 @@ private fun BluetoothConnectionStatusCard(
                 )
 
                 // Show device info when connected
-                if (connectionState == BluetoothManager.ConnectionState.CONNECTED && connectedDevice != null) {
+                if (connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED && connectedDevice != null) {
                     val deviceName = try {
                         connectedDevice.name
                     } catch (e: SecurityException) {
@@ -226,7 +226,7 @@ private fun BluetoothConnectionStatusCard(
             }
 
             // Show loading indicator when connecting
-            if (connectionState == BluetoothManager.ConnectionState.CONNECTING) {
+            if (connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(16.dp),
                     strokeWidth = 2.dp,
@@ -239,7 +239,7 @@ private fun BluetoothConnectionStatusCard(
 
 @Composable
 private fun BluetoothActionButtons(
-    connectionState: BluetoothManager.ConnectionState?,
+    connectionState: BluetoothPrinterManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
     printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
@@ -262,7 +262,7 @@ private fun BluetoothActionButtons(
                     Text("Enable Bluetooth")
                 }
             }
-            connectionState == BluetoothManager.ConnectionState.ERROR -> {
+            connectionState == BluetoothPrinterManager.ConnectionState.ERROR -> {
                 OutlinedButton(
                     onClick = { printerBluetoothViewModel.retryConnection() },
                     modifier = Modifier.weight(1f)
@@ -276,7 +276,7 @@ private fun BluetoothActionButtons(
                     Text("Retry")
                 }
             }
-            connectionState == BluetoothManager.ConnectionState.CONNECTED -> {
+            connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED -> {
                 OutlinedButton(
                     onClick = { printerBluetoothViewModel.printSampleData() },
                     modifier = Modifier.weight(1f)

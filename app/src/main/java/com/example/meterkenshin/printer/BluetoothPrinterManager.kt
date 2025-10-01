@@ -1,11 +1,13 @@
-package com.example.meterkenshin.bluetooth
+package com.example.meterkenshin.printer
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -19,10 +21,10 @@ import com.example.meterkenshin.data.parser.PrinterCsvParser
  * Bluetooth Manager for handling Woosim printer connectivity
  * Enhanced to prioritize printer.csv configuration over hardcoded MAC address
  */
-class BluetoothManager(private val context: Context) {
+class BluetoothPrinterManager(private val context: Context) {
 
     companion object {
-        private const val TAG = "BluetoothManager"
+        private const val TAG = "BluetoothPrinterManager"
         private const val WOOSIM_DEVICE_PREFIX = "F5" // Woosim devices contain "F5" in their name
         private const val SCAN_DURATION = 10000L // 10 seconds scan duration
         private const val AUTO_CONNECT_RETRY_COUNT = 3
@@ -39,7 +41,7 @@ class BluetoothManager(private val context: Context) {
     private val bluetoothManager: BluetoothManager =
         context.getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
     private val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-    private var printService: BluetoothPrintService? = null
+    private var printService: BluetoothPrinterService? = null
     private val handler = Handler(Looper.getMainLooper())
     private val printerCsvParser = PrinterCsvParser(context)
 
@@ -69,7 +71,7 @@ class BluetoothManager(private val context: Context) {
         updateBluetoothEnabledState()
         initializePrintService()
 
-        Log.d(TAG, "BluetoothManager initialized")
+        Log.d(TAG, "BluetoothPrinterManager initialized")
         Log.d(TAG, "Bluetooth enabled: ${_isBluetoothEnabled.value}")
         Log.d(TAG, "Printer CSV available: ${printerCsvParser.isPrinterCsvAvailable()}")
         Log.d(TAG, "Configuration: ${printerCsvParser.getConfigurationSummary()}")
@@ -108,14 +110,14 @@ class BluetoothManager(private val context: Context) {
     /**
      * Get the print service instance
      */
-    fun getPrintService(): BluetoothPrintService? = printService
+    fun getPrintService(): BluetoothPrinterService? = printService
 
     /**
      * Write data to connected printer
      */
     fun write(data: ByteArray): Boolean {
         return try {
-            if (printService?.getState() == BluetoothPrintService.STATE_CONNECTED) {
+            if (printService?.getState() == BluetoothPrinterService.STATE_CONNECTED) {
                 printService?.write(data)
                 Log.d(TAG, "Data written to printer: ${data.size} bytes")
                 true
@@ -153,7 +155,7 @@ class BluetoothManager(private val context: Context) {
      * Check if app has required Bluetooth permissions
      */
     private fun hasBluetoothPermissions(): Boolean {
-        return if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
                     PackageManager.PERMISSION_GRANTED &&
                     ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) ==
@@ -171,10 +173,10 @@ class BluetoothManager(private val context: Context) {
      */
     private fun initializePrintService() {
         if (printService == null) {
-            printService = BluetoothPrintService() { state, device, message ->
+            printService = BluetoothPrinterService() { state, device, message ->
                 handleConnectionStateChange(state, device, message)
             }
-            Log.d(TAG, "BluetoothPrintService initialized")
+            Log.d(TAG, "BluetoothPrinterService initialized")
         }
     }
 
@@ -394,6 +396,7 @@ class BluetoothManager(private val context: Context) {
     /**
      * Connect to a specific Bluetooth device
      */
+    @SuppressLint("MissingPermission")
     private fun connectToDevice(device: BluetoothDevice) {
         if (_connectionState.value == ConnectionState.CONNECTING ||
             _connectionState.value == ConnectionState.CONNECTED
@@ -409,7 +412,7 @@ class BluetoothManager(private val context: Context) {
     }
 
     /**
-     * Handle connection state changes from BluetoothPrintService
+     * Handle connection state changes from BluetoothPrinterService
      */
     private fun handleConnectionStateChange(
         state: Int,
@@ -417,7 +420,7 @@ class BluetoothManager(private val context: Context) {
         message: String?
     ) {
         when (state) {
-            BluetoothPrintService.STATE_CONNECTED -> {
+            BluetoothPrinterService.STATE_CONNECTED -> {
                 _connectionState.value = ConnectionState.CONNECTED
                 _connectedDevice.value = device
 
@@ -441,12 +444,12 @@ class BluetoothManager(private val context: Context) {
                 Log.d(TAG, "Successfully connected to $macAddress ($displayName)")
             }
 
-            BluetoothPrintService.STATE_CONNECTING -> {
+            BluetoothPrinterService.STATE_CONNECTING -> {
                 _connectionState.value = ConnectionState.CONNECTING
                 updateStatus("Connecting to device...")
             }
 
-            BluetoothPrintService.STATE_NONE -> {
+            BluetoothPrinterService.STATE_NONE -> {
                 val wasConnecting = _connectionState.value == ConnectionState.CONNECTING
                 _connectionState.value = ConnectionState.DISCONNECTED
                 _connectedDevice.value = null

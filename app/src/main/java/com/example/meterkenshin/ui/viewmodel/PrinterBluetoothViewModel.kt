@@ -3,7 +3,7 @@ package com.example.meterkenshin.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meterkenshin.bluetooth.BluetoothManager
+import com.example.meterkenshin.printer.BluetoothPrinterManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,11 +15,11 @@ import kotlinx.coroutines.launch
  */
 class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(application) {
 
-    private var bluetoothManager: BluetoothManager? = null
+    private var bluetoothPrinterManager: BluetoothPrinterManager? = null
 
     // State flows for Compose
-    private val _connectionState = MutableStateFlow<BluetoothManager.ConnectionState?>(null)
-    val connectionState: StateFlow<BluetoothManager.ConnectionState?> = _connectionState.asStateFlow()
+    private val _connectionState = MutableStateFlow<BluetoothPrinterManager.ConnectionState?>(null)
+    val connectionState: StateFlow<BluetoothPrinterManager.ConnectionState?> = _connectionState.asStateFlow()
 
     private val _isBluetoothEnabled = MutableStateFlow(false)
     val isBluetoothEnabled: StateFlow<Boolean> = _isBluetoothEnabled.asStateFlow()
@@ -39,17 +39,17 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
     /**
      * Initialize the Bluetooth manager
      */
-    fun initializeBluetoothManager(manager: BluetoothManager) {
-        if (bluetoothManager != null) return
+    fun initializeBluetoothManager(manager: BluetoothPrinterManager) {
+        if (bluetoothPrinterManager != null) return
 
-        bluetoothManager = manager
+        bluetoothPrinterManager = manager
 
         // Observe LiveData and convert to StateFlow
         viewModelScope.launch {
             // Connection state observer
-            manager.connectionState.observeForever { state: BluetoothManager.ConnectionState? ->
+            manager.connectionState.observeForever { state: BluetoothPrinterManager.ConnectionState? ->
                 _connectionState.value = state
-                _isAutoConnecting.value = state == BluetoothManager.ConnectionState.CONNECTING
+                _isAutoConnecting.value = state == BluetoothPrinterManager.ConnectionState.CONNECTING
             }
 
             // Bluetooth enabled state observer
@@ -80,7 +80,7 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
     fun startAutoConnect() {
         viewModelScope.launch {
             _isAutoConnecting.value = true
-            bluetoothManager?.startAutoConnect()
+            bluetoothPrinterManager?.startAutoConnect()
         }
     }
 
@@ -88,28 +88,28 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
      * Disconnect from current device
      */
     fun disconnect() {
-        bluetoothManager?.disconnect()
+        bluetoothPrinterManager?.disconnect()
     }
 
     /**
      * Write data to connected printer
      */
     fun writeData(data: ByteArray): Boolean {
-        return bluetoothManager?.write(data) == true
+        return bluetoothPrinterManager?.write(data) == true
     }
 
     /**
      * Update printer configuration information
      */
     private fun updatePrinterConfigInfo() {
-        _printerConfigInfo.value = bluetoothManager?.getPrinterConfigInfo()
+        _printerConfigInfo.value = bluetoothPrinterManager?.getPrinterConfigInfo()
     }
 
     /**
      * Check if there's a connection error
      */
     fun hasConnectionError(): Boolean {
-        return _connectionState.value == BluetoothManager.ConnectionState.ERROR
+        return _connectionState.value == BluetoothPrinterManager.ConnectionState.ERROR
     }
 
     /**
@@ -131,6 +131,6 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
 
     override fun onCleared() {
         super.onCleared()
-        bluetoothManager?.cleanup()
+        bluetoothPrinterManager?.cleanup()
     }
 }
