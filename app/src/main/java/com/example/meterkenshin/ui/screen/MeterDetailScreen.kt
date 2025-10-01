@@ -49,6 +49,7 @@ import com.example.meterkenshin.model.Meter
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.core.graphics.toColorInt
+import com.example.meterkenshin.data.MeterSpecifications
 
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
@@ -244,6 +245,7 @@ private fun FunctionButton(
 
 /**
  * Meter specifications card with enhanced CSV data support using MeterModel
+ * Now uses MeterSpecifications data class for easy management
  */
 @SuppressLint("DefaultLocale")
 @Composable
@@ -251,6 +253,12 @@ private fun MeterSpecificationsCard(
     meter: Meter,
     modifier: Modifier = Modifier
 ) {
+    // Get the appropriate specifications for this meter
+    val specs = MeterSpecifications.getSpecificationForMeter(meter.type.name)
+
+    // Date formatter for last reading
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -280,22 +288,17 @@ private fun MeterSpecificationsCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            SpecificationRow(
-                label = "Location",
-                value = meter.location.ifBlank { "-" }
-            )
+
+            // Basic meter info
+
             SpecificationRow(
                 label = "Meter Type",
                 value = meter.type.displayName.ifBlank { "-" }
             )
-            SpecificationRow(
-                label = "Status",
-                value = meter.status.displayName,
-                valueColor = Color(meter.status.colorHex.toColorInt())
-            )
 
             // Enhanced data from CSV
-            if (meter.impKWh != null || meter.expKWh != null || meter.impMaxDemandKW != null || meter.expMaxDemandKW != null) {
+            if (meter.impKWh != null || meter.expKWh != null ||
+                meter.impMaxDemandKW != null || meter.expMaxDemandKW != null) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Energy Readings",
@@ -321,77 +324,39 @@ private fun MeterSpecificationsCard(
                     label = "Export Max Demand (kW)",
                     value = meter.expMaxDemandKW?.let { String.format("%.2f", it) } ?: "-"
                 )
-            }
-
-            // System information
-            if (meter.bluetoothId != null || meter.minVoltV != null || meter.alert != null || meter.activate != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "System Information",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-
-                SpecificationRow(
-                    label = "Bluetooth ID",
-                    value = meter.bluetoothId ?: "-"
-                )
-                SpecificationRow(
-                    label = "Min Voltage (V)",
-                    value = meter.minVoltV?.let { String.format("%.1f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Alert Level",
-                    value = meter.alert?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Activation Status",
-                    value = when (meter.activate) {
-                        1 -> "Active"
-                        0 -> "Inactive"
-                        else -> "-"
-                    }
-                )
-            }
-
-            // Dates
-            if (meter.fixedDate != null || meter.lastMaintenanceDate != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Dates",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-
-                val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                SpecificationRow(
-                    label = "Installation Date",
-                    value = meter.fixedDate?.let { dateFormat.format(it) } ?: "-"
-                )
                 SpecificationRow(
                     label = "Last Reading Date",
                     value = meter.lastMaintenanceDate?.let { dateFormat.format(it) } ?: "-"
                 )
             }
-
-            // Technical Specifications (static data)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Technical Specifications",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(vertical = 8.dp)
+            SpecificationRow(
+                label = "Phase Wire",
+                value = specs.phaseWire
             )
-
-            SpecificationRow(label = "Protocol", value = stringResource(R.string.protocol_iec))
-            SpecificationRow(label = "Communication", value = stringResource(R.string.communication_dlms))
-            SpecificationRow(label = "V/A Rating", value = "240V/100A")
-            SpecificationRow(label = "Frequency", value = "50Hz")
+            SpecificationRow(
+                label = "Protocol",
+                value = specs.protocol
+            )
+            SpecificationRow(
+                label = "Communication",
+                value = specs.communication
+            )
+            SpecificationRow(
+                label = "V/A Rating",
+                value = specs.voltageAmperageRating
+            )
+            SpecificationRow(
+                label = "Frequency",
+                value = specs.frequency
+            )
+            SpecificationRow(
+                label = "Pulse Constant",
+                value = specs.pulseConstant
+            )
+            SpecificationRow(
+                label = "BLE Version",
+                value = specs.bleVersion
+            )
         }
     }
 }
@@ -441,6 +406,10 @@ private fun MeterStatusCard(
                 label = stringResource(R.string.status_connected),
                 value = stringResource(R.string.status_connected),
                 valueColor = Color(0xFF4CAF50)
+            )
+            SpecificationRow(
+                label = "Location",
+                value = meter.location.ifBlank { "-" }
             )
             SpecificationRow(label = "Signal Strength", value = "-")
             SpecificationRow(label = "Last Communication", value = "-")

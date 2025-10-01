@@ -1082,7 +1082,7 @@ class MeterReadingViewModel : ViewModel() {
                                 id = uid,
                                 serialNumber = serialNumber,
                                 location = "Location $lineNumber", // Keep existing location field
-                                type = MeterType.SINGLE_PHASE, // Keep existing type field
+                                type = MeterType.Type01, // Keep existing type field
                                 status = if (activate == 1) MeterStatus.ACTIVE else MeterStatus.OFFLINE,
                                 installationDate = parseDate(fixedDate) ?: Date(), // Use fixedDate as installation date
                                 lastMaintenanceDate = parseDate(readDate), // Use readDate as last maintenance

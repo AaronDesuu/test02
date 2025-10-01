@@ -24,10 +24,7 @@ data class Meter(
 )
 
 enum class MeterType(val displayName: String) {
-    SINGLE_PHASE("Single Phase"),
-    THREE_PHASE("Three Phase"),
-    SMART_METER("Smart Meter"),
-    INDUSTRIAL("Industrial")
+    Type01("FT5"),
 }
 
 enum class MeterStatus(val displayName: String, val colorHex: String) {
