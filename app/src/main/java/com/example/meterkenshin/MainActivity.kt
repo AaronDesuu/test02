@@ -36,7 +36,7 @@ class MainActivity : ComponentActivity() {
 
     private var bluetoothAdapter: BluetoothAdapter? = null
     private lateinit var bluetoothPermissionHandler: BluetoothPermissionHandler
-    private var customBluetoothManager: CustomBluetoothManager? = null
+    private var bluetoothPrinterManager: CustomBluetoothManager? = null
 
     // Activity result launcher for Bluetooth enable request
     private val enableBluetoothLauncher = registerForActivityResult(
@@ -142,7 +142,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // Initialize custom Bluetooth manager
-        customBluetoothManager = CustomBluetoothManager(this).apply {
+        bluetoothPrinterManager = CustomBluetoothManager(this).apply {
             // Initialize Bluetooth ViewModel with manager
             printerBluetoothViewModel.initializeBluetoothManager(this)
 
@@ -164,6 +164,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         // Clean up Bluetooth connection
-        customBluetoothManager?.cleanup()
+        bluetoothPrinterManager?.cleanup()
     }
 }
+

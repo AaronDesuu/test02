@@ -2,8 +2,9 @@ package com.example.meterkenshin.woosim
 
 /**
  * Woosim Printer Commands
- * Based on the original WoosimCmd class from project01
+ * Enhanced with status checking commands for WSP-i350
  */
+@Suppress("unused")
 object WoosimCmd {
 
     // MCU Types
@@ -47,7 +48,13 @@ object WoosimCmd {
     /**
      * Set text style command
      */
-    fun setTextStyle(bold: Boolean, italic: Boolean, underline: Boolean, widthMagnification: Int, heightMagnification: Int): ByteArray {
+    fun setTextStyle(
+        bold: Boolean,
+        italic: Boolean,
+        underline: Boolean,
+        widthMagnification: Int,
+        heightMagnification: Int
+    ): ByteArray {
         val cmd = mutableListOf<Byte>()
 
         // Set emphasis (bold)
@@ -90,9 +97,9 @@ object WoosimCmd {
 
     /**
      * Set alignment
+     * @param alignment 0 = left, 1 = center, 2 = right
      */
     fun setAlignment(alignment: Int): ByteArray {
-        // 0 = left, 1 = center, 2 = right
         return byteArrayOf(0x1B, 0x61, alignment.toByte())
     }
 
@@ -115,5 +122,82 @@ object WoosimCmd {
         // Cut paper
         cmd.addAll(cutPaper().toList())
         return cmd.toByteArray()
+    }
+
+    // ========== STATUS CHECK COMMANDS ==========
+
+    /**
+     * Request printer status (WSP-i350 specific)
+     * WSP-i350 uses DLE EOT EOT (not DLE EOT n)
+     * Returns M C P status: Mark sensor, Cover sensor, Paper sensor
+     */
+    fun requestPrinterStatus(): ByteArray {
+        return byteArrayOf(0x10, 0x04, 0x04) // DLE EOT EOT
+    }
+
+    /**
+     * Parse paper status from status byte (WSP-i350)
+     * Bit 0: 1 = paper present, 0 = paper not present
+     */
+    fun isPaperPresent(statusByte: Byte): Boolean {
+        val status = statusByte.toInt()
+        return (status and 0x01) != 0
+    }
+
+    /**
+     * Parse cover status from status byte (WSP-i350)
+     * Bit 1: 1 = cover closed, 0 = cover opened
+     */
+    fun isCoverClosed(statusByte: Byte): Boolean {
+        val status = statusByte.toInt()
+        return (status and 0x02) != 0
+    }
+
+    /**
+     * Parse mark sensor status from status byte (WSP-i350)
+     * Bit 2: 1 = mark found, 0 = mark not found
+     */
+    fun isMarkFound(statusByte: Byte): Boolean {
+        val status = statusByte.toInt()
+        return (status and 0x04) != 0
+    }
+
+    /**
+     * Get human-readable status message from status byte (WSP-i350)
+     */
+    fun getStatusMessage(statusByte: Byte): String {
+        val status = statusByte.toInt()
+
+        return buildString {
+            // Bit 0: Paper sensor
+            if ((status and 0x01) != 0) {
+                append("Paper OK ")
+            } else {
+                append("Paper Out ")
+            }
+
+            // Bit 1: Cover sensor
+            if ((status and 0x02) != 0) {
+                append("Cover Closed ")
+            } else {
+                append("Cover Open ")
+            }
+
+            // Bit 2: Mark sensor
+            if ((status and 0x04) != 0) {
+                append("Mark Found")
+            } else {
+                append("No Mark")
+            }
+        }.trim()
+    }
+
+    /**
+     * Enable/Disable automatic status back (ASB)
+     * ESC c 3 n command
+     */
+    fun enableAutoStatusBack(enable: Boolean): ByteArray {
+        val enableByte = if (enable) 0xFF.toByte() else 0x00.toByte()
+        return byteArrayOf(0x1B, 0x63, 0x33, enableByte)
     }
 }

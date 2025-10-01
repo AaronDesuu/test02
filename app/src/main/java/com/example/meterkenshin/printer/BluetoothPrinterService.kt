@@ -13,11 +13,12 @@ import java.util.UUID
 
 /**
  * Bluetooth Print Service for managing connection and communication with Woosim printer
- * Fixed threading issues and improved error handling
+ * Enhanced with data callback for receiving status responses
  */
 @Suppress("DEPRECATION")
 class BluetoothPrinterService(
-    private val stateCallback: ((Int, BluetoothDevice?, String?) -> Unit)? = null
+    private val stateCallback: ((Int, BluetoothDevice?, String?) -> Unit)? = null,
+    private val dataCallback: ((ByteArray) -> Unit)? = null
 ) {
 
     companion object {
@@ -29,7 +30,6 @@ class BluetoothPrinterService(
 
         // Connection states
         const val STATE_NONE = 0       // Doing nothing
-        const val STATE_LISTEN = 1     // Listening for incoming connections
         const val STATE_CONNECTING = 2 // Initiating an outgoing connection
         const val STATE_CONNECTED = 3  // Connected to a remote device
     }
@@ -43,7 +43,7 @@ class BluetoothPrinterService(
     private val mainHandler = Handler(Looper.getMainLooper())
 
     init {
-        if (D) Log.d(TAG, "BluetoothPrinterService initialized")
+        if (D) Log.d(TAG, "BluetoothPrinterService initialized with data callback")
     }
 
     /**
@@ -65,24 +65,6 @@ class BluetoothPrinterService(
      */
     @Synchronized
     fun getState(): Int = currentState
-
-    /**
-     * Start the print service
-     */
-    @Synchronized
-    fun start() {
-        if (D) Log.d(TAG, "start")
-
-        // Cancel any thread attempting to make a connection
-        connectThread?.cancel()
-        connectThread = null
-
-        // Cancel any thread currently running a connection
-        connectedThread?.cancel()
-        connectedThread = null
-
-        setState(STATE_LISTEN)
-    }
 
     /**
      * Start the ConnectThread to initiate a connection to a remote device
@@ -268,6 +250,7 @@ class BluetoothPrinterService(
 
     /**
      * This thread runs during a connection with a remote device
+     * It handles all incoming and outgoing transmissions
      */
     private inner class ConnectedThread(private val socket: BluetoothSocket) : Thread() {
         private val inputStream: InputStream?
@@ -299,13 +282,18 @@ class BluetoothPrinterService(
                 try {
                     // Read from the InputStream
                     bytes = inputStream?.read(buffer) ?: -1
+
                     if (bytes > 0) {
-                        // Send the obtained bytes to the UI Activity
-                        mainHandler.post {
-                            // Handle received data if needed
-                            // For now, just log it
-                            Log.d(TAG, "Received $bytes bytes")
-                        }
+                        // Copy received data to prevent overwriting
+                        val receivedData = buffer.copyOf(bytes)
+
+                        // Log received data for debugging
+                        val hexString = receivedData.joinToString(" ") { "%02X".format(it) }
+                        Log.d(TAG, "Received $bytes bytes: $hexString")
+
+                        // IMPORTANT: Call dataCallback IMMEDIATELY on this thread (not main thread)
+                        // to avoid delays from main thread being busy
+                        dataCallback?.invoke(receivedData)
                     }
                 } catch (e: IOException) {
                     Log.d(TAG, "disconnected", e)
@@ -313,6 +301,8 @@ class BluetoothPrinterService(
                     break
                 }
             }
+
+            Log.i(TAG, "END ConnectedThread")
         }
 
         /**
@@ -322,7 +312,7 @@ class BluetoothPrinterService(
             try {
                 outputStream?.write(buffer)
                 outputStream?.flush()
-                Log.d(TAG, "Wrote ${buffer.size} bytes")
+                Log.d(TAG, "Wrote ${buffer.size} bytes: ${buffer.joinToString(" ") { "%02X".format(it) }}")
             } catch (e: IOException) {
                 Log.e(TAG, "Exception during write", e)
                 connectionLost()
