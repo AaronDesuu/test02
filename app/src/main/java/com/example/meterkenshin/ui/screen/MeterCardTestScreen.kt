@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -28,7 +27,6 @@ import com.example.meterkenshin.ui.viewmodel.MeterTestViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterCardTestScreen(
-    onNavigateBack: () -> Unit = {},
     testViewModel: MeterTestViewModel = viewModel()
 ) {
     val testMeters by testViewModel.testMeters.collectAsState()
@@ -249,41 +247,3 @@ private fun getScenarioDescription(meter: Meter): String {
     }
 }
 
-/**
- * Alternative test layout showing cards in a grid for comparison
- */
-@Composable
-fun MeterCardGridTestScreen(
-    testViewModel: MeterTestViewModel = viewModel()
-) {
-    val testMeters by testViewModel.testMeters.collectAsState()
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        items(testMeters.chunked(2)) { meterPair ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                meterPair.forEach { meter ->
-                    ModernMeterCard(
-                        meter = meter,
-                        onClick = { },
-                        modifier = Modifier.weight(1f),
-                        showChevron = false,
-                        meterReadingViewModel = null
-                    )
-                }
-
-                // If odd number of items, add spacer
-                if (meterPair.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
-}

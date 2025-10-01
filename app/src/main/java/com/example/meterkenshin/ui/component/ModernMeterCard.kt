@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.component
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -30,9 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.toColorInt
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.MeterReading
@@ -45,6 +44,7 @@ import java.util.Locale
  * This component works with MeterReadingViewModel and can be reused across screens
  * Updated to match the PNG design with three status states at bottom
  */
+@SuppressLint("DefaultLocale")
 @Composable
 fun ModernMeterCard(
     meter: Meter,
@@ -291,66 +291,28 @@ fun getInspectionStatus(meter: Meter, dlmsData: Any? = null): InspectionStatus {
         }
 
         // If meter has critical alerts (alert level > 2), billing not printed
-        meter.alert != null && meter.alert!! > 2.0 -> {
+        meter.alert != null && meter.alert > 2.0 -> {
             InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
         }
 
         // If voltage is too low (critical issue), billing not printed
-        meter.minVoltV != null && meter.minVoltV!! < 200.0 -> {
+        meter.minVoltV != null && meter.minVoltV < 200.0 -> {
             InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
         }
 
         // If meter has minor alerts (0 < alert <= 2), billing not printed
-        meter.alert != null && meter.alert!! > 0.0 -> {
+        meter.alert != null && meter.alert > 0.0 -> {
             InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
         }
 
         // If meter is active, has readings, and no alerts, billing printed
-        meter.activate == 1 && meter.impKWh != null && meter.impKWh!! > 0.0 &&
+        meter.activate == 1 && meter.impKWh != null && meter.impKWh > 0.0 &&
                 (meter.alert == null || meter.alert == 0.0) -> {
             InspectionStatus.INSPECTED_BILLING_PRINTED
         }
 
         // Default case - inspected but billing not printed
         else -> InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
-    }
-}
-
-/**
- * Statistics card for meter overview
- */
-@Composable
-fun MeterStatCard(
-    label: String,
-    value: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = color.copy(alpha = 0.1f)
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-        }
     }
 }
 
@@ -366,14 +328,3 @@ fun getConnectionStatusText(meter: Meter): String {
     }
 }
 
-/**
- * Helper function to get status bar color
- */
-@Composable
-fun getStatusBarColor(meter: Meter): Color {
-    return when (meter.activate) {
-        1 -> Color(0xFF4CAF50) // Green for active/online
-        0 -> Color(0xFFF44336) // Red for inactive/offline
-        else -> Color(0xFF757575) // Gray for unknown
-    }
-}

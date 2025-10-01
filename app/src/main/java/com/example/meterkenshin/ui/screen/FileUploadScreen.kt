@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.screen
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -65,9 +66,7 @@ import java.util.Locale
 @Composable
 fun FileUploadScreen(
     viewModel: FileUploadViewModel = viewModel(),
-    onUploadComplete: () -> Unit = {},
-    modifier: Modifier = Modifier,
-    onBackPressed: () -> Unit = {}
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val uploadState by viewModel.uploadState.collectAsState()

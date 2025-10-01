@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.component
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,7 +49,7 @@ fun HomeMeterList(
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     onMeterClick: (Meter) -> Unit = {},
     onViewAllClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val uiState by meterReadingViewModel.uiState.collectAsState()

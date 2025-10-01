@@ -21,7 +21,6 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 fun MeterReadingScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
-    onBackPressed: () -> Unit = {},
     onNavigateToMeterDetail: (Meter) -> Unit = {}
 ) {
     Column(

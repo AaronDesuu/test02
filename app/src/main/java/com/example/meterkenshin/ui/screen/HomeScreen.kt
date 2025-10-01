@@ -55,25 +55,6 @@ import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.component.HomeMeterList
-import java.util.Date
-import java.util.Random
-
-private const val TAG = "HomeScreen"
-
-// Data class for real-time meter readings
-data class MeterReading(
-    val meterId: String,
-    val reading: Float?,
-    val timestamp: Date = Date(),
-    val quality: ReadingQuality = ReadingQuality.GOOD
-)
-
-enum class ReadingQuality(val displayName: String) {
-    EXCELLENT("Excellent"),
-    GOOD("Good"),
-    FAIR("Fair"),
-    POOR("Poor")
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,10 +98,6 @@ fun HomeScreen(
         calculateSystemOverview(meterUiState.allMeters)
     }
 
-    // Generate sample readings based on real meters
-    val recentReadings = remember(meterUiState.allMeters) {
-        recentReadings(meterUiState.allMeters)
-    }
 
     var showLogoutDialog by remember { mutableStateOf(false) }
 
@@ -156,11 +133,7 @@ fun HomeScreen(
             // Recent Readings
             item {
                 RecentReadingsSection(
-                    readings = recentReadings,
-                    meters = meterUiState.allMeters,
                     onNavigateToMeterReading = onNavigateToMeterReading,
-                    isLoading = meterUiState.isLoading,
-                    isMeterDataLoaded = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty(),
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel
                 )
@@ -319,11 +292,7 @@ private fun OverviewCard(
 
 @Composable
 private fun RecentReadingsSection(
-    readings: List<MeterReading>,
-    meters: List<Meter>,
     onNavigateToMeterReading: () -> Unit,
-    isLoading: Boolean,
-    isMeterDataLoaded: Boolean,
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel()
 ) {
@@ -350,20 +319,6 @@ private fun calculateSystemOverview(meters: List<Meter>): SystemOverview {
         lastSyncSuccess = meters.isNotEmpty(),
         rankDistribution = rankDistribution
     )
-}
-
-private fun recentReadings(meters: List<Meter>): List<MeterReading> {
-    if (meters.isEmpty()) return emptyList()
-
-    val random = Random()
-    return meters.take(5).map { meter ->
-        MeterReading(
-            meterId = meter.serialNumber,
-            reading = meter.impKWh?.toFloat(),
-            timestamp = Date(System.currentTimeMillis() - random.nextLong() % (24 * 60 * 60 * 1000)),
-            quality = ReadingQuality.entries[random.nextInt(ReadingQuality.entries.size)]
-        )
-    }
 }
 
 // Update SystemOverview data class to include rank distribution

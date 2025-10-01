@@ -51,11 +51,11 @@ fun MeterKenshinApp(
 
     // Handle Android system back button
     BackHandler(enabled = isLoggedIn && currentScreen != "home") {
-        when (currentScreen) {
-            "meter_detail" -> currentScreen = "meter_reading"
-            "meter_card_test" -> currentScreen = "home" // Add this line for test screen
-            "file_upload", "receipt", "meter_reading" -> currentScreen = "home"
-            else -> currentScreen = "home"
+        currentScreen = when (currentScreen) {
+            "meter_detail" -> "meter_reading"
+            "meter_card_test" -> "home" // Add this line for test screen
+            "file_upload", "receipt", "meter_reading" -> "home"
+            else -> "home"
         }
     }
 
@@ -127,20 +127,13 @@ fun MeterKenshinApp(
             }
             currentScreen == "file_upload" -> {
                 FileUploadScreen(
-                    viewModel = fileUploadViewModel,
-                    onUploadComplete = {
-                        // Refresh file data after upload
-                        fileUploadViewModel.checkExistingFiles(context)
-                        currentScreen = "home"
-                    },
-                    onBackPressed = { currentScreen = "home" }
+                    viewModel = fileUploadViewModel
                 )
             }
             currentScreen == "receipt" -> {
                 ReceiptScreen(
                     fileUploadViewModel = fileUploadViewModel,
                     printerBluetoothViewModel = printerBluetoothViewModel,
-                    onBackPressed = { currentScreen = "home" },
                     onNavigateToFileUpload = { currentScreen = "file_upload" }
                 )
             }
@@ -148,7 +141,6 @@ fun MeterKenshinApp(
                 MeterReadingScreen(
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel,
-                    onBackPressed = { currentScreen = "home" },
                     onNavigateToMeterDetail = { meter ->
                         selectedMeter = meter
                         currentScreen = "meter_detail"
@@ -158,15 +150,13 @@ fun MeterKenshinApp(
             currentScreen == "meter_detail" -> {
                 selectedMeter?.let { meter ->
                     MeterDetailScreen(
-                        meter = meter,
-                        onBackPressed = { currentScreen = "meter_reading" }
+                        meter = meter
                     )
                 }
             }
             // Add this new case for the test screen - this was missing!
             currentScreen == "meter_card_test" -> {
                 MeterCardTestScreen(
-                    onNavigateBack = { currentScreen = "home" }
                 )
             }
         }

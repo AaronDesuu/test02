@@ -93,10 +93,6 @@ class SessionManager private constructor(context: Context) {
         return getSession() != null
     }
 
-    fun getRemainingDays(): Int {
-        return getSession()?.getDaysUntilExpiry() ?: 0
-    }
-
     fun logout() {
         clearSession()
     }

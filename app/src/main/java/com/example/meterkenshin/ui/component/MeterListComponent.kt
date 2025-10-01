@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.component
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,15 +18,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.NetworkCell
-import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,18 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.RequiredFile
-import com.example.meterkenshin.ui.component.ModernMeterCard
-import com.example.meterkenshin.ui.component.getInspectionStatus
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
-import com.example.meterkenshin.ui.component.PrintActionsDropdown
 
 /**
  * Reusable Meter List Component with MeterReadingViewModel Integration
@@ -67,12 +61,11 @@ fun MeterListComponent(
     showSearch: Boolean = true,
     showStatistics: Boolean = true,
     maxItemsToShow: Int? = null, // null = show all, number = limit items
-    modifier: Modifier = Modifier,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     customHeader: (@Composable () -> Unit)? = null,
     customEmptyState: (@Composable () -> Unit)? = null,
     dlmsMaxDemandProvider: ((Meter) -> Double?)? = null, // Function to get DLMS data for each meter
-    useScrolling: Boolean = true, // Parameter to control scrolling behavior
-    onPrintAction: (() -> Unit)? = null // Print button callback
+    useScrolling: Boolean = true // Parameter to control scrolling behavior
 ) {
     val context = LocalContext.current
     val uiState by meterReadingViewModel.uiState.collectAsState()

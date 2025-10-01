@@ -83,6 +83,7 @@ enum class AppScreen(val titleRes: Int) {
     UNKNOWN(R.string.app_name)
 }
 
+@Suppress("unused")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppWithDrawer(

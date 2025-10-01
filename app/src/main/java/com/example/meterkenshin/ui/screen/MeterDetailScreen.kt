@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.screen
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -56,14 +57,13 @@ import androidx.core.graphics.toColorInt
 @Composable
 fun MeterDetailScreen(
     meter: Meter,
-    onBackPressed: () -> Unit = {},
     onRegistration: () -> Unit = {},
     onReadData: () -> Unit = {},
     onLoadProfile: () -> Unit = {},
     onEventLog: () -> Unit = {},
     onBillingData: () -> Unit = {},
     onSetClock: () -> Unit = {},
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier.fillMaxSize()
@@ -203,7 +203,7 @@ private fun FunctionButton(
     icon: ImageVector,
     onClick: () -> Unit,
     isActive: Boolean = true,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     Button(
         onClick = onClick,
@@ -245,6 +245,7 @@ private fun FunctionButton(
 /**
  * Meter specifications card with enhanced CSV data support using MeterModel
  */
+@SuppressLint("DefaultLocale")
 @Composable
 private fun MeterSpecificationsCard(
     meter: Meter,
@@ -489,34 +490,3 @@ private fun SpecificationRow(
     }
 }
 
-/**
- * Helper composable for detail rows
- */
-@Composable
-private fun DetailRow(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = value.ifBlank { "-" },
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}

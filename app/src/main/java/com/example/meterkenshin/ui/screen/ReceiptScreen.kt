@@ -1,7 +1,9 @@
 package com.example.meterkenshin.ui.screen
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,8 +33,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -61,8 +63,8 @@ import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.component.ReceiptPrintButton
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
 import com.example.meterkenshin.ui.component.createSampleReceiptData
-import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
@@ -76,7 +78,6 @@ import java.util.Locale
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     printerBluetoothViewModel: PrinterBluetoothViewModel = viewModel(),
-    onBackPressed: () -> Unit = {},
     onNavigateToFileUpload: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -118,7 +119,7 @@ fun ReceiptScreen(
     LaunchedEffect(isRateCsvUploaded) {
         try {
             errorMessage = null
-            if (isRateCsvUploaded && rateCsvFile != null) {
+            if (isRateCsvUploaded) {
                 val rates = loadRateDataFromFile(context, rateCsvFile.fileName)
                 rateData = rates
                 Log.d("Receipt", "Loaded ${rates?.size ?: 0} rate values from uploaded CSV")
@@ -447,7 +448,7 @@ fun ReceiptScreen(
                             containerColor = Color.White
                         ),
                         shape = RoundedCornerShape(8.dp),
-                        border = androidx.compose.foundation.BorderStroke(
+                        border = BorderStroke(
                             1.dp,
                             colorResource(R.color.outline_light)
                         )
@@ -472,6 +473,7 @@ fun ReceiptScreen(
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 private fun ReceiptPreview(
     billingData: BillingData,
@@ -520,10 +522,10 @@ private fun ReceiptPreview(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Divider(
-            color = Color.Black,
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
             thickness = 1.dp,
-            modifier = Modifier.padding(vertical = 8.dp)
+            color = Color.Black
         )
 
         // Billing Information
@@ -560,10 +562,10 @@ private fun ReceiptPreview(
             )
         )
 
-        Divider(
-            color = Color.Black,
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
             thickness = 1.dp,
-            modifier = Modifier.padding(vertical = 8.dp)
+            color = Color.Black
         )
 
         // Charges breakdown using actual rates
@@ -604,10 +606,10 @@ private fun ReceiptPreview(
             16..20
         )
 
-        Divider(
-            color = Color.Black,
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
             thickness = 1.dp,
-            modifier = Modifier.padding(vertical = 8.dp)
+            color = Color.Black
         )
 
         // Total amounts
@@ -622,10 +624,10 @@ private fun ReceiptPreview(
             fontFamily = FontFamily.Monospace
         )
 
-        Divider(
-            color = Color.Black,
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
             thickness = 1.dp,
-            modifier = Modifier.padding(vertical = 8.dp)
+            color = Color.Black
         )
 
         // Payment terms
@@ -684,6 +686,7 @@ private fun ReceiptLine(label: String, value: String) {
     )
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 private fun ChargesSection(
     title: String,
@@ -842,6 +845,7 @@ private fun ChargesSection(
     Spacer(modifier = Modifier.height(4.dp))
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 private fun ChargeDetailLine(name: String, rate: Float, amount: Float, unit: String) {
     Text(
@@ -916,7 +920,7 @@ private fun RateDataPreviewTable(
             containerColor = colorResource(R.color.preview_card_background)
         ),
         shape = RoundedCornerShape(8.dp),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
             colorResource(R.color.outline_light)
         )
@@ -951,10 +955,10 @@ private fun RateDataPreviewTable(
                 )
             }
 
-            Divider(
-                color = colorResource(R.color.outline_light),
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
                 thickness = 1.dp,
-                modifier = Modifier.padding(vertical = 8.dp)
+                color = colorResource(R.color.outline_light)
             )
 
             // Rate categories
@@ -986,6 +990,8 @@ private fun RateDataPreviewTable(
     }
 }
 
+@Suppress("SameParameterValue")
+@SuppressLint("DefaultLocale")
 @Composable
 private fun RateDataRow(
     name: String,
@@ -1035,6 +1041,7 @@ data class RateCategory(
     val units: List<String>
 )
 
+@SuppressLint("DefaultLocale")
 @Composable
 private fun RateDataDialog(
     rateData: FloatArray,
@@ -1213,7 +1220,7 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
         val reader = BufferedReader(FileReader(rateFile))
 
         var isFirstLine = true
-        var columnHeaders: List<String>? = null
+        var columnHeaders: List<String>?
 
         reader.useLines { lines ->
             lines.forEach { line ->
@@ -1224,21 +1231,21 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
                         isFirstLine = false
 
                         // Check if first line contains headers or data
-                        val firstCell = columnHeaders?.firstOrNull()?.trim()
+                        val firstCell = columnHeaders.firstOrNull()?.trim()
                         if (firstCell != null) {
                             try {
                                 // If we can parse the first cell as float, treat this line as data
                                 val firstRate = firstCell.toFloat()
                                 rates.add(firstRate)
                                 // Continue parsing rest of the line
-                                columnHeaders?.drop(1)?.forEach { cell ->
+                                columnHeaders.drop(1).forEach { cell ->
                                     try {
                                         rates.add(cell.toFloat())
-                                    } catch (e: NumberFormatException) {
+                                    } catch (_: NumberFormatException) {
                                         Log.w("Receipt", "Skipping non-numeric value: $cell")
                                     }
                                 }
-                            } catch (e: NumberFormatException) {
+                            } catch (_: NumberFormatException) {
                                 // First line is headers, continue to next line
                                 Log.d("Receipt", "Headers detected: $columnHeaders")
                             }
@@ -1250,7 +1257,7 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
                             if (cell.isNotEmpty()) {
                                 try {
                                     rates.add(cell.toFloat())
-                                } catch (e: NumberFormatException) {
+                                } catch (_: NumberFormatException) {
                                     Log.w("Receipt", "Skipping non-numeric value: $cell")
                                 }
                             }
@@ -1279,7 +1286,7 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
     }
 }
 
-private fun getCurrentDate(monthOffset: Int, dayOffset: Int): String {
+private fun getCurrentDate(@Suppress("SameParameterValue") monthOffset: Int, dayOffset: Int): String {
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.MONTH, monthOffset)
     calendar.add(Calendar.DAY_OF_MONTH, dayOffset)

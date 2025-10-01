@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.component
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -87,6 +88,7 @@ fun ReceiptPrintButton(
 }
 
 // Print function that handles the actual printing
+@SuppressLint("DefaultLocale")
 private fun printReceipt(
     receiptData: ReceiptData,
     printerBluetoothViewModel: PrinterBluetoothViewModel
@@ -100,22 +102,46 @@ private fun printReceipt(
 
     // Header section - LARGE font, bold, centered
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("SAMPLE RECEIPT\n".toByteArray())
 
     // Company info - MEDIUM font, centered
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("H.V Dela Costa St Salcedo Village Makati 1227,\nMetro Manila Philippines\n".toByteArray())
 
     // Company name - LARGE font, bold, centered
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Fuji Electric Sales Philippines Inc.\n".toByteArray())
 
     // Phone - MEDIUM font, centered
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("TEL:000-000-0000\n".toByteArray())
 
     // Switch to left alignment for billing data
@@ -126,7 +152,13 @@ private fun printReceipt(
 
     // Billing information section - MEDIUM font, left aligned
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Period    :${receiptData.period}     Rate Type : ${receiptData.commercial} COMMERCIAL\n".toByteArray())
     commands.add("Meter     :${receiptData.serialID}               Multiplier: ${String.format("%.1f", receiptData.multiplier)}\n".toByteArray())
     commands.add("Period To :${receiptData.periodTo}               Pres Reading: ${String.format("%8.3f", receiptData.presReading)}\n".toByteArray())
@@ -138,13 +170,25 @@ private fun printReceipt(
 
     // Charges header - LARGE font, bold, left aligned with proper spacing
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("CHARGES                         RATE        AMOUNT\n".toByteArray())
 
     // Gen/Trans section - LARGE bold titles, MEDIUM details, single line format
     commands.add("GEN/TRANS CHARGES\n".toByteArray())
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Generation System Charge  :        7.2467/kwh      0.00\n".toByteArray())
     commands.add("Transmission Demand Charge:       273.58/kw       0.00\n".toByteArray())
     commands.add("System Loss Charge        :         1.068/kwh      0.00\n".toByteArray())
@@ -153,10 +197,22 @@ private fun printReceipt(
 
     // Distribution section
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("DISTRIBUTION CHARGES\n".toByteArray())
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Distribution Demand Charge:       219.80/kw       0.00\n".toByteArray())
     commands.add("Supply Fix Charge         :        42.92/cst     42.92\n".toByteArray())
     commands.add("Metering Fix Charge       :        35.94/cst     35.94\n".toByteArray())
@@ -165,11 +221,23 @@ private fun printReceipt(
 
     // Sustainable CAPEX section
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("REINVESTMENT FUND FOR\n".toByteArray())
     commands.add("SUSTAINABLE CAPEX\n".toByteArray())
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Reinvestment Fund for CAPEX:       0.2904/kwh      0.00\n".toByteArray())
     commands.add("Member's CAPEX Contribution:       0.1632/kwh      0.00\n".toByteArray())
     commands.add("                                 ---------------\n".toByteArray())
@@ -177,10 +245,22 @@ private fun printReceipt(
 
     // Other charges section
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("OTHER CHARGES\n".toByteArray())
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Lifeline Discount/Subsidy :       -0.0020/kwh     -0.00\n".toByteArray())
     commands.add("Senior Citizen Subsidy    :        0.0002/kwh      0.00\n".toByteArray())
     commands.add("                                 ---------------\n".toByteArray())
@@ -188,10 +268,22 @@ private fun printReceipt(
 
     // Universal charges section
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("UNIVERSAL CHARGES\n".toByteArray())
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Missionary Elec(NPC-SPUG) :        0.1805/kwh      0.00\n".toByteArray())
     commands.add("Missionary Elec(NPC)      :        0.0010/kwh      0.00\n".toByteArray())
     commands.add("Environmental Charge      :        0.0000/kwh      0.00\n".toByteArray())
@@ -203,10 +295,22 @@ private fun printReceipt(
 
     // VAT section
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("VALUE ADDED TAX\n".toByteArray())
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("Generation VAT            :        0.0000/kwh      0.00\n".toByteArray())
     commands.add("Transmission VAT          :        0.0428/kwh      0.00\n".toByteArray())
     commands.add("System Loss VAT           :        0.0000/kwh      0.00\n".toByteArray())
@@ -220,16 +324,34 @@ private fun printReceipt(
 
     // Total amount - LARGE font, bold, double height for emphasis
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 2))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 2
+    ))
     commands.add("CURRENT BILL              Php ${String.format("%.2f", receiptData.totalAmount)}\n".toByteArray())
 
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("TOTAL AMOUNT              Php ${String.format("%.2f", receiptData.totalAmount)}\n".toByteArray())
 
     // Final section - LARGE font, bold, with full width separator
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = true,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("================================================\n".toByteArray())
     commands.add("Discount                     10.00\n".toByteArray())
     commands.add("Amount Before Due         ${String.format("%.2f", receiptData.totalAmount - 10.0f)}\n".toByteArray())
@@ -242,7 +364,13 @@ private fun printReceipt(
 
     // Footer notes - SMALL font for fine print
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_SMALL))
-    commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
+    commands.add(WoosimCmd.setTextStyle(
+        bold = false,
+        italic = false,
+        underline = false,
+        widthMagnification = 1,
+        heightMagnification = 1
+    ))
     commands.add("NOTE:Please pay this electric bill\non or before DUE DATE otherwise,\nwe will be forced to discontinue\nserving your electric needs.\n\n".toByteArray())
     commands.add("This is not an Official Receipt.\nPayment of this bill does not mean\npayment of disconnection/\nreconnection fees.\n\n".toByteArray())
     commands.add("PLEASE PRESENT THIS STATEMENT\nUPON PAYMENT\n\n".toByteArray())

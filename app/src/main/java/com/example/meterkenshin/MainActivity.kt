@@ -83,6 +83,7 @@ class MainActivity : ComponentActivity() {
                         fileUploadViewModel = fileUploadViewModel,
                         meterReadingViewModel = meterReadingViewModel,
                         printerBluetoothViewModel = printerBluetoothViewModel
+
                     )
                 }
             }

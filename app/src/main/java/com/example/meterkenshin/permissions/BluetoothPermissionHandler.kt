@@ -12,9 +12,7 @@ import androidx.core.content.ContextCompat
  */
 class BluetoothPermissionHandler(private val context: Context) {
 
-    companion object {
-        private const val TAG = "BluetoothPermissionHandler"
-    }
+    companion object;
 
     /**
      * Get the required Bluetooth permissions based on Android version
@@ -56,37 +54,6 @@ class BluetoothPermissionHandler(private val context: Context) {
     }
 
     /**
-     * Check if BLUETOOTH_SCAN permission is granted (for Android 12+)
-     */
-    fun hasBluetoothScanPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermission(Manifest.permission.BLUETOOTH_SCAN)
-        } else {
-            hasPermission(Manifest.permission.BLUETOOTH) &&
-                    hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-    }
-
-    /**
-     * Check if BLUETOOTH_CONNECT permission is granted (for Android 12+)
-     */
-    fun hasBluetoothConnectPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            hasPermission(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            hasPermission(Manifest.permission.BLUETOOTH)
-        }
-    }
-
-    /**
-     * Check if location permission is granted (required for Bluetooth scanning)
-     */
-    fun hasLocationPermission(): Boolean {
-        return hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) ||
-                hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-    }
-
-    /**
      * Get missing permissions that need to be requested
      */
     fun getMissingPermissions(): List<String> {
@@ -96,27 +63,4 @@ class BluetoothPermissionHandler(private val context: Context) {
         }
     }
 
-    /**
-     * Get a human-readable description of what permissions are needed
-     */
-    fun getPermissionExplanation(): String {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            "This app needs Bluetooth and Location permissions to connect to the Woosim printer. " +
-                    "Bluetooth permissions allow the app to scan for and connect to nearby printers. " +
-                    "Location permission is required for Bluetooth device discovery."
-        } else {
-            "This app needs Bluetooth and Location permissions to connect to the Woosim printer. " +
-                    "These permissions allow the app to manage Bluetooth connections and discover nearby devices."
-        }
-    }
-
-    /**
-     * Check if the app should show rationale for requesting permissions
-     */
-    fun shouldShowRequestPermissionRationale(activity: android.app.Activity): Boolean {
-        val missingPermissions = getMissingPermissions()
-        return missingPermissions.any { permission ->
-            androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
-        }
-    }
 }

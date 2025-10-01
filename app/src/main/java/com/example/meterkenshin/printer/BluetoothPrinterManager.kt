@@ -25,7 +25,7 @@ class BluetoothPrinterManager(private val context: Context) {
 
     companion object {
         private const val TAG = "BluetoothPrinterManager"
-        private const val WOOSIM_DEVICE_PREFIX = "F5" // Woosim devices contain "F5" in their name
+        private const val WOOSIM_DEVICE_PREFIX = "WSP" // Woosim devices contain "WSP" in their name
         private const val SCAN_DURATION = 10000L // 10 seconds scan duration
         private const val AUTO_CONNECT_RETRY_COUNT = 3
         private const val AUTO_CONNECT_RETRY_DELAY = 2000L // 2 seconds

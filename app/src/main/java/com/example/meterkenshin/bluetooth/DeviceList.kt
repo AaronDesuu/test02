@@ -115,17 +115,4 @@ class DefaultDeviceList : DeviceList, MeterReadingViewModel.DeviceList {
         return devices.map { it.device }
     }
 
-    /**
-     * Get device info by address
-     */
-    fun getDeviceInfo(address: String): DeviceInfo? {
-        return devices.find { it.device.address == address }
-    }
-
-    /**
-     * Sort devices by RSSI (strongest signal first)
-     */
-    fun sortBySignalStrength() {
-        devices.sortByDescending { it.rssi }
-    }
 }

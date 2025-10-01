@@ -1,11 +1,10 @@
 package com.example.meterkenshin.ui.component
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Print
-import androidx.compose.material.icons.filled.PrintDisabled
 import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.DropdownMenu
@@ -35,7 +34,7 @@ fun PrintActionsDropdown(
     onBatchReading: () -> Unit = {},
     onBatchPrinting: () -> Unit = {},
     onSelectAndPrint: () -> Unit = {},
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     var expanded by remember { mutableStateOf(false) }
 

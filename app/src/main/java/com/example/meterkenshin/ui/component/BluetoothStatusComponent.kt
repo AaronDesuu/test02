@@ -202,7 +202,7 @@ private fun BluetoothConnectionStatusCard(
                 if (connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED && connectedDevice != null) {
                     val deviceName = try {
                         connectedDevice.name
-                    } catch (e: SecurityException) {
+                    } catch (_: SecurityException) {
                         null
                     } ?: "Unknown Device"
 
