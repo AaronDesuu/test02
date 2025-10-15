@@ -128,37 +128,37 @@ private fun BluetoothConnectionStatusCard(
 ) {
     val (backgroundColor, foregroundColor, borderColor, statusText, statusIcon) = when {
         !isBluetoothEnabled -> listOf(
-            colorResource(R.color.printer_status_background),
-            colorResource(R.color.generic_file_icon),
-            colorResource(R.color.outline_light),
+            colorResource(R.color.bluetooth_disabled_background),
+            colorResource(R.color.bluetooth_disabled_foreground),
+            colorResource(R.color.bluetooth_disabled_border),
             "Bluetooth Disabled",
             Icons.Default.BluetoothDisabled
         )
         connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED -> listOf(
-            colorResource(R.color.csv_success_background),
-            colorResource(R.color.csv_success_foreground),
-            colorResource(R.color.printer_connected),
+            colorResource(R.color.bluetooth_connected_background),
+            colorResource(R.color.bluetooth_connected_foreground),
+            colorResource(R.color.bluetooth_connected_border),
             stringResource(R.string.connection_state_connected),
             Icons.Default.CheckCircle
         )
         connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING -> listOf(
-            colorResource(R.color.csv_warning_background),
-            colorResource(R.color.csv_warning_foreground),
-            colorResource(R.color.printer_connecting),
+            colorResource(R.color.bluetooth_connecting_background),
+            colorResource(R.color.bluetooth_connecting_foreground),
+            colorResource(R.color.bluetooth_connecting_border),
             stringResource(R.string.connection_state_connecting),
             Icons.Default.Sync
         )
         connectionState == BluetoothPrinterManager.ConnectionState.ERROR -> listOf(
-            colorResource(R.color.csv_error_background),
-            colorResource(R.color.csv_error_foreground),
-            colorResource(R.color.printer_disconnected),
+            colorResource(R.color.bluetooth_error_background),
+            colorResource(R.color.bluetooth_error_foreground),
+            colorResource(R.color.bluetooth_error_border),
             stringResource(R.string.connection_state_error),
             Icons.Default.Error
         )
         else -> listOf(
-            colorResource(R.color.csv_error_background),
-            colorResource(R.color.csv_error_foreground),
-            colorResource(R.color.printer_disconnected),
+            colorResource(R.color.bluetooth_disconnected_background),
+            colorResource(R.color.bluetooth_disconnected_foreground),
+            colorResource(R.color.bluetooth_disconnected_border),
             stringResource(R.string.connection_state_disconnected),
             Icons.Default.Warning
         )
@@ -250,7 +250,7 @@ private fun BluetoothActionButtons(
         when {
             !isBluetoothEnabled -> {
                 OutlinedButton(
-                    onClick = { /* Open Bluetooth settings would be handled by MainActivity */ },
+                    onClick = { /* Open Bluetooth settings - handled by MainActivity */ },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -264,7 +264,10 @@ private fun BluetoothActionButtons(
             }
             connectionState == BluetoothPrinterManager.ConnectionState.ERROR -> {
                 OutlinedButton(
-                    onClick = { printerBluetoothViewModel.retryConnection() },
+                    onClick = {
+                        // Retry connection
+                        printerBluetoothViewModel.retryConnection()
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -277,8 +280,11 @@ private fun BluetoothActionButtons(
                 }
             }
             connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED -> {
+                // Test print button
                 OutlinedButton(
-                    onClick = { printerBluetoothViewModel.printSampleData() },
+                    onClick = {
+                        printerBluetoothViewModel.printSampleData()
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -290,8 +296,11 @@ private fun BluetoothActionButtons(
                     Text("Test Print")
                 }
 
+                // Disconnect button
                 OutlinedButton(
-                    onClick = { printerBluetoothViewModel.disconnect() },
+                    onClick = {
+                        printerBluetoothViewModel.disconnect()
+                    },
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -304,9 +313,14 @@ private fun BluetoothActionButtons(
                 }
             }
             else -> {
+                // Connect button (for DISCONNECTED state)
                 OutlinedButton(
-                    onClick = { printerBluetoothViewModel.startAutoConnect() },
-                    modifier = Modifier.weight(1f)
+                    onClick = {
+                        // Start auto-connect
+                        printerBluetoothViewModel.startAutoConnect()
+                    },
+                    modifier = Modifier.weight(1f),
+                    enabled = isBluetoothEnabled
                 ) {
                     Icon(
                         imageVector = Icons.Default.Bluetooth,
@@ -314,7 +328,7 @@ private fun BluetoothActionButtons(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Connect")
+                    Text("Connect Printer")
                 }
             }
         }
