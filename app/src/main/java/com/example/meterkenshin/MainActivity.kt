@@ -104,32 +104,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun onResume() {
         super.onResume()
         // Check if user is logged in and start BLE operations
         if (sessionManager.isLoggedIn()) {
             startBLEOperationsIfNeeded()
             startBLEScanningIfLoggedIn()
+            meterReadingViewModel.startPeriodicScanning()
         }
     }
 
+    @SuppressLint("MissingPermission")
     override fun onPause() {
         super.onPause()
         // Stop BLE scanning when app goes to background
-        if (sessionManager.isLoggedIn()) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    if (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) ==
-                        android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                        meterReadingViewModel.stopBLEScanning()
-                    }
-                } else {
-                    meterReadingViewModel.stopBLEScanning()
-                }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error stopping BLE scan", e)
-            }
-        }
+        meterReadingViewModel.stopBLEScanning()
     }
 
     override fun onDestroy() {

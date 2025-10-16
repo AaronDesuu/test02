@@ -21,9 +21,12 @@ import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.MeterStatus
 import com.example.meterkenshin.model.MeterType
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.File
@@ -37,7 +40,9 @@ class MeterReadingViewModel : ViewModel() {
     companion object {
         private const val TAG = "MeterReadingViewModel"
         private const val APP_FILES_FOLDER = "app_files"
-        private const val SCAN_PERIOD: Long = 10000 // 10 seconds scan period
+        private const val SCAN_PERIOD: Long = 1000 // 1 seconds active scan
+        private const val SCAN_INTERVAL: Long = 5000 // 5 seconds between scans
+        private const val SCAN_COOLDOWN: Long = 1000 // 1000ms cooldown between stop/start
 
         // DLMS Message Constants
         private const val MSG_ADMIN = 0
@@ -96,33 +101,31 @@ class MeterReadingViewModel : ViewModel() {
     private var mBluetoothLeService: BluetoothLeService? = null
     private var d: DLMS? = null
     private var mDeviceList: DeviceList? = null
+    private var scanJob: Job? = null
+    val discoveredDevices: StateFlow<Map<String, Int>> = _discoveredDevices.asStateFlow()
+    private val _scannedInCurrentCycle = mutableSetOf<String>() // Track which devices already scanned this cycle
 
-    // ✅ NEW: BLE Scan Callback - Filters by meter.csv MAC addresses
+    // Modified callback - only captures first RSSI per cycle
     @Suppress("DEPRECATION")
     private val mLeScanCallback = BluetoothAdapter.LeScanCallback { device, rssi, _ ->
-        // Only process devices that are in our CSV meter list
         val knownMacAddresses = _uiState.value.allMeters
             .mapNotNull { it.bluetoothId?.uppercase() }
             .toSet()
 
         val deviceMac = device.address.uppercase()
 
-        if (knownMacAddresses.contains(deviceMac)) {
-            Log.i(TAG, "Found known meter: $deviceMac, RSSI: $rssi dBm")
+        if (knownMacAddresses.contains(deviceMac) && !_scannedInCurrentCycle.contains(deviceMac)) {
+            Log.i(TAG, "First discovery this cycle: $deviceMac, RSSI: $rssi dBm")
 
-            // Add to device list
+            _scannedInCurrentCycle.add(deviceMac)
             mDeviceList?.addDevice(device, rssi)
 
-            // Update discovered devices map
             val currentDevices = _discoveredDevices.value.toMutableMap()
             currentDevices[deviceMac] = rssi
             _discoveredDevices.value = currentDevices
             _nearbyMeterCount.value = currentDevices.size
 
-            // Update meter status to show it's nearby
             updateMeterNearbyStatus(deviceMac, rssi)
-        } else {
-            Log.d(TAG, "Ignoring unknown device: $deviceMac")
         }
     }
 
@@ -237,7 +240,7 @@ class MeterReadingViewModel : ViewModel() {
                     Log.i(TAG, "BLE scan started - looking for ${_uiState.value.allMeters.size} known meters")
 
                     // Auto-stop after SCAN_PERIOD
-                    kotlinx.coroutines.delay(SCAN_PERIOD)
+                    delay(SCAN_PERIOD)
                     stopBLEScanning()
 
                 } catch (e: Exception) {
@@ -354,6 +357,81 @@ class MeterReadingViewModel : ViewModel() {
             Log.e(TAG, "Error stopping BLE operations", e)
         }
     }
+
+    /**
+     * Start periodic scanning with proper backoff to avoid "scanning too frequently" warning
+     */
+    @RequiresPermission(allOf = [
+        Manifest.permission.BLUETOOTH_SCAN,
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ])
+    fun startPeriodicScanning() {
+        scanJob?.cancel()
+        scanJob = viewModelScope.launch {
+            while (isActive) {
+                // Clear the "already scanned" set for new cycle
+                _scannedInCurrentCycle.clear()
+
+                // Start scan
+                startBLEScanningInternal()
+
+                // Scan for SCAN_PERIOD duration
+                delay(SCAN_PERIOD)
+
+                // Stop scan
+                stopBLEScanningInternal()
+
+                // Wait cooldown before next cycle (IMPORTANT to avoid "scanning too frequently")
+                val remainingDelay = SCAN_INTERVAL
+                Log.d(TAG, "Waiting ${remainingDelay}ms before next scan cycle")
+                delay(remainingDelay)
+            }
+        }
+        Log.i(TAG, "Periodic scanning started: ${SCAN_PERIOD}ms scan every ${SCAN_INTERVAL}ms")
+    }
+
+
+    @RequiresPermission(allOf = [
+        Manifest.permission.BLUETOOTH_SCAN,
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ])
+    private suspend fun startBLEScanningInternal() {
+        if (mBluetoothAdapter == null || _uiState.value.allMeters.isEmpty()) return
+
+        if (!mScanning) {
+            try {
+                // Add small delay if previous scan just stopped
+                delay(SCAN_COOLDOWN)
+
+                @Suppress("DEPRECATION")
+                mBluetoothAdapter?.startLeScan(mLeScanCallback)
+                mScanning = true
+                _isScanning.value = true
+                Log.i(TAG, "BLE scan started")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting BLE scan", e)
+            }
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
+    private suspend fun stopBLEScanningInternal() {
+        if (mScanning) {
+            try {
+                @Suppress("DEPRECATION")
+                mBluetoothAdapter?.stopLeScan(mLeScanCallback)
+                mScanning = false
+                _isScanning.value = false
+                Log.i(TAG, "BLE scan stopped - found ${_scannedInCurrentCycle.size} devices this cycle")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping BLE scan", e)
+            }
+        }
+    }
+
+
 
     /**
      * Load meters from CSV file
@@ -507,6 +585,7 @@ class MeterReadingViewModel : ViewModel() {
         Log.i(TAG, "ViewModel cleared")
     }
 }
+
 
 // UI State
 data class MeterReadingUiState(

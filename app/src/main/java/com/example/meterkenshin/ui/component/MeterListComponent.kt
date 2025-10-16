@@ -193,7 +193,8 @@ fun MeterListComponent(
                         items(metersToShow) { meter ->
                             // Check if meter is nearby
                             val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
-                            val signalStrength = meterReadingViewModel.getMeterSignalStrength(meter.bluetoothId ?: "")
+                            val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
+                            val signalStrength = discoveredDevices[meter.bluetoothId?.uppercase() ?: ""]
 
                             ModernMeterCard(
                                 meter = meter,

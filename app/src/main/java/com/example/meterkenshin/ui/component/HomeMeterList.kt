@@ -128,7 +128,8 @@ fun HomeMeterList(
                 ) {
                     metersToShow.forEach { meter ->
                         val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId ?: "")
-                        val signalStrength = meterReadingViewModel.getMeterSignalStrength(meter.bluetoothId ?: "")
+                        val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
+                        val signalStrength = discoveredDevices[meter.bluetoothId?.uppercase() ?: ""]
 
                         ModernMeterCard(
                             meter = meter,
