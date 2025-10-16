@@ -127,11 +127,16 @@ fun HomeMeterList(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     metersToShow.forEach { meter ->
+                        val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId ?: "")
+                        val signalStrength = meterReadingViewModel.getMeterSignalStrength(meter.bluetoothId ?: "")
+
                         ModernMeterCard(
                             meter = meter,
                             onClick = { onMeterClick(meter) },
                             modifier = Modifier.fillMaxWidth(),
-                            inspectionStatus = getInspectionStatus(meter, null, false)
+                            isNearby = isNearby,              // BLE connection status
+                            signalStrength = signalStrength,  // RSSI value
+                            inspectionStatus = getInspectionStatus(meter, null, isNearby)
                         )
                     }
 

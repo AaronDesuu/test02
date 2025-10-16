@@ -1,6 +1,7 @@
 package com.example.meterkenshin
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Intent
@@ -120,10 +121,10 @@ class MainActivity : ComponentActivity() {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     if (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) ==
                         android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                        meterReadingViewModel.stopBLEScanning(this)
+                        meterReadingViewModel.stopBLEScanning()
                     }
                 } else {
-                    meterReadingViewModel.stopBLEScanning(this)
+                    meterReadingViewModel.stopBLEScanning()
                 }
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error stopping BLE scan", e)
@@ -165,6 +166,7 @@ class MainActivity : ComponentActivity() {
     }
 
     // Start BLE scanning if user is logged in and has permissions
+    @SuppressLint("MissingPermission")
     private fun startBLEScanningIfLoggedIn() {
         if (sessionManager.isLoggedIn() && bluetoothPermissionHandler.hasAllPermissions()) {
             lifecycleScope.launch {
@@ -173,7 +175,7 @@ class MainActivity : ComponentActivity() {
                     kotlinx.coroutines.delay(500)
 
                     Log.i("MainActivity", "Starting automatic BLE scan after login")
-                    meterReadingViewModel.startBLEScanning(this@MainActivity)
+                    meterReadingViewModel.startBLEScanning()
 
                     Toast.makeText(
                         this@MainActivity,

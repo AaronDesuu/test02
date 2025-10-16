@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.component
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,6 +24,7 @@ import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 
+@SuppressLint("MissingPermission")
 @Composable
 fun MeterKenshinApp(
     sessionManager: SessionManager,
@@ -82,7 +84,7 @@ fun MeterKenshinApp(
                 kotlinx.coroutines.delay(1000)
 
                 Log.i("MeterKenshinApp", "User logged in - starting automatic BLE scan")
-                meterReadingViewModel.startBLEScanning(context)
+                meterReadingViewModel.startBLEScanning()
             } catch (e: Exception) {
                 Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
             }
@@ -112,7 +114,7 @@ fun MeterKenshinApp(
         onLogout = {
             // ✅ NEW: Stop BLE scanning on logout
             try {
-                meterReadingViewModel.stopBLEScanning(context)
+                meterReadingViewModel.stopBLEScanning()
                 Log.i("MeterKenshinApp", "BLE scanning stopped on logout")
             } catch (e: Exception) {
                 Log.e("MeterKenshinApp", "Error stopping BLE scan on logout", e)
@@ -137,7 +139,7 @@ fun MeterKenshinApp(
                         // ✅ NEW: Start BLE scanning immediately after successful login
                         try {
                             Log.i("MeterKenshinApp", "Login successful - starting BLE scan")
-                            meterReadingViewModel.startBLEScanning(context)
+                            meterReadingViewModel.startBLEScanning()
                         } catch (e: Exception) {
                             Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
                         }
@@ -150,7 +152,7 @@ fun MeterKenshinApp(
                     onLogout = {
                         // ✅ NEW: Stop BLE scanning on logout from HomeScreen
                         try {
-                            meterReadingViewModel.stopBLEScanning(context)
+                            meterReadingViewModel.stopBLEScanning()
                             Log.i("MeterKenshinApp", "BLE scanning stopped on logout from HomeScreen")
                         } catch (e: Exception) {
                             Log.e("MeterKenshinApp", "Error stopping BLE scan", e)

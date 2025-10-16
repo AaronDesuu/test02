@@ -1,8 +1,8 @@
 package com.example.meterkenshin.ui.viewmodel
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
 import android.content.ComponentName
@@ -15,7 +15,6 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meterkenshin.R
 import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.bluetooth.DeviceList
 import com.example.meterkenshin.dlms.DLMS
@@ -38,7 +37,6 @@ class MeterReadingViewModel : ViewModel() {
     companion object {
         private const val TAG = "MeterReadingViewModel"
         private const val APP_FILES_FOLDER = "app_files"
-        private const val TIMEOUT = 100
         private const val SCAN_PERIOD: Long = 10000 // 10 seconds scan period
 
         // DLMS Message Constants
@@ -72,72 +70,32 @@ class MeterReadingViewModel : ViewModel() {
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
-    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
-
-    private val _dlmsSessionState = MutableStateFlow(DLMSSessionState.IDLE)
-    val dlmsSessionState: StateFlow<DLMSSessionState> = _dlmsSessionState.asStateFlow()
 
     // ✅ NEW: BLE Scanning State
     private val _isScanning = MutableStateFlow(false)
-    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
 
     private val _discoveredDevices = MutableStateFlow<Map<String, Int>>(emptyMap()) // MAC -> RSSI
-    val discoveredDevices: StateFlow<Map<String, Int>> = _discoveredDevices.asStateFlow()
 
     private val _nearbyMeterCount = MutableStateFlow(0)
     val nearbyMeterCount: StateFlow<Int> = _nearbyMeterCount.asStateFlow()
 
     // Context and BLE
+    @SuppressLint("StaticFieldLeak")
     private var mContext: Context? = null
     private var mBluetoothAdapter: BluetoothAdapter? = null
     private var mScanning = false
 
-    // BLE and DLMS state
-    private var mCurrentMessage = -1
     private var mStage = 0
     private var mStep = 0
-    private var mSubStage = 0
-    private var mRetry = 0
-    private var mTimer = 0
+
     private var mConnected = 0
     private var mArrived = 0
     private var mServiceActive = false
     private var mData = ByteArray(0)
+    @SuppressLint("StaticFieldLeak")
     private var mBluetoothLeService: BluetoothLeService? = null
-    private var mAddress: String? = null
     private var d: DLMS? = null
     private var mDeviceList: DeviceList? = null
-
-    // Add to MeterReadingViewModel class
-    private var scanJob: kotlinx.coroutines.Job? = null
-
-    /**
-     * ✅ NEW: Start continuous BLE scanning (rescans every 15 seconds)
-     */
-    @RequiresPermission(allOf = [
-        Manifest.permission.BLUETOOTH_SCAN,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    ])
-    fun startContinuousBLEScanning(context: Context) {
-        scanJob?.cancel()
-        scanJob = viewModelScope.launch {
-            while (true) {
-                startBLEScanning(context)
-                kotlinx.coroutines.delay(15000) // Wait 15 seconds between scans
-            }
-        }
-    }
-
-    /**
-     * ✅ NEW: Stop continuous scanning
-     */
-    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    fun stopContinuousBLEScanning(context: Context) {
-        scanJob?.cancel()
-        scanJob = null
-        stopBLEScanning(context)
-    }
 
     // ✅ NEW: BLE Scan Callback - Filters by meter.csv MAC addresses
     @Suppress("DEPRECATION")
@@ -251,7 +209,7 @@ class MeterReadingViewModel : ViewModel() {
         Manifest.permission.BLUETOOTH_CONNECT,
         Manifest.permission.ACCESS_FINE_LOCATION
     ])
-    fun startBLEScanning(context: Context) {
+    fun startBLEScanning() {
         if (mBluetoothAdapter == null) {
             updateErrorMessage("Bluetooth adapter not available")
             return
@@ -280,7 +238,7 @@ class MeterReadingViewModel : ViewModel() {
 
                     // Auto-stop after SCAN_PERIOD
                     kotlinx.coroutines.delay(SCAN_PERIOD)
-                    stopBLEScanning(context)
+                    stopBLEScanning()
 
                 } catch (e: Exception) {
                     Log.e(TAG, "Error starting BLE scan", e)
@@ -295,7 +253,7 @@ class MeterReadingViewModel : ViewModel() {
      * ✅ NEW: Stop BLE scanning
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    fun stopBLEScanning(context: Context) {
+    fun stopBLEScanning() {
         if (mScanning) {
             try {
                 @Suppress("DEPRECATION")
@@ -382,7 +340,7 @@ class MeterReadingViewModel : ViewModel() {
     fun stopBLEOperations(context: Context) {
         try {
             // Stop scanning if active
-            stopBLEScanning(context)
+            stopBLEScanning()
 
             // Unregister receiver
             context.unregisterReceiver(mGattUpdateReceiver)
@@ -449,59 +407,9 @@ class MeterReadingViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(filteredMeters = filteredMeters)
     }
 
-    /**
-     * Connect to meter via Bluetooth
-     */
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    fun connectToMeter(context: Context, meter: Meter) {
-        if (meter.bluetoothId.isNullOrBlank()) {
-            updateErrorMessage(context.getString(R.string.ble_meter_no_bluetooth_id))
-            return
-        }
-
-        viewModelScope.launch {
-            try {
-                _connectionState.value = ConnectionState.CONNECTING
-                mAddress = meter.bluetoothId
-
-                // Start connection using BluetoothLeService
-                mBluetoothLeService?.connect(meter.bluetoothId)
-
-                Log.i(TAG, "Connecting to meter: ${meter.serialNumber} (${meter.bluetoothId})")
-
-            } catch (e: Exception) {
-                _connectionState.value = ConnectionState.FAILED
-                updateErrorMessage("Connection error: ${e.message}")
-                Log.e(TAG, "Error connecting to meter", e)
-            }
-        }
-    }
-
-    /**
-     * Disconnect from meter
-     */
-    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    fun disconnectFromMeter(force: Boolean = false) {
-        viewModelScope.launch {
-            try {
-                if (force || mStage > 0) {
-                    mBluetoothLeService?.disconnect()
-                }
-                mStage = 0
-                mStep = 0
-                mConnected = 0
-                _connectionState.value = ConnectionState.DISCONNECTED
-                _dlmsSessionState.value = DLMSSessionState.IDLE
-                mAddress = null
-            } catch (e: Exception) {
-                Log.e(TAG, "Error disconnecting from meter", e)
-            }
-        }
-    }
-
     // ... rest of private helper methods ...
 
-    private suspend fun loadMeterDataFromFile(context: Context, fileName: String): MeterLoadResult {
+    private fun loadMeterDataFromFile(context: Context, fileName: String): MeterLoadResult {
         return try {
             val externalFilesDir = context.getExternalFilesDir(null)
             val appFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
@@ -583,23 +491,11 @@ class MeterReadingViewModel : ViewModel() {
         for (format in formats) {
             try {
                 return SimpleDateFormat(format, Locale.getDefault()).parse(dateString)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 continue
             }
         }
         return null
-    }
-
-    private fun updateMeterStatus(meter: Meter, newStatus: MeterStatus) {
-        val currentMeters = _uiState.value.allMeters.toMutableList()
-        val index = currentMeters.indexOfFirst { it.id == meter.id }
-        if (index != -1) {
-            currentMeters[index] = meter.copy(status = newStatus)
-            _uiState.value = _uiState.value.copy(
-                allMeters = currentMeters,
-                filteredMeters = filterMeters(currentMeters, _searchQuery.value)
-            )
-        }
     }
 
     private fun updateErrorMessage(message: String) {
@@ -626,14 +522,6 @@ enum class ConnectionState {
     CONNECTING,
     CONNECTED,
     FAILED
-}
-
-enum class DLMSSessionState {
-    IDLE,
-    OPENING,
-    ESTABLISHING,
-    ESTABLISHED,
-    RELEASING
 }
 
 // Meter loading results
