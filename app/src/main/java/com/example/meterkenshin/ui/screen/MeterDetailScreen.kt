@@ -50,7 +50,6 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Meter
 import java.text.SimpleDateFormat
 import java.util.Locale
-import androidx.core.graphics.toColorInt
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.data.MeterSpecifications
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
@@ -82,19 +81,6 @@ fun MeterDetailScreen(
     val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
 
     // Connection status based on RSSI
-    val connectionStatus = when {
-        !isNearby -> stringResource(R.string.ble_status_disconnected)
-        rssi >= -70 -> stringResource(R.string.ble_status_connected)
-        rssi >= -85 -> "${stringResource(R.string.ble_status_connected)} (Fair)"
-        else -> "${stringResource(R.string.ble_status_connected)} (Poor)"
-    }
-
-    val signalColor = when {
-        !isNearby -> Color.Gray
-        rssi >= -70 -> Color(0xFF4CAF50) // Green
-        rssi >= -85 -> Color(0xFFFFC107) // Yellow
-        else -> Color(0xFFF44336) // Red
-    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -402,7 +388,7 @@ private fun MeterStatusCard(
     meter: Meter,
     rssi: Int = -200,
     isNearby: Boolean = false,
-    modifier: Modifier = Modifier
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     // Connection status based on RSSI
     val connectionStatus = when {
