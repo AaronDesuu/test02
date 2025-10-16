@@ -22,7 +22,6 @@ import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.screen.MeterCardTestScreen
 import com.example.meterkenshin.ui.screen.SettingsScreen
-import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
@@ -37,9 +36,6 @@ fun MeterKenshinApp(
     printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     val context = LocalContext.current
-
-    // Add DLMS ViewModel
-    val dlmsViewModel = remember { DLMSViewModel(context) }
 
     // Use the original session checking logic
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
@@ -208,19 +204,7 @@ fun MeterKenshinApp(
             currentScreen == "meter_detail" -> {
                 selectedMeter?.let { meter ->
                     MeterDetailScreen(
-                        meter = meter,
-                        onRegistration = {
-                            // Start registration sequence
-                            dlmsViewModel.performRegistration(
-                                bleService = null, // TODO: pass BLE service
-                                bluetoothId = meter.bluetoothId ?: ""
-                            )
-                        },
-                        onReadData = { /* TODO */ },
-                        onLoadProfile = { /* TODO */ },
-                        onEventLog = { /* TODO */ },
-                        onBillingData = { /* TODO */ },
-                        onSetClock = { /* TODO */ }
+                        meter = meter
                     )
                 }
             }
