@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.viewmodel
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -37,17 +38,13 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
     val statusMessage: StateFlow<String?> = _statusMessage.asStateFlow()
 
     private val _isInitialized = MutableStateFlow(false)
-    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
 
     private val _printerConfigInfo = MutableStateFlow<String?>(null)
-    val printerConfigInfo: StateFlow<String?> = _printerConfigInfo.asStateFlow()
 
     private val _isAutoConnecting = MutableStateFlow(false)
-    val isAutoConnecting: StateFlow<Boolean> = _isAutoConnecting.asStateFlow()
 
     // Computed property for printer connection status
     private val _isPrinterConnected = MutableStateFlow(false)
-    val isPrinterConnected: StateFlow<Boolean> = _isPrinterConnected.asStateFlow()
 
     // LiveData observers to prevent memory leaks
     private var connectionStateObserver: Observer<BluetoothPrinterManager.ConnectionState>? = null
@@ -115,6 +112,7 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
     /**
      * Start auto-connection process
      */
+    @SuppressLint("MissingPermission")
     fun startAutoConnect() {
         Log.d(TAG, "Starting auto-connect")
         viewModelScope.launch {
@@ -216,13 +214,6 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
     }
 
     /**
-     * Refresh printer configuration info
-     */
-    fun refreshPrinterConfig() {
-        updatePrinterConfigInfo()
-    }
-
-    /**
      * Check if there's a connection error
      */
     fun hasConnectionError(): Boolean {
@@ -254,61 +245,6 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
         }.toByteArray()
 
         return writeData(sampleData)
-    }
-
-    /**
-     * Get current connection status as string
-     */
-    fun getConnectionStatusText(): String {
-        return when (_connectionState.value) {
-            BluetoothPrinterManager.ConnectionState.CONNECTED -> "Connected"
-            BluetoothPrinterManager.ConnectionState.CONNECTING -> "Connecting..."
-            BluetoothPrinterManager.ConnectionState.DISCONNECTED -> "Disconnected"
-            BluetoothPrinterManager.ConnectionState.ERROR -> "Error"
-            null -> "Not initialized"
-        }
-    }
-
-    /**
-     * Check if printer is ready for printing
-     */
-    fun isPrinterReady(): Boolean {
-        return _isBluetoothEnabled.value == true &&
-                _isPrinterConnected.value == true
-    }
-
-    /**
-     * Get detailed printer info for display
-     */
-    fun getPrinterInfo(): String {
-        return buildString {
-            append("Bluetooth: ${if (_isBluetoothEnabled.value) "Enabled" else "Disabled"}\n")
-            append("Status: ${getConnectionStatusText()}\n")
-
-            _connectedDevice.value?.let { device ->
-                append("Device: ${device.address}\n")
-            }
-
-            _printerConfigInfo.value?.let { config ->
-                append("Config: $config\n")
-            }
-        }
-    }
-
-    /**
-     * Get printer configuration
-     */
-    fun getPrinterConfiguration(): com.example.meterkenshin.data.parser.PrinterCsvParser.PrinterConfig? {
-        return bluetoothPrinterManager?.getPrinterConfiguration()
-    }
-
-    /**
-     * Check if Bluetooth is enabled
-     */
-    fun checkBluetoothEnabled() {
-        bluetoothPrinterManager?.let { manager ->
-            _isBluetoothEnabled.value = manager.isBluetoothEnabled()
-        }
     }
 
     override fun onCleared() {

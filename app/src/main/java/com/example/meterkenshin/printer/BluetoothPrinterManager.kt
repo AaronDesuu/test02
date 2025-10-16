@@ -5,13 +5,10 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresPermission
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.meterkenshin.data.parser.PrinterCsvParser
@@ -20,11 +17,10 @@ import com.woosim.printer.WoosimService
 /**
  * Enhanced Bluetooth Manager using WoosimLib
  */
-class BluetoothPrinterManager(private val context: Context) {
+class BluetoothPrinterManager(context: Context) {
 
     companion object {
         private const val TAG = "BluetoothPrinterManager"
-        private const val AUTO_CONNECT_RETRY_COUNT = 3
     }
 
     enum class ConnectionState {
@@ -184,11 +180,6 @@ class BluetoothPrinterManager(private val context: Context) {
         printService?.write(data)
     }
 
-    fun isConnected(): Boolean = _connectionState.value == ConnectionState.CONNECTED
-
-    fun getPrinterConfiguration(): PrinterCsvParser.PrinterConfig? {
-        return printerCsvParser.getActivePrinterConfig()
-    }
 
     fun getPrinterConfigInfo(): String {
         return printerCsvParser.getConfigurationSummary()

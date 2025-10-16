@@ -1,16 +1,15 @@
 package com.example.meterkenshin.printer
 
+import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.UUID
-import java.util.Arrays
 
 /**
  * Bluetooth Service using Woosim Library architecture
@@ -39,6 +38,7 @@ class WoosimBluetoothService(
         const val TOAST = "toast"
     }
 
+    @Suppress("DEPRECATION")
     private val bluetoothAdapter: BluetoothAdapter? = BluetoothAdapter.getDefaultAdapter()
     private var connectThread: ConnectThread? = null
     private var connectedThread: ConnectedThread? = null
@@ -50,9 +50,6 @@ class WoosimBluetoothService(
         state = newState
         handler.obtainMessage(MESSAGE_STATE_CHANGE, newState, -1).sendToTarget()
     }
-
-    @Synchronized
-    fun getState(): Int = state
 
     @Synchronized
     fun start() {
@@ -84,6 +81,7 @@ class WoosimBluetoothService(
         setState(STATE_CONNECTING)
     }
 
+    @SuppressLint("MissingPermission")
     @Synchronized
     fun connected(socket: BluetoothSocket, device: BluetoothDevice) {
         Log.d(TAG, "connected")
@@ -159,6 +157,7 @@ class WoosimBluetoothService(
             socket = tmp
         }
 
+        @SuppressLint("MissingPermission")
         override fun run() {
             Log.i(TAG, "BEGIN ConnectThread")
             name = "ConnectThread"
@@ -221,7 +220,7 @@ class WoosimBluetoothService(
             while (true) {
                 try {
                     val bytes = inStream?.read(buffer) ?: break
-                    val rcvData = Arrays.copyOf(buffer, bytes)
+                    val rcvData = buffer.copyOf(bytes)
                     handler.obtainMessage(MESSAGE_READ, bytes, -1, rcvData).sendToTarget()
                 } catch (e: IOException) {
                     Log.e(TAG, "Connection Lost", e)

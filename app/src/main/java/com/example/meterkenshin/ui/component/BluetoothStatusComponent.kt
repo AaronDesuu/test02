@@ -320,7 +320,7 @@ private fun BluetoothActionButtons(
                         printerBluetoothViewModel.startAutoConnect()
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = isBluetoothEnabled
+                    enabled = true
                 ) {
                     Icon(
                         imageVector = Icons.Default.Bluetooth,

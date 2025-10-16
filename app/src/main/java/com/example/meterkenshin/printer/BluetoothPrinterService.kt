@@ -61,12 +61,6 @@ class BluetoothPrinterService(
     }
 
     /**
-     * Return the current connection state
-     */
-    @Synchronized
-    fun getState(): Int = currentState
-
-    /**
      * Start the ConnectThread to initiate a connection to a remote device
      */
     @Synchronized
@@ -115,40 +109,6 @@ class BluetoothPrinterService(
         setState(STATE_CONNECTED)
     }
 
-    /**
-     * Stop all threads
-     */
-    @Synchronized
-    fun stop() {
-        if (D) Log.d(TAG, "stop")
-
-        connectThread?.cancel()
-        connectThread = null
-
-        connectedThread?.cancel()
-        connectedThread = null
-
-        setState(STATE_NONE)
-    }
-
-    /**
-     * Disconnect from current device
-     */
-    fun disconnect() {
-        stop()
-    }
-
-    /**
-     * Write to the ConnectedThread in an unsynchronized manner
-     */
-    fun write(out: ByteArray) {
-        val thread = connectedThread
-        if (thread != null) {
-            thread.write(out)
-        } else {
-            Log.w(TAG, "Cannot write: not connected")
-        }
-    }
 
     /**
      * Indicate that the connection attempt failed and notify the UI Activity (thread-safe)
@@ -305,19 +265,6 @@ class BluetoothPrinterService(
             Log.i(TAG, "END ConnectedThread")
         }
 
-        /**
-         * Write to the connected OutStream
-         */
-        fun write(buffer: ByteArray) {
-            try {
-                outputStream?.write(buffer)
-                outputStream?.flush()
-                Log.d(TAG, "Wrote ${buffer.size} bytes: ${buffer.joinToString(" ") { "%02X".format(it) }}")
-            } catch (e: IOException) {
-                Log.e(TAG, "Exception during write", e)
-                connectionLost()
-            }
-        }
 
         fun cancel() {
             try {
