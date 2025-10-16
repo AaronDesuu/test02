@@ -191,64 +191,37 @@ class BluetoothLeService : Service() {
 
     /**
      * Connects to the GATT server hosted on the Bluetooth LE device.
-     *
-     * @param address The device address of the destination device.
-     *
-     * @return Return true if the connection is initiated successfully. The connection result
-     * is reported asynchronously through the
-     * `BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)`
-     * callback.
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    fun connect(address: String): Boolean {
-        if (mConnectionState < STATE_INITIALIZE) {
-            Log.w(TAG, "Dose not initialized")
+    fun connect(address: String?): Boolean {
+        if (mBluetoothAdapter == null || address == null) {
+            Log.w(TAG, "BluetoothAdapter not initialized or unspecified address.")
             return false
         }
-        if (mConnectionState >= STATE_CONNECTED) {
-            Log.w(TAG, "Dose not disconnect before connect")
-            disconnect()
-            return false
-        } else {
-            // Previously connected device.  Try to reconnect.
-            if (mBluetoothDeviceAddress != null && address == mBluetoothDeviceAddress && mBluetoothGatt != null) {
-                if (mBluetoothGatt!!.connect()) {
-                    mConnectionState = STATE_CONNECTING
-                    Log.d(TAG, "Try to use an existing mBluetoothGatt for connection.")
-                    return true
-                } else {
-                    Log.d(TAG, "Fail to use an existing mBluetoothGatt for connection.")
-                }
-            }
-            mBluetoothDeviceAddress = null
-            if (mBluetoothGatt != null) {
-                mBluetoothGatt!!.disconnect()
-                mBluetoothGatt!!.close()
-                Log.d(TAG, "mBluetoothGatt.disconnect()")
-                mBluetoothGatt = null
-            }
-            mConnectionState = STATE_INITIALIZE
 
-            val device = mBluetoothAdapter!!.getRemoteDevice(address)
-            if (device == null) {
-                Log.w(TAG, "Device not found.  Unable to connect.")
-                return false
-            }
-            // We want to directly connect to the device, so we are setting the autoConnect
-            // parameter to false.
-            mBluetoothGatt = device.connectGatt(this, false, mGattCallback)
-            Log.d(TAG, "Trying to create a new connection.")
-            mBluetoothDeviceAddress = address
+        // Previously connected device. Try to reconnect.
+        if (address == mBluetoothDeviceAddress && mBluetoothGatt != null) {
+            Log.d(TAG, "Trying to use an existing mBluetoothGatt for connection.")
             mConnectionState = STATE_CONNECTING
-            return true
+            return mBluetoothGatt!!.connect()
         }
+
+        val device = mBluetoothAdapter!!.getRemoteDevice(address)
+        if (device == null) {
+            Log.w(TAG, "Device not found. Unable to connect.")
+            return false
+        }
+
+        // We want to directly connect to the device, so we are setting autoConnect to false.
+        mBluetoothGatt = device.connectGatt(this, false, mGattCallback)
+        Log.d(TAG, "Trying to create a new connection.")
+        mBluetoothDeviceAddress = address
+        mConnectionState = STATE_CONNECTING
+        return true
     }
 
     /**
-     * Disconnects an existing connection or cancel a pending connection. The disconnection result
-     * is reported asynchronously through the
-     * `BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)`
-     * callback.
+     * Disconnects an existing connection or cancel a pending connection.
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun disconnect() {
@@ -256,30 +229,39 @@ class BluetoothLeService : Service() {
             Log.w(TAG, "BluetoothAdapter not initialized")
             return
         }
-        if (mConnectionState >= STATE_CONNECTED) {
-            mBluetoothGatt!!.disconnect()
-            mBluetoothGatt!!.close()
+        mBluetoothGatt!!.disconnect()
+    }
+
+    /**
+     * After using a given BLE device, the app must call this method to ensure resources are released properly.
+     */
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    fun close() {
+        if (mBluetoothGatt == null) {
+            return
         }
+        mBluetoothGatt!!.close()
+        mBluetoothGatt = null
+        mConnectionState = STATE_DISCONNECTED
     }
 
     companion object {
-        private val TAG: String = BluetoothLeService::class.java.getSimpleName()
-        private val STATE_INITIATE = -1
+        private const val TAG = "BluetoothLeService"
+
+        // Connection States
+        private const val STATE_INITIATE = -1
         private const val STATE_INITIALIZE = 0
         private const val STATE_DISCONNECTED = 1
         private const val STATE_CONNECTING = 2
         private const val STATE_CONNECTED = 3
         private const val STATE_DISCOVERED = 4
 
-        const val ACTION_GATT_ERROR: String = "com.example.meterkenshin.bluetooth.le.ACTION_GATT_ERROR"
-        const val ACTION_GATT_CONNECTED: String =
-            "com.example.meterkenshin.bluetooth.le.ACTION_GATT_CONNECTED"
-        const val ACTION_GATT_DISCONNECTED: String =
-            "com.example.meterkenshin.bluetooth.le.ACTION_GATT_DISCONNECTED"
-        const val ACTION_GATT_SERVICES_DISCOVERED: String =
-            "com.example.meterkenshin.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED"
-        const val ACTION_DATA_AVAILABLE: String =
-            "com.example.meterkenshin.bluetooth.le.ACTION_DATA_AVAILABLE"
-        const val EXTRA_DATA: String = "com.example.meterkenshin.bluetooth.le.EXTRA_DATA"
+        // Broadcast Actions
+        const val ACTION_GATT_ERROR = "com.example.meterkenshin.bluetooth.ACTION_GATT_ERROR"
+        const val ACTION_GATT_CONNECTED = "com.example.meterkenshin.bluetooth.ACTION_GATT_CONNECTED"
+        const val ACTION_GATT_DISCONNECTED = "com.example.meterkenshin.bluetooth.ACTION_GATT_DISCONNECTED"
+        const val ACTION_GATT_SERVICES_DISCOVERED = "com.example.meterkenshin.bluetooth.ACTION_GATT_SERVICES_DISCOVERED"
+        const val ACTION_DATA_AVAILABLE = "com.example.meterkenshin.bluetooth.ACTION_DATA_AVAILABLE"
+        const val EXTRA_DATA = "com.example.meterkenshin.bluetooth.EXTRA_DATA"
     }
 }

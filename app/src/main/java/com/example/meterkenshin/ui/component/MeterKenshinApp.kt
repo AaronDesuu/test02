@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import android.util.Log
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.HomeScreen
@@ -16,7 +17,7 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
-import com.example.meterkenshin.ui.screen.MeterCardTestScreen // Add this import
+import com.example.meterkenshin.ui.screen.MeterCardTestScreen
 import com.example.meterkenshin.ui.screen.SettingsScreen
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -46,7 +47,7 @@ fun MeterKenshinApp(
             "receipt" -> AppScreen.RECEIPT_TEMPLATE
             "meter_detail" -> AppScreen.METER_DETAIL
             "settings" -> AppScreen.SETTINGS
-            "meter_card_test" -> AppScreen.UNKNOWN // Use UNKNOWN for test screen since we don't need a specific enum
+            "meter_card_test" -> AppScreen.UNKNOWN
             else -> AppScreen.HOME
         }
     }
@@ -55,8 +56,8 @@ fun MeterKenshinApp(
     BackHandler(enabled = isLoggedIn && currentScreen != "home") {
         currentScreen = when (currentScreen) {
             "meter_detail" -> "meter_reading"
-            "meter_card_test" -> "home" // Add this line for test screen
-            "file_upload", "receipt", "meter_reading" -> "home"
+            "meter_card_test" -> "home"
+            "file_upload", "receipt", "meter_reading", "settings" -> "home"
             else -> "home"
         }
     }
@@ -73,6 +74,21 @@ fun MeterKenshinApp(
         }
     }
 
+    // ✅ NEW: Start BLE scanning automatically when logged in
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            try {
+                // Wait a bit for initialization
+                kotlinx.coroutines.delay(1000)
+
+                Log.i("MeterKenshinApp", "User logged in - starting automatic BLE scan")
+                meterReadingViewModel.startBLEScanning(context)
+            } catch (e: Exception) {
+                Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
+            }
+        }
+    }
+
     // Wrap everything with AppWithDrawer
     AppWithDrawer(
         sessionManager = sessionManager,
@@ -86,14 +102,22 @@ fun MeterKenshinApp(
                 AppScreen.METER_READING -> currentScreen = "meter_reading"
                 AppScreen.IMPORT_DATA -> currentScreen = "file_upload"
                 AppScreen.RECEIPT_TEMPLATE -> currentScreen = "receipt"
-                AppScreen.SETTINGS -> currentScreen = "settings"  // Add this line
+                AppScreen.SETTINGS -> currentScreen = "settings"
                 else -> { }
             }
         },
-        onNavigateToTest = { // Add this parameter - this is what was missing!
+        onNavigateToTest = {
             currentScreen = "meter_card_test"
         },
         onLogout = {
+            // ✅ NEW: Stop BLE scanning on logout
+            try {
+                meterReadingViewModel.stopBLEScanning(context)
+                Log.i("MeterKenshinApp", "BLE scanning stopped on logout")
+            } catch (e: Exception) {
+                Log.e("MeterKenshinApp", "Error stopping BLE scan on logout", e)
+            }
+
             // Handle logout from drawer
             sessionManager.logout()
             isLoggedIn = false
@@ -109,6 +133,14 @@ fun MeterKenshinApp(
                         currentScreen = "home"
                         // Initialize file checking after successful login (preserve original)
                         fileUploadViewModel.checkExistingFiles(context)
+
+                        // ✅ NEW: Start BLE scanning immediately after successful login
+                        try {
+                            Log.i("MeterKenshinApp", "Login successful - starting BLE scan")
+                            meterReadingViewModel.startBLEScanning(context)
+                        } catch (e: Exception) {
+                            Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
+                        }
                     }
                 )
             }
@@ -116,6 +148,14 @@ fun MeterKenshinApp(
                 HomeScreen(
                     sessionManager = sessionManager,
                     onLogout = {
+                        // ✅ NEW: Stop BLE scanning on logout from HomeScreen
+                        try {
+                            meterReadingViewModel.stopBLEScanning(context)
+                            Log.i("MeterKenshinApp", "BLE scanning stopped on logout from HomeScreen")
+                        } catch (e: Exception) {
+                            Log.e("MeterKenshinApp", "Error stopping BLE scan", e)
+                        }
+
                         sessionManager.logout()
                         isLoggedIn = false
                         currentScreen = "login"
@@ -160,11 +200,8 @@ fun MeterKenshinApp(
                     sessionManager = sessionManager
                 )
             }
-
-            // Add this new case for the test screen - this was missing!
             currentScreen == "meter_card_test" -> {
-                MeterCardTestScreen(
-                )
+                MeterCardTestScreen()
             }
         }
     }

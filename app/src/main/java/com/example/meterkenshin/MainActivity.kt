@@ -1,8 +1,10 @@
 package com.example.meterkenshin
 
+import android.Manifest
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -38,6 +40,9 @@ class MainActivity : ComponentActivity() {
     private lateinit var bluetoothPermissionHandler: BluetoothPermissionHandler
     private var bluetoothPrinterManager: CustomBluetoothManager? = null
 
+    // Track if BLE operations are started
+    private var bleOperationsStarted = false
+
     // Activity result launcher for Bluetooth enable request
     private val enableBluetoothLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -45,6 +50,8 @@ class MainActivity : ComponentActivity() {
         if (result.resultCode == RESULT_OK) {
             Toast.makeText(this, "Bluetooth enabled", Toast.LENGTH_SHORT).show()
             initializeBluetoothConnection()
+            // Start BLE scanning after Bluetooth enabled
+            startBLEScanningIfLoggedIn()
         }
     }
 
@@ -55,21 +62,29 @@ class MainActivity : ComponentActivity() {
         val allGranted = permissions.values.all { it }
         if (allGranted) {
             initializeBluetoothConnection()
+            // Start BLE scanning after permissions granted
+            startBLEScanningIfLoggedIn()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Install splash screen
         installSplashScreen()
-
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Initialize session manager using getInstance (preserve original logic)
+        // Initialize session manager
         sessionManager = SessionManager.getInstance(this)
 
-        // Initialize Bluetooth components (new addition)
-        initializeBluetoothComponents()
+        // Initialize Bluetooth
+        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
+        bluetoothAdapter = bluetoothManager.adapter
+        bluetoothPermissionHandler = BluetoothPermissionHandler(this)
+
+        // Initialize MeterReadingViewModel
+        meterReadingViewModel.initialize(this)
+
+        // Check and request permissions
+        checkAndRequestPermissions()
 
         setContent {
             MeterKenshinTheme {
@@ -77,94 +92,134 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Your existing MeterKenshinApp now handles the screen tracking automatically
                     MeterKenshinApp(
                         sessionManager = sessionManager,
                         fileUploadViewModel = fileUploadViewModel,
                         meterReadingViewModel = meterReadingViewModel,
                         printerBluetoothViewModel = printerBluetoothViewModel
-
                     )
                 }
             }
-        }
-
-        // Initialize Bluetooth after UI is set (to not block UI)
-        lifecycleScope.launch {
-            requestBluetoothPermissions()
-        }
-    }
-
-    private fun initializeBluetoothComponents() {
-        // Initialize Bluetooth adapter
-        val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothAdapter = bluetoothManager.adapter
-
-        // Initialize permission handler
-        bluetoothPermissionHandler = BluetoothPermissionHandler(this)
-
-        // Check if Bluetooth is supported
-        if (bluetoothAdapter == null) {
-            Toast.makeText(this, "Bluetooth is not supported on this device", Toast.LENGTH_LONG).show()
-            return
-        }
-    }
-
-    private fun requestBluetoothPermissions() {
-        val missingPermissions = bluetoothPermissionHandler.getMissingPermissions()
-
-        if (missingPermissions.isNotEmpty()) {
-            // Request missing permissions
-            permissionLauncher.launch(missingPermissions.toTypedArray())
-        } else {
-            // All permissions granted, check if Bluetooth is enabled
-            checkBluetoothEnabled()
-        }
-    }
-
-    private fun checkBluetoothEnabled() {
-        bluetoothAdapter?.let { adapter ->
-            if (!adapter.isEnabled) {
-                // Request to enable Bluetooth
-                val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-                enableBluetoothLauncher.launch(enableBtIntent)
-            } else {
-                // Bluetooth is enabled, initialize connection
-                initializeBluetoothConnection()
-            }
-        }
-    }
-
-    private fun initializeBluetoothConnection() {
-        // Check if all permissions are granted
-        if (!bluetoothPermissionHandler.hasAllPermissions()) {
-            return
-        }
-
-        // Initialize custom Bluetooth manager
-        bluetoothPrinterManager = CustomBluetoothManager(this).apply {
-            // Initialize Bluetooth ViewModel with manager
-            printerBluetoothViewModel.initializeBluetoothManager(this)
-
-            // DO NOT auto-connect here
-            // Connection will happen when user:
-            // 1. Uploads printer.csv with active printer
-            // 2. Manually triggers connection from UI
-            Log.d("MainActivity", "Bluetooth manager initialized. Waiting for printer.csv or manual connection.")
         }
     }
 
     override fun onResume() {
         super.onResume()
-        // DO NOT auto-connect when app resumes
-        // Let the user control when to connect
-        Log.d("MainActivity", "MainActivity resumed. Bluetooth manager ready.")
+        // Check if user is logged in and start BLE operations
+        if (sessionManager.isLoggedIn()) {
+            startBLEOperationsIfNeeded()
+            startBLEScanningIfLoggedIn()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Stop BLE scanning when app goes to background
+        if (sessionManager.isLoggedIn()) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        meterReadingViewModel.stopBLEScanning(this)
+                    }
+                } else {
+                    meterReadingViewModel.stopBLEScanning(this)
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error stopping BLE scan", e)
+            }
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        // Clean up Bluetooth connection
+        // Stop BLE operations when activity destroyed
+        if (bleOperationsStarted) {
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (checkSelfPermission(Manifest.permission.BLUETOOTH_SCAN) ==
+                        android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        meterReadingViewModel.stopBLEOperations(this)
+                    }
+                } else {
+                    meterReadingViewModel.stopBLEOperations(this)
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error stopping BLE operations", e)
+            }
+        }
         bluetoothPrinterManager?.cleanup()
     }
-}
 
+    // Start BLE operations (register receiver, bind service)
+    private fun startBLEOperationsIfNeeded() {
+        if (!bleOperationsStarted && bluetoothPermissionHandler.hasAllPermissions()) {
+            try {
+                meterReadingViewModel.startBLEOperations(this)
+                bleOperationsStarted = true
+                Log.i("MainActivity", "BLE operations started")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error starting BLE operations", e)
+            }
+        }
+    }
+
+    // Start BLE scanning if user is logged in and has permissions
+    private fun startBLEScanningIfLoggedIn() {
+        if (sessionManager.isLoggedIn() && bluetoothPermissionHandler.hasAllPermissions()) {
+            lifecycleScope.launch {
+                try {
+                    // Small delay to ensure everything is initialized
+                    kotlinx.coroutines.delay(500)
+
+                    Log.i("MainActivity", "Starting automatic BLE scan after login")
+                    meterReadingViewModel.startBLEScanning(this@MainActivity)
+
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Scanning for nearby meters...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error starting BLE scan", e)
+                }
+            }
+        }
+    }
+
+    private fun checkAndRequestPermissions() {
+        val missingPermissions = bluetoothPermissionHandler.getMissingPermissions()
+        if (missingPermissions.isNotEmpty()) {
+            permissionLauncher.launch(missingPermissions.toTypedArray())
+        } else {
+            initializeBluetoothConnection()
+        }
+    }
+
+    private fun initializeBluetoothConnection() {
+        if (bluetoothAdapter == null) {
+            Toast.makeText(this, "Bluetooth not supported", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (bluetoothAdapter?.isEnabled == false) {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            enableBluetoothLauncher.launch(enableBtIntent)
+        } else {
+            // Bluetooth is already enabled, initialize printer manager
+            lifecycleScope.launch {
+                try {
+                    // Initialize custom Bluetooth printer manager
+                    bluetoothPrinterManager = CustomBluetoothManager(this@MainActivity).apply {
+                        // Initialize Bluetooth ViewModel with manager (correct method name)
+                        printerBluetoothViewModel.initializeBluetoothManager(this)
+
+                        Log.d("MainActivity", "Bluetooth printer manager initialized")
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error initializing Bluetooth printer manager", e)
+                }
+            }
+        }
+    }
+}

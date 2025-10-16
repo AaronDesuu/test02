@@ -1,118 +1,168 @@
 package com.example.meterkenshin.bluetooth
 
+import android.Manifest
 import android.bluetooth.BluetoothDevice
-import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import androidx.annotation.RequiresPermission
 
 /**
- * Interface for managing discovered BLE devices
- * This interface should be implemented by your existing device management system
+ * Device List for managing discovered BLE devices
+ * Ported from project01 Java implementation
  */
-interface DeviceList {
-    /**
-     * Get RSSI (signal strength) for device at given position
-     * @param position Position in device list
-     * @return RSSI value in dBm, or -300 if not found
-     */
-    fun Rssi(position: Int): Int
+class DeviceList {
 
-    /**
-     * Find position of device by Bluetooth address
-     * @param address Bluetooth MAC address
-     * @return Position in list, or -1 if not found
-     */
-    fun findPosition(address: String?): Int
+    private val mScanDevice = mutableListOf<ScanDevice>()
 
-    /**
-     * Get device at specific position
-     * @param position Position in device list
-     * @return BluetoothDevice or null if not found
-     */
-    fun getDevice(position: Int): BluetoothDevice?
+    fun size(): Int = mScanDevice.size
 
-    /**
-     * Add or update device in list
-     * @param device Bluetooth device to add
-     * @param rssi Signal strength
-     */
-    fun addDevice(device: BluetoothDevice, rssi: Int)
-
-    /**
-     * Clear all devices from list
-     */
-    fun clear()
-
-    /**
-     * Get total number of devices
-     */
-    fun size(): Int
-
-    /**
-     * Get all devices as list
-     */
-    fun getAllDevices(): List<BluetoothDevice>
-}
-
-/**
- * Default implementation of DeviceList interface
- * You can replace this with your existing implementation from project01
- */
-class DefaultDeviceList : DeviceList, MeterReadingViewModel.DeviceList {
-
-    data class DeviceInfo(
-        val device: BluetoothDevice,
-        var rssi: Int,
-        var lastSeen: Long = System.currentTimeMillis()
-    )
-
-    private val devices = mutableListOf<DeviceInfo>()
-
-    override fun Rssi(position: Int): Int {
-        return if (position in 0 until devices.size) {
-            devices[position].rssi
-        } else {
-            -300 // Return very low RSSI if not found
+    fun addDevice(device: BluetoothDevice, rssi: Int) {
+        var find = false
+        for (i in mScanDevice.indices) {
+            val scanDevice = mScanDevice[i].Device()
+            if (scanDevice != null && scanDevice.address == device.address) {
+                mScanDevice[i].Rssi(rssi)
+                find = true
+                break
+            }
+        }
+        if (!find) {
+            mScanDevice.add(ScanDevice(device, rssi))
         }
     }
 
-    override fun findPosition(address: String?): Int {
-        if (address == null) return -1
-
-        return devices.indexOfFirst { it.device.address == address }
+    fun Deactivate() {
+        for (i in mScanDevice.indices) {
+            mScanDevice[i].Rssi(-200)
+        }
     }
 
-    override fun getDevice(position: Int): BluetoothDevice? {
-        return if (position in 0 until devices.size) {
-            devices[position].device
+    fun Device(position: Int): BluetoothDevice? {
+        return if (position in 0 until mScanDevice.size) {
+            mScanDevice[position].Device()
         } else {
             null
         }
     }
 
-    override fun addDevice(device: BluetoothDevice, rssi: Int) {
-        val existingIndex = devices.indexOfFirst { it.device.address == device.address }
-
-        if (existingIndex != -1) {
-            // Update existing device
-            devices[existingIndex] = devices[existingIndex].copy(
-                rssi = rssi,
-                lastSeen = System.currentTimeMillis()
-            )
+    fun Rssi(position: Int): Int {
+        return if (position >= 0) {
+            if (position < mScanDevice.size) {
+                mScanDevice[position].Rssi()
+            } else {
+                -200
+            }
         } else {
-            // Add new device
-            devices.add(DeviceInfo(device, rssi))
+            -200
         }
     }
 
-    override fun clear() {
-        devices.clear()
+    fun Position(address: String?): Int {
+        if (address == null) return -1
+        var ret = -1
+        for (i in mScanDevice.indices) {
+            if (address == mScanDevice[i].Address()) {
+                ret = i
+                break
+            }
+        }
+        return ret
     }
 
-    override fun size(): Int {
-        return devices.size
+    fun Address(position: Int): String? {
+        return if (position in 0 until mScanDevice.size) {
+            mScanDevice[position].Address()
+        } else {
+            null
+        }
     }
 
-    override fun getAllDevices(): List<BluetoothDevice> {
-        return devices.map { it.device }
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    fun Name(position: Int): String? {
+        return if (position in 0 until mScanDevice.size) {
+            mScanDevice[position].Name()
+        } else {
+            null
+        }
     }
 
+    fun clear() {
+        mScanDevice.clear()
+    }
+
+    fun Activate(position: Int): Boolean {
+        return if (position in 0 until mScanDevice.size) {
+            mScanDevice[position].Activate()
+        } else {
+            false
+        }
+    }
+
+    fun Check(position: Int): Boolean {
+        return if (position in 0 until mScanDevice.size) {
+            mScanDevice[position].Check()
+        } else {
+            false
+        }
+    }
+
+    fun Done(position: Int) {
+        if (position in 0 until mScanDevice.size) {
+            mScanDevice[position].Check(true)
+        }
+    }
+
+    /**
+     * Helper method for MeterReadingViewModel compatibility
+     */
+    fun findPosition(address: String?): Int = Position(address)
+
+    /**
+     * Inner class for holding device scan information
+     */
+    inner class ScanDevice {
+        private var mDev: BluetoothDevice? = null
+        private var mRssi: Int = -200
+        private var mChk: Boolean = false
+
+        constructor() {
+            mDev = null
+            mChk = false
+            mRssi = -200
+        }
+
+        constructor(dev: BluetoothDevice, rssi: Int) {
+            mDev = dev
+            mChk = false
+            mRssi = rssi
+        }
+
+        fun Device(): BluetoothDevice? = mDev
+
+        fun Address(): String? = mDev?.address
+
+        @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+        fun Name(): String? = mDev?.name
+
+        fun Rssi(): Int = mRssi
+
+        fun Check(): Boolean = mChk
+
+        fun Activate(): Boolean = Rssi() != -200
+
+        fun Device(dev: BluetoothDevice?) {
+            mDev = dev
+        }
+
+        fun Rssi(rssi: Int) {
+            mRssi = rssi
+        }
+
+        fun Check(chk: Boolean) {
+            mChk = chk
+        }
+    }
 }
+
+/**
+ * Alias for compatibility with DefaultDeviceList
+ */
+typealias DefaultDeviceList = DeviceList

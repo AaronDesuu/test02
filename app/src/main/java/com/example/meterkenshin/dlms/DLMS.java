@@ -46,7 +46,7 @@ public class DLMS {
     private Context mContext;
     private Calendar old;
 
-    DLMS(Context context) {
+    public DLMS(Context context) {
         mContext = context;
         AccountInformation = new ArrayList<AccountInfo>();
         AccountInfo level0 = new AccountInfo();
