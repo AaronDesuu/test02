@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.BluetoothSearching
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.BluetoothConnected
 import androidx.compose.material.icons.filled.BluetoothDisabled
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
@@ -49,6 +52,8 @@ fun BluetoothStatusComponent(
     isBluetoothEnabled: Boolean,
     connectedDevice: android.bluetooth.BluetoothDevice?,
     statusMessage: String?,
+    paperStatus: PrinterBluetoothViewModel.PaperStatus,
+    coverStatus: PrinterBluetoothViewModel.CoverStatus,
     printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     Card(
@@ -106,6 +111,15 @@ fun BluetoothStatusComponent(
                 connectedDevice = connectedDevice,
                 statusMessage = statusMessage
             )
+
+            // Printer Status (Paper & Cover) - Only show when connected
+            if (connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED) {
+                Spacer(modifier = Modifier.height(12.dp))
+                PrinterStatusIndicators(
+                    paperStatus = paperStatus,
+                    coverStatus = coverStatus
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -238,6 +252,112 @@ private fun BluetoothConnectionStatusCard(
 }
 
 @Composable
+private fun PrinterStatusIndicators(
+    paperStatus: PrinterBluetoothViewModel.PaperStatus,
+    coverStatus: PrinterBluetoothViewModel.CoverStatus
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = Color(0xFFE0E0E0),
+                shape = RoundedCornerShape(8.dp)
+            ),
+        color = Color(0xFFF5F5F5),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Text(
+                text = "Printer Status",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Paper Status
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Article,
+                    contentDescription = "Paper Status",
+                    tint = when (paperStatus) {
+                        PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
+                        PrinterBluetoothViewModel.PaperStatus.OUT -> Color(0xFFF44336)
+                        else -> Color.Gray
+                    },
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when (paperStatus) {
+                        PrinterBluetoothViewModel.PaperStatus.OK -> "Paper: OK"
+                        PrinterBluetoothViewModel.PaperStatus.OUT -> "Paper: OUT"
+                        else -> "Paper: Checking..."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = when (paperStatus) {
+                        PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
+                        PrinterBluetoothViewModel.PaperStatus.OUT -> Color(0xFFF44336)
+                        else -> Color.Gray
+                    },
+                    fontWeight = when (paperStatus) {
+                        PrinterBluetoothViewModel.PaperStatus.OUT -> FontWeight.Bold
+                        else -> FontWeight.Normal
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Cover Status
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = if (coverStatus == PrinterBluetoothViewModel.CoverStatus.OPEN)
+                        Icons.Default.LockOpen else Icons.Default.Lock,
+                    contentDescription = "Cover Status",
+                    tint = when (coverStatus) {
+                        PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(0xFF4CAF50)
+                        PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(0xFFFF9800)
+                        else -> Color.Gray
+                    },
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = when (coverStatus) {
+                        PrinterBluetoothViewModel.CoverStatus.CLOSED -> "Cover: Closed"
+                        PrinterBluetoothViewModel.CoverStatus.OPEN -> "Cover: Open"
+                        else -> "Cover: Checking..."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = when (coverStatus) {
+                        PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(0xFF4CAF50)
+                        PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(0xFFFF9800)
+                        else -> Color.Gray
+                    },
+                    fontWeight = when (coverStatus) {
+                        PrinterBluetoothViewModel.CoverStatus.OPEN -> FontWeight.Bold
+                        else -> FontWeight.Normal
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun BluetoothActionButtons(
     connectionState: BluetoothPrinterManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
@@ -313,14 +433,13 @@ private fun BluetoothActionButtons(
                 }
             }
             else -> {
-                // Connect button (for DISCONNECTED state)
+                // Connect button (when disconnected)
                 OutlinedButton(
                     onClick = {
-                        // Start auto-connect
                         printerBluetoothViewModel.startAutoConnect()
                     },
                     modifier = Modifier.weight(1f),
-                    enabled = true
+                    enabled = connectionState != BluetoothPrinterManager.ConnectionState.CONNECTING
                 ) {
                     Icon(
                         imageVector = Icons.Default.Bluetooth,
@@ -328,7 +447,12 @@ private fun BluetoothActionButtons(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Connect Printer")
+                    Text(
+                        if (connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING)
+                            "Connecting..."
+                        else
+                            "Connect"
+                    )
                 }
             }
         }

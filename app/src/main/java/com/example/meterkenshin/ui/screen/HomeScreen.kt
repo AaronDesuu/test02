@@ -50,6 +50,7 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.component.BluetoothStatusComponent
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -81,6 +82,18 @@ fun HomeScreen(
     val isBluetoothEnabled by printerBluetoothViewModel.isBluetoothEnabled.collectAsState()
     val connectedDevice by printerBluetoothViewModel.connectedDevice.collectAsState()
     val bluetoothStatusMessage by printerBluetoothViewModel.statusMessage.collectAsState()
+    val paperStatus by printerBluetoothViewModel.paperStatus.collectAsState()
+    val coverStatus by printerBluetoothViewModel.coverStatus.collectAsState()
+
+
+    // Start/stop monitoring based on connection
+    LaunchedEffect(bluetoothConnectionState) {
+        if (bluetoothConnectionState == BluetoothPrinterManager.ConnectionState.CONNECTED) {
+            printerBluetoothViewModel.startStatusMonitoring()
+        } else {
+            printerBluetoothViewModel.stopStatusMonitoring()
+        }
+    }
 
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
@@ -126,6 +139,8 @@ fun HomeScreen(
                     isBluetoothEnabled = isBluetoothEnabled,
                     connectedDevice = connectedDevice,
                     statusMessage = bluetoothStatusMessage,
+                    paperStatus = paperStatus,
+                    coverStatus = coverStatus,
                     printerBluetoothViewModel = printerBluetoothViewModel
                 )
             }

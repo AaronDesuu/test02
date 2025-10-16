@@ -52,6 +52,13 @@ class BluetoothPrinterManager(context: Context) {
     private val _connectedDevice = MutableLiveData<BluetoothDevice?>()
     val connectedDevice: LiveData<BluetoothDevice?> = _connectedDevice
 
+    // Add callback for status parsing
+    private var statusCallback: ((ByteArray) -> Unit)? = null
+
+    fun setStatusCallback(callback: (ByteArray) -> Unit) {
+        statusCallback = callback
+    }
+
     // Handler for Woosim callbacks
     private val handler = Handler(Looper.getMainLooper()) { msg ->
         when (msg.what) {
@@ -59,9 +66,18 @@ class BluetoothPrinterManager(context: Context) {
                 handleStateChange(msg.arg1)
             }
             WoosimBluetoothService.MESSAGE_READ -> {
-                // Process received data with WoosimService
                 val data = msg.obj as ByteArray
-                woosimService?.processRcvData(data, msg.arg1)
+                val length = msg.arg1
+
+                // CRITICAL: Parse status response FIRST before WoosimService processes it
+                // Status responses are single byte responses (0x30-0x33)
+                if (length == 1 && (data[0].toInt() and 0x30) == 0x30) {
+                    Log.d(TAG, "Status response detected: 0x${String.format("%02X", data[0])}")
+                    statusCallback?.invoke(data.copyOf(length))
+                }
+
+                // Then process with WoosimService for other data (MSR, etc.)
+                woosimService?.processRcvData(data, length)
             }
             WoosimBluetoothService.MESSAGE_DEVICE_NAME -> {
                 val deviceName = msg.data.getString(WoosimBluetoothService.DEVICE_NAME)

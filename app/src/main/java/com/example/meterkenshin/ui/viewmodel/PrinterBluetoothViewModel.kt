@@ -11,6 +11,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import android.os.Handler
+import android.os.Looper
+import com.woosim.printer.WoosimCmd
 
 /**
  * ViewModel for managing Bluetooth printer connection state in Compose UI
@@ -60,6 +63,21 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    private val _paperStatus = MutableStateFlow<PaperStatus>(PaperStatus.UNKNOWN)
+    val paperStatus: StateFlow<PaperStatus> = _paperStatus.asStateFlow()
+
+    private val _coverStatus = MutableStateFlow<CoverStatus>(CoverStatus.UNKNOWN)
+    val coverStatus: StateFlow<CoverStatus> = _coverStatus.asStateFlow()
+
+    enum class PaperStatus { OK, OUT, UNKNOWN }
+    enum class CoverStatus { CLOSED, OPEN, UNKNOWN }
+
+    // Status monitoring
+    private var statusHandler: Handler? = null
+    private var statusRunnable: Runnable? = null
+    private val STATUS_CHECK_INTERVAL = 5000L
+    private var statusWaiting = 0
+
     /**
      * Initialize the Bluetooth manager
      */
@@ -71,6 +89,11 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
 
         bluetoothPrinterManager = manager
         Log.d(TAG, "Initializing Bluetooth manager")
+
+        // Set status callback
+        manager.setStatusCallback { data ->
+            parseStatusResponse(data)
+        }
 
         try {
             // Update Bluetooth enabled state
@@ -247,8 +270,92 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
         return writeData(sampleData)
     }
 
+
+    fun startStatusMonitoring() {
+        if (statusHandler != null) {
+            Log.w(TAG, "Status monitoring already running")
+            return
+        }
+
+        statusWaiting = 0 // Reset counter
+        statusHandler = Handler(Looper.getMainLooper())
+        statusRunnable = object : Runnable {
+            override fun run() {
+                if (_connectionState.value == BluetoothPrinterManager.ConnectionState.CONNECTED) {
+                    requestPrinterStatus()
+                    statusHandler?.postDelayed(this, STATUS_CHECK_INTERVAL)
+                }
+            }
+        }
+        statusHandler?.post(statusRunnable!!)
+        Log.d(TAG, "Status monitoring started - querying every ${STATUS_CHECK_INTERVAL}ms")
+    }
+
+    fun stopStatusMonitoring() {
+        statusHandler?.removeCallbacks(statusRunnable!!)
+        statusHandler = null
+        Log.d(TAG, "Status monitoring stopped")
+    }
+
+    private fun requestPrinterStatus() {
+        statusWaiting++
+        sendDataToPrinter(WoosimCmd.queryStatus())
+        Log.d(TAG, "Status query sent, waiting=$statusWaiting")
+    }
+
+    fun parseStatusResponse(data: ByteArray) {
+        if (data.isEmpty()) return
+
+        // Check if we're expecting a status response
+        if (statusWaiting > 0 && data.size == 1 && (data[0].toInt() and 0x30) == 0x30) {
+            statusWaiting--
+
+            val status = data[0].toInt() and 0xFF
+
+            Log.d(TAG, "Parsing status byte: 0x${String.format("%02X", status)}")
+
+            when (status) {
+                0x30 -> { // OK
+                    _paperStatus.value = PaperStatus.OK
+                    _coverStatus.value = CoverStatus.CLOSED
+                    Log.d(TAG, "Status: Paper OK, Cover Closed")
+                }
+                0x31 -> { // Paper out
+                    _paperStatus.value = PaperStatus.OUT
+                    _coverStatus.value = CoverStatus.CLOSED
+                    Log.d(TAG, "Status: Paper OUT, Cover Closed")
+                }
+                0x32 -> { // Cover open
+                    _paperStatus.value = PaperStatus.OK
+                    _coverStatus.value = CoverStatus.OPEN
+                    Log.d(TAG, "Status: Paper OK, Cover OPEN")
+                }
+                0x33 -> { // Both
+                    _paperStatus.value = PaperStatus.OUT
+                    _coverStatus.value = CoverStatus.OPEN
+                    Log.d(TAG, "Status: Paper OUT, Cover OPEN")
+                }
+                else -> {
+                    // Bit parsing for other printer models (from samples)
+                    if ((status and 0x01) != 0) {
+                        _paperStatus.value = PaperStatus.OUT
+                    } else {
+                        _paperStatus.value = PaperStatus.OK
+                    }
+                    if ((status and 0x02) != 0) {
+                        _coverStatus.value = CoverStatus.OPEN
+                    } else {
+                        _coverStatus.value = CoverStatus.CLOSED
+                    }
+                    Log.d(TAG, "Status (bit parsing): Paper=${_paperStatus.value}, Cover=${_coverStatus.value}")
+                }
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
+        stopStatusMonitoring()
         Log.d(TAG, "ViewModel cleared, cleaning up")
 
         try {
