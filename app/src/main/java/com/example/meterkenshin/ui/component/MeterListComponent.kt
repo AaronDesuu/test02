@@ -10,14 +10,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cable
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.NetworkCell
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -47,10 +47,9 @@ import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 
 /**
- * Reusable Meter List Component with MeterReadingViewModel Integration
- * This component can be used across different screens (MeterReadingScreen, HomeScreen, etc.)
+ * Reusable Meter List Component with Automatic BLE Scanning
  * Handles all meter list functionality including CSV loading, search, and display
- * Now includes print button next to search bar
+ * BLE scanning starts automatically when user is logged in
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,13 +63,16 @@ fun MeterListComponent(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     customHeader: (@Composable () -> Unit)? = null,
     customEmptyState: (@Composable () -> Unit)? = null,
-    dlmsMaxDemandProvider: ((Meter) -> Double?)? = null, // Function to get DLMS data for each meter
-    useScrolling: Boolean = true // Parameter to control scrolling behavior
+    dlmsMaxDemandProvider: ((Meter) -> Double?)? = null,
+    useScrolling: Boolean = true
 ) {
     val context = LocalContext.current
     val uiState by meterReadingViewModel.uiState.collectAsState()
     val searchQuery by meterReadingViewModel.searchQuery.collectAsState()
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
+
+    // BLE Scanning states
+    val nearbyMeterCount by meterReadingViewModel.nearbyMeterCount.collectAsState()
 
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
@@ -123,7 +125,9 @@ fun MeterListComponent(
 
             // Success state with meters
             else -> {
-                // Search bar with print button (optional)
+
+
+                // Search bar (without scan button - scanning is automatic)
                 if (showSearch) {
                     Row(
                         modifier = Modifier
@@ -132,7 +136,7 @@ fun MeterListComponent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Search field taking most of the space
+                        // Search field
                         OutlinedTextField(
                             value = searchQuery,
                             onValueChange = meterReadingViewModel::updateSearchQuery,
@@ -143,8 +147,7 @@ fun MeterListComponent(
                                     contentDescription = null
                                 )
                             },
-                            modifier = Modifier
-                                .weight(1f),
+                            modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
                             singleLine = true
                         )
@@ -153,33 +156,30 @@ fun MeterListComponent(
                         PrintActionsDropdown(
                             onBatchReading = {
                                 // TODO: Implement batch reading functionality
-                                // This will batch read all BLE Meters on the list that are not yet inspected
-                                // After batch read, automatically initiate batch printing receipt of batch read meters
                             },
                             onBatchPrinting = {
                                 // TODO: Implement batch printing functionality
-                                // This will batch print all inspected BLE meters on the list that are not yet printed
                             },
                             onSelectAndPrint = {
                                 // TODO: Implement select and print functionality
-                                // This will allow selection of meter(s) from the list that are not yet printed
-                                // Then print the receipts of all selected meter(s)
                             }
                         )
                     }
                 }
 
-                // Statistics row (optional)
+                // Statistics
                 if (showStatistics) {
                     MeterStatisticsRow(
                         totalMeters = uiState.allMeters.size,
-                        filteredMeters = uiState.filteredMeters.size,
-                        onlineMeters = uiState.allMeters.count { it.status.displayName == "Active" },
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        showingMeters = uiState.filteredMeters.size,
+                        nearbyMeters = nearbyMeterCount,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
                     )
                 }
 
-                // Meters list - conditional scrolling
+                // Meter list
                 val metersToShow = if (maxItemsToShow != null) {
                     uiState.filteredMeters.take(maxItemsToShow)
                 } else {
@@ -187,21 +187,22 @@ fun MeterListComponent(
                 }
 
                 if (useScrolling) {
-                    // Use LazyColumn for full-screen scrollable lists
                     LazyColumn(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(metersToShow) { meter ->
+                            // Check if meter is nearby
+                            val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+                            val signalStrength = meterReadingViewModel.getMeterSignalStrength(meter.bluetoothId ?: "")
+
                             ModernMeterCard(
                                 meter = meter,
                                 onClick = { onMeterClick(meter) },
                                 modifier = Modifier.fillMaxWidth(),
-                                reading = null,
-                                showChevron = true,
-                                customContent = null,
                                 dlmsMaxDemand = dlmsMaxDemandProvider?.invoke(meter),
-                                meterReadingViewModel = meterReadingViewModel,
-                                inspectionStatus = getInspectionStatus(meter)
+                                isNearby = isNearby,
+                                inspectionStatus = getInspectionStatus(meter, null, isNearby),
+                                signalStrength = signalStrength
                             )
                         }
 
@@ -226,16 +227,17 @@ fun MeterListComponent(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         metersToShow.forEach { meter ->
+                            val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+                            val signalStrength = meterReadingViewModel.getMeterSignalStrength(meter.bluetoothId ?: "")
+
                             ModernMeterCard(
                                 meter = meter,
                                 onClick = { onMeterClick(meter) },
                                 modifier = Modifier.fillMaxWidth(),
-                                reading = null,
-                                showChevron = true,
-                                customContent = null,
                                 dlmsMaxDemand = dlmsMaxDemandProvider?.invoke(meter),
-                                meterReadingViewModel = meterReadingViewModel,
-                                inspectionStatus = getInspectionStatus(meter)
+                                isNearby = isNearby,
+                                inspectionStatus = getInspectionStatus(meter, null, isNearby),
+                                signalStrength = signalStrength
                             )
                         }
 
@@ -243,12 +245,9 @@ fun MeterListComponent(
                         if (maxItemsToShow != null && uiState.filteredMeters.size > maxItemsToShow) {
                             ViewAllMetersCard(
                                 remainingCount = uiState.filteredMeters.size - maxItemsToShow,
-                                onClick = { /* Navigate to full meter list */ }
+                                onClick = { /* Navigate to full list */ }
                             )
                         }
-
-                        // Add bottom padding
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
@@ -256,40 +255,46 @@ fun MeterListComponent(
     }
 }
 
+
+
 /**
- * Statistics row showing meter counts
+ * Meter Statistics Row with Nearby Count
  */
 @Composable
-private fun MeterStatisticsRow(
+fun MeterStatisticsRow(
     totalMeters: Int,
-    filteredMeters: Int,
-    onlineMeters: Int,
-    modifier: Modifier = Modifier
+    showingMeters: Int,
+    nearbyMeters: Int = 0,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        modifier = modifier.fillMaxWidth(), // Ensure Row fills the width
+        horizontalArrangement = Arrangement.SpaceEvenly // Use SpaceEvenly
     ) {
         StatisticCard(
             label = "Total",
             value = totalMeters.toString(),
             icon = Icons.Default.Cable,
             color = MaterialTheme.colorScheme.primary
+            // modifier = Modifier.weight(1f) // <-- REMOVE THIS
         )
         StatisticCard(
             label = "Showing",
-            value = filteredMeters.toString(),
+            value = showingMeters.toString(),
             icon = Icons.Default.Search,
             color = MaterialTheme.colorScheme.secondary
+            // modifier = Modifier.weight(1f) // <-- REMOVE THIS
         )
         StatisticCard(
-            label = "Online",
-            value = onlineMeters.toString(),
-            icon = Icons.Default.NetworkCell,
+            label = "Active",
+            value = nearbyMeters.toString(),
+            icon = Icons.Default.CheckCircle,
             color = Color(0xFF4CAF50)
+            // modifier = Modifier.weight(1f) // <-- REMOVE THIS
         )
     }
 }
+
 
 /**
  * Individual statistic card
@@ -303,14 +308,15 @@ private fun StatisticCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier, // <-- REMOVE .fillMaxWidth()
         colors = CardDefaults.cardColors(
             containerColor = color.copy(alpha = 0.1f)
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .padding(12.dp), // <-- REMOVE .fillMaxWidth()
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
@@ -335,78 +341,117 @@ private fun StatisticCard(
     }
 }
 
+
 /**
- * Loading card for when meters are being loaded
+ * Card shown when meter file is not uploaded
  */
 @Composable
-private fun LoadingCard() {
+private fun MeterFileNotUploadedCard() {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            Spacer(modifier = Modifier.width(16.dp))
+            Icon(
+                imageVector = Icons.Default.Error,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "Loading meters...",
-                style = MaterialTheme.typography.bodyLarge
+                text = "Meter File Required",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Please upload a meter.csv file to view meter data.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
 /**
- * Error card for when meter loading fails
+ * Loading indicator card
  */
 @Composable
-private fun ErrorCard(
-    message: String,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun LoadingCard() {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            CircularProgressIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Loading meters...",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+/**
+ * Error card with retry button
+ */
+@Composable
+private fun ErrorCard(
+    message: String,
+    onRetry: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 imageVector = Icons.Default.Error,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Error Loading Meters",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onErrorContainer
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Error loading meters",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onErrorContainer
             )
             Spacer(modifier = Modifier.height(16.dp))
             TextButton(onClick = onRetry) {
@@ -417,17 +462,16 @@ private fun ErrorCard(
 }
 
 /**
- * Empty meters card for when no meters are found
+ * Empty meters card
  */
 @Composable
 private fun EmptyMetersCard() {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -436,97 +480,68 @@ private fun EmptyMetersCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
-                imageVector = Icons.Default.Cable,
+                imageVector = Icons.Default.ElectricBolt,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No Meters Found",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "No meters found",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Check your meter CSV file or search criteria",
+                text = "The meter CSV file contains no valid meter data.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
 }
 
 /**
- * Card shown when meter file is not uploaded
- */
-@Composable
-private fun MeterFileNotUploadedCard() {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = Icons.Default.Error,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.size(48.dp)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Meter file required",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Please upload a meter CSV file to view meters",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-/**
- * View all meters card for when there are more items to show
+ * View All Meters Card
  */
 @Composable
 private fun ViewAllMetersCard(
     remainingCount: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
     Card(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        ),
+        shape = RoundedCornerShape(12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.Center,
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "View $remainingCount more meters",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+            Column {
+                Text(
+                    text = "View All Meters",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = "+$remainingCount more meters",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.Cable,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
             )
         }
     }

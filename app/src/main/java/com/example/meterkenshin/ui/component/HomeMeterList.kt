@@ -131,12 +131,7 @@ fun HomeMeterList(
                             meter = meter,
                             onClick = { onMeterClick(meter) },
                             modifier = Modifier.fillMaxWidth(),
-                            reading = null,
-                            showChevron = true,
-                            customContent = null,
-                            dlmsMaxDemand = null,
-                            meterReadingViewModel = meterReadingViewModel,
-                            inspectionStatus = getInspectionStatus(meter)
+                            inspectionStatus = getInspectionStatus(meter, null, false)
                         )
                     }
 

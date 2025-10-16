@@ -223,9 +223,7 @@ private fun TestMeterCardItem(
         // The actual ModernMeterCard being tested
         ModernMeterCard(
             meter = meter,
-            onClick = onClick,
-            showChevron = true,
-            meterReadingViewModel = null // Test without ViewModel
+            onClick = onClick // Test without ViewModel
         )
     }
 }

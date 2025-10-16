@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material3.Card
@@ -34,8 +35,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.model.MeterReading
-import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -50,18 +49,17 @@ fun ModernMeterCard(
     meter: Meter,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    reading: MeterReading? = null,
     showChevron: Boolean = true,
     customContent: (@Composable () -> Unit)? = null,
-    dlmsMaxDemand: Double? = null, // Will be obtained via DLMS later
-    meterReadingViewModel: MeterReadingViewModel? = null, // For future DLMS integration
-    inspectionStatus: InspectionStatus = getInspectionStatus(meter) // Dynamic status based on meter data
+    dlmsMaxDemand: Double? = null,
+    isNearby: Boolean = false,
+    inspectionStatus: InspectionStatus = getInspectionStatus(meter, dlmsMaxDemand, isNearby), // ✅ NEW
+    signalStrength: Int? = null, // ✅ NEW (RSSI in dBm)
 ) {
     // Determine connection status based on activate field from CSV (via MeterReadingViewModel)
-    val connectionStatus = remember(meter.activate) {
-        when (meter.activate) {
-            1 -> ConnectionStatus.ONLINE_EXCELLENT
-            0 -> ConnectionStatus.OFFLINE
+    val connectionStatus = remember( isNearby) {
+        when {
+            isNearby -> ConnectionStatus.ONLINE_EXCELLENT
             else -> ConnectionStatus.OFFLINE
         }
     }
@@ -73,7 +71,9 @@ fun ModernMeterCard(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isNearby) 4.dp else 2.dp // ✅ Elevated if nearby
+        ),
         border = BorderStroke(
             width = 1.dp,
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
@@ -100,6 +100,7 @@ fun ModernMeterCard(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(40.dp)
                         )
+
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -113,6 +114,28 @@ fun ModernMeterCard(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        if (isNearby && signalStrength != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cable,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = getSignalColor(signalStrength)
+                                )
+                                Text(
+                                    text = "$signalStrength dBm • ${getSignalQuality(signalStrength)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = getSignalColor(signalStrength),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
 
                         Spacer(modifier = Modifier.height(4.dp))
 
@@ -254,12 +277,11 @@ fun ModernMeterCard(
  * These states are now determined by actual meter data
  */
 enum class InspectionStatus(
-    val displayName: String,
     val color: Color
 ) {
-    INSPECTED_BILLING_PRINTED("Inspected & Billing Printed", Color(0xFF4CAF50)), // Green
-    INSPECTED_BILLING_NOT_PRINTED("Inspected, Billing not Printed", Color(0xFFFF9800)), // Yellow
-    NOT_INSPECTED("Not Inspected", Color(0xFFF44336)) // Red
+    INSPECTED_BILLING_PRINTED(Color(0xFF4CAF50)), // Green
+    INSPECTED_BILLING_NOT_PRINTED(Color(0xFFFF9800)), // Yellow
+    NOT_INSPECTED(Color(0xFFF44336)) // Red
 }
 
 /**
@@ -279,11 +301,9 @@ enum class ConnectionStatus(
  * Uses the meter's properties to determine the actual inspection and billing status
  */
 @Composable
-fun getInspectionStatus(meter: Meter, dlmsData: Any? = null): InspectionStatus {
+fun getInspectionStatus(meter: Meter, dlmsData: Any? = null, isNearby: Boolean): InspectionStatus {
     // Use meter data to determine inspection status
     return when {
-        // If meter is offline or not activated, it's not inspected
-        meter.activate == 0 -> InspectionStatus.NOT_INSPECTED
 
         // If meter has no readings or is new (no lastMaintenanceDate), not inspected
         meter.lastMaintenanceDate == null && (meter.impKWh == null || meter.impKWh == 0.0) -> {
@@ -306,7 +326,7 @@ fun getInspectionStatus(meter: Meter, dlmsData: Any? = null): InspectionStatus {
         }
 
         // If meter is active, has readings, and no alerts, billing printed
-        meter.activate == 1 && meter.impKWh != null && meter.impKWh > 0.0 &&
+        isNearby && meter.impKWh != null && meter.impKWh > 0.0 &&
                 (meter.alert == null || meter.alert == 0.0) -> {
             InspectionStatus.INSPECTED_BILLING_PRINTED
         }
@@ -316,15 +336,20 @@ fun getInspectionStatus(meter: Meter, dlmsData: Any? = null): InspectionStatus {
     }
 }
 
-/**
- * Helper function to get connection status text for status bar
- */
-@Composable
-fun getConnectionStatusText(meter: Meter): String {
-    return when (meter.activate) {
-        1 -> "Online"
-        0 -> "Offline"
-        else -> "Unknown"
+fun getSignalColor(rssi: Int): Color {
+    return when {
+        rssi >= -50 -> Color(0xFF4CAF50) // Excellent: Green
+        rssi >= -70 -> Color(0xFF8BC34A) // Good: Light Green
+        rssi >= -85 -> Color(0xFFFFC107) // Fair: Orange
+        else -> Color(0xFFF44336) // Poor: Red
     }
 }
 
+fun getSignalQuality(rssi: Int): String {
+    return when {
+        rssi >= -50 -> "Excellent"
+        rssi >= -70 -> "Good"
+        rssi >= -85 -> "Fair"
+        else -> "Poor"
+    }
+}
