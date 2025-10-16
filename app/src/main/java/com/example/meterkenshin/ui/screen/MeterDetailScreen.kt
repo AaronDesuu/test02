@@ -36,6 +36,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,7 +51,9 @@ import com.example.meterkenshin.model.Meter
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.core.graphics.toColorInt
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.data.MeterSpecifications
+import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
@@ -58,18 +62,43 @@ import com.example.meterkenshin.data.MeterSpecifications
 @Composable
 fun MeterDetailScreen(
     meter: Meter,
+    meterReadingViewModel: MeterReadingViewModel = viewModel(),
+    onBack: () -> Unit = {},
     onRegistration: () -> Unit = {},
     onReadData: () -> Unit = {},
     onLoadProfile: () -> Unit = {},
     onEventLog: () -> Unit = {},
     onBillingData: () -> Unit = {},
-    onSetClock: () -> Unit = {},
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+    onSetClock: () -> Unit = {}
 ) {
+    // Collect BLE states
+    val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
+
+    // Get RSSI for this meter
+    val rssi = meter.bluetoothId?.let {
+        discoveredDevices[it.uppercase()]
+    } ?: -200
+
+    val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+
+    // Connection status based on RSSI
+    val connectionStatus = when {
+        !isNearby -> stringResource(R.string.ble_status_disconnected)
+        rssi >= -70 -> stringResource(R.string.ble_status_connected)
+        rssi >= -85 -> "${stringResource(R.string.ble_status_connected)} (Fair)"
+        else -> "${stringResource(R.string.ble_status_connected)} (Poor)"
+    }
+
+    val signalColor = when {
+        !isNearby -> Color.Gray
+        rssi >= -70 -> Color(0xFF4CAF50) // Green
+        rssi >= -85 -> Color(0xFFFFC107) // Yellow
+        else -> Color(0xFFF44336) // Red
+    }
+
     Column(
-        modifier = modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Main content with modern design
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -78,10 +107,13 @@ fun MeterDetailScreen(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Connection status card
-            MeterStatusCard(meter = meter)
+            MeterStatusCard(
+                meter = meter,
+                rssi = rssi,
+                isNearby = isNearby
+            )
 
-            // DLMS function buttons with modern design
+            // DLMS Functions Card
             DLMSFunctionsCard(
                 onRegistration = onRegistration,
                 onReadData = onReadData,
@@ -91,10 +123,9 @@ fun MeterDetailScreen(
                 onSetClock = onSetClock
             )
 
-            // Meter specifications card
+            // Meter Specifications Card
             MeterSpecificationsCard(meter = meter)
 
-            // Bottom padding for system bars
             Spacer(modifier = Modifier.height(16.dp))
             Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
@@ -102,7 +133,7 @@ fun MeterDetailScreen(
 }
 
 /**
- * DLMS functions in a modern card design
+ * DLMS functions card with correct parameters
  */
 @Composable
 private fun DLMSFunctionsCard(
@@ -122,9 +153,7 @@ private fun DLMSFunctionsCard(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 16.dp)
@@ -139,12 +168,10 @@ private fun DLMSFunctionsCard(
                 Text(
                     text = stringResource(R.string.dlms_functions),
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            // Function buttons in single column (6 rows)
             FunctionButton(
                 text = stringResource(R.string.dlms_registration),
                 icon = Icons.Default.Person,
@@ -194,6 +221,7 @@ private fun DLMSFunctionsCard(
         }
     }
 }
+
 
 /**
  * Function button component
@@ -295,6 +323,11 @@ private fun MeterSpecificationsCard(
                 label = "Meter Type",
                 value = meter.type.displayName.ifBlank { "-" }
             )
+            // Bluetooth ID
+            SpecificationRow(
+                label = "Bluetooth ID",
+                value = meter.bluetoothId ?: "-"
+            )
 
             // Enhanced data from CSV
             if (meter.impKWh != null || meter.expKWh != null ||
@@ -362,13 +395,30 @@ private fun MeterSpecificationsCard(
 }
 
 /**
- * Meter status card
+ * Updated MeterStatusCard with BLE connection and RSSI info
  */
 @Composable
 private fun MeterStatusCard(
     meter: Meter,
+    rssi: Int = -200,
+    isNearby: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    // Connection status based on RSSI
+    val connectionStatus = when {
+        !isNearby -> stringResource(R.string.ble_status_disconnected)
+        rssi >= -70 -> stringResource(R.string.ble_status_connected)
+        rssi >= -85 -> "${stringResource(R.string.ble_status_connected)} (Fair)"
+        else -> "${stringResource(R.string.ble_status_connected)} (Poor)"
+    }
+
+    val signalColor = when {
+        !isNearby -> Color.Gray
+        rssi >= -70 -> Color(0xFF4CAF50) // Green - Excellent
+        rssi >= -85 -> Color(0xFFFFC107) // Yellow - Fair
+        else -> Color(0xFFF44336) // Red - Poor
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -398,22 +448,42 @@ private fun MeterStatusCard(
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
+
+            // Serial Number
             SpecificationRow(
-                label = "Serial Number",
+                label = stringResource(R.string.serial_id).replace(": %1\$s", ""),
                 value = meter.serialNumber.ifBlank { "-" }
             )
+
+            // BLE Connection Status
             SpecificationRow(
                 label = stringResource(R.string.status_connected),
-                value = stringResource(R.string.status_connected),
-                valueColor = Color(0xFF4CAF50)
+                value = connectionStatus,
+                valueColor = signalColor
             )
+
+            // Signal Strength (only show when nearby)
+            if (isNearby && rssi > -200) {
+                SpecificationRow(
+                    label = stringResource(R.string.signal_strength).replace(": %1\$s dBm", ""),
+                    value = "$rssi dBm",
+                    valueColor = signalColor
+                )
+            }
+
+
+
+            // Location
             SpecificationRow(
                 label = "Location",
                 value = meter.location.ifBlank { "-" }
             )
-            SpecificationRow(label = "Signal Strength", value = "-")
-            SpecificationRow(label = "Last Communication", value = "-")
-            SpecificationRow(label = "Last Billing Read", value = "-")
+
+            // Last Communication (placeholder - can be updated with actual data)
+            SpecificationRow(
+                label = "Last Communication",
+                value = if (isNearby) "Just now" else "-"
+            )
         }
     }
 }

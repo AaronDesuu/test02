@@ -22,7 +22,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.permissions.BluetoothPermissionHandler
-import com.example.meterkenshin.ui.component.MeterKenshinApp
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel

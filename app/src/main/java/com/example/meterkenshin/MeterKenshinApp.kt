@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin
 
 import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
@@ -15,14 +15,18 @@ import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.component.AppScreen
+import com.example.meterkenshin.ui.component.AppWithDrawer
 import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.screen.MeterCardTestScreen
 import com.example.meterkenshin.ui.screen.SettingsScreen
+import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import kotlinx.coroutines.delay
 
 @SuppressLint("MissingPermission")
 @Composable
@@ -33,6 +37,9 @@ fun MeterKenshinApp(
     printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     val context = LocalContext.current
+
+    // Add DLMS ViewModel
+    val dlmsViewModel = remember { DLMSViewModel(context) }
 
     // Use the original session checking logic
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
@@ -81,7 +88,7 @@ fun MeterKenshinApp(
         if (isLoggedIn) {
             try {
                 // Wait a bit for initialization
-                kotlinx.coroutines.delay(1000)
+                delay(1000)
 
                 Log.i("MeterKenshinApp", "User logged in - starting automatic BLE scan")
                 meterReadingViewModel.startBLEScanning()
@@ -105,7 +112,7 @@ fun MeterKenshinApp(
                 AppScreen.IMPORT_DATA -> currentScreen = "file_upload"
                 AppScreen.RECEIPT_TEMPLATE -> currentScreen = "receipt"
                 AppScreen.SETTINGS -> currentScreen = "settings"
-                else -> { }
+                else -> {}
             }
         },
         onNavigateToTest = {
@@ -146,6 +153,7 @@ fun MeterKenshinApp(
                     }
                 )
             }
+
             currentScreen == "home" -> {
                 HomeScreen(
                     sessionManager = sessionManager,
@@ -153,7 +161,10 @@ fun MeterKenshinApp(
                         // ✅ NEW: Stop BLE scanning on logout from HomeScreen
                         try {
                             meterReadingViewModel.stopBLEScanning()
-                            Log.i("MeterKenshinApp", "BLE scanning stopped on logout from HomeScreen")
+                            Log.i(
+                                "MeterKenshinApp",
+                                "BLE scanning stopped on logout from HomeScreen"
+                            )
                         } catch (e: Exception) {
                             Log.e("MeterKenshinApp", "Error stopping BLE scan", e)
                         }
@@ -168,11 +179,13 @@ fun MeterKenshinApp(
                     printerBluetoothViewModel = printerBluetoothViewModel
                 )
             }
+
             currentScreen == "file_upload" -> {
                 FileUploadScreen(
                     viewModel = fileUploadViewModel
                 )
             }
+
             currentScreen == "receipt" -> {
                 ReceiptScreen(
                     fileUploadViewModel = fileUploadViewModel,
@@ -180,6 +193,7 @@ fun MeterKenshinApp(
                     onNavigateToFileUpload = { currentScreen = "file_upload" }
                 )
             }
+
             currentScreen == "meter_reading" -> {
                 MeterReadingScreen(
                     fileUploadViewModel = fileUploadViewModel,
@@ -190,18 +204,33 @@ fun MeterKenshinApp(
                     }
                 )
             }
+
             currentScreen == "meter_detail" -> {
                 selectedMeter?.let { meter ->
                     MeterDetailScreen(
-                        meter = meter
+                        meter = meter,
+                        onRegistration = {
+                            // Start registration sequence
+                            dlmsViewModel.performRegistration(
+                                bleService = null, // TODO: pass BLE service
+                                bluetoothId = meter.bluetoothId ?: ""
+                            )
+                        },
+                        onReadData = { /* TODO */ },
+                        onLoadProfile = { /* TODO */ },
+                        onEventLog = { /* TODO */ },
+                        onBillingData = { /* TODO */ },
+                        onSetClock = { /* TODO */ }
                     )
                 }
             }
+
             currentScreen == "settings" -> {
                 SettingsScreen(
                     sessionManager = sessionManager
                 )
             }
+
             currentScreen == "meter_card_test" -> {
                 MeterCardTestScreen()
             }
