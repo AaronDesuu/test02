@@ -46,6 +46,9 @@ public class DLMS {
     private Context mContext;
     private Calendar old;
 
+
+    private boolean hls = false;       // HLS authentication flag
+
     public DLMS(Context context) {
         mContext = context;
         AccountInformation = new ArrayList<AccountInfo>();
@@ -64,6 +67,14 @@ public class DLMS {
         AccountInfo level3 = new AccountInfo();
         level3.set("Reader  ,3030303030303030,41,03");
         AccountInformation.add(level3);
+
+        global = new byte[16];
+        dedicate = new byte[16];
+
+        byte[] keyBytes = setStr2Oct(Password(-1));
+        if (keyBytes.length >= 16) {
+            System.arraycopy(keyBytes, 0, dedicate, 0, 16);
+        }
     }
 
     public final static int IST_FIRM_VER = 1;
@@ -3021,5 +3032,28 @@ public class DLMS {
                 break;
         }
         return out;
+    }
+
+    // 3. Add method to enable HLS after successful authentication
+    public void enableHls() {
+        this.hls = true;
+    }
+
+    // 4. Add method to get authentication status
+    public boolean isHlsActive() {
+        return this.hls;
+    }
+
+    // 5. Add method to set encryption keys
+    public void setGlobalKey(byte[] key) {
+        if (key != null && key.length == 16) {
+            System.arraycopy(key, 0, this.global, 0, 16);
+        }
+    }
+
+    public void setDedicatedKey(byte[] key) {
+        if (key != null && key.length == 16) {
+            System.arraycopy(key, 0, this.dedicate, 0, 16);
+        }
     }
 }
