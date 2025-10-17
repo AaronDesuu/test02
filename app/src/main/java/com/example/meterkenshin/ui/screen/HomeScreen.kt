@@ -70,6 +70,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
+    val nearbyMeterCount by meterReadingViewModel.nearbyMeterCount.collectAsState()
 
     if (session == null) {
         onLogout()
@@ -107,12 +108,6 @@ fun HomeScreen(
         }
     }
 
-    // Calculate real system overview from actual meter data
-    val systemOverview = remember(meterUiState.allMeters) {
-        calculateSystemOverview(meterUiState.allMeters)
-    }
-
-
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -127,7 +122,8 @@ fun HomeScreen(
             // System Overview Statistics
             item {
                 SystemOverviewSection(
-                    overview = systemOverview,
+                    totalMeters = meterUiState.allMeters.size,  // ✅ DIRECT VALUE
+                    nearbyMeterCount = nearbyMeterCount,         // ✅ BLE DATA
                     isLoading = meterUiState.isLoading,
                     isMeterDataLoaded = isMeterCsvUploaded && meterUiState.allMeters.isNotEmpty()
                 )
@@ -192,7 +188,8 @@ fun HomeScreen(
 
 @Composable
 private fun SystemOverviewSection(
-    overview: SystemOverview,
+    totalMeters: Int,
+    nearbyMeterCount: Int,
     isLoading: Boolean,
     isMeterDataLoaded: Boolean
 ) {
@@ -217,7 +214,7 @@ private fun SystemOverviewSection(
                 item {
                     OverviewCard(
                         title = stringResource(R.string.total_meters),
-                        value = overview.totalMeters.toString(),
+                        value = totalMeters.toString(),
                         icon = Icons.Default.ElectricMeter,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.width(140.dp)
@@ -228,7 +225,7 @@ private fun SystemOverviewSection(
                 item {
                     OverviewCard(
                         title = "Online Meters",
-                        value = overview.activeMeters.toString(),
+                        value = nearbyMeterCount.toString(),
                         icon = Icons.Default.CheckCircle,
                         color = Color(0xFF4CAF50),
                         modifier = Modifier.width(140.dp)
@@ -315,32 +312,3 @@ private fun RecentReadingsSection(
         onViewAllClick = onNavigateToMeterReading
     )
 }
-
-
-// Helper functions for real data processing
-private fun calculateSystemOverview(meters: List<Meter>): SystemOverview {
-    val rankDistribution = meters.groupBy { it.id }.mapValues { it.value.size }
-
-    return SystemOverview(
-        totalMeters = meters.size,
-        activeMeters = meters.size, // Assume all loaded meters are active
-        offlineMeters = 0, // No offline detection yet
-        todayReadings = (meters.size * 0.8).toInt(), // Simulate 80% reading completion
-        totalConsumption = meters.size * 150.5f, // Simulate consumption
-        pendingExports = if (meters.isNotEmpty()) 2 else 0,
-        lastSyncSuccess = meters.isNotEmpty(),
-        rankDistribution = rankDistribution
-    )
-}
-
-// Update SystemOverview data class to include rank distribution
-data class SystemOverview(
-    val totalMeters: Int,
-    val activeMeters: Int,
-    val offlineMeters: Int,
-    val todayReadings: Int,
-    val totalConsumption: Float,
-    val pendingExports: Int,
-    val lastSyncSuccess: Boolean,
-    val rankDistribution: Map<String, Int> = emptyMap()
-)
