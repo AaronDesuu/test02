@@ -47,12 +47,12 @@ data class ReceiptData(
 
 @Composable
 fun ReceiptPrintButton(
+    modifier: Modifier = Modifier,
     receiptData: ReceiptData,
     printerBluetoothViewModel: PrinterBluetoothViewModel,
     bluetoothConnectionState: BluetoothPrinterManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
     onNavigateToHome: () -> Unit = {},
-    modifier: Modifier = Modifier
 ) {
     val isPrinterReady = bluetoothConnectionState == BluetoothPrinterManager.ConnectionState.CONNECTED
     val canPrint = isPrinterReady && isBluetoothEnabled

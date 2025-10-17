@@ -61,29 +61,6 @@ class BluetoothPrinterService(
     }
 
     /**
-     * Start the ConnectThread to initiate a connection to a remote device
-     */
-    @Synchronized
-    fun connect(device: BluetoothDevice) {
-        if (D) Log.d(TAG, "connect to: $device")
-
-        // Cancel any thread attempting to make a connection
-        if (currentState == STATE_CONNECTING) {
-            connectThread?.cancel()
-            connectThread = null
-        }
-
-        // Cancel any thread currently running a connection
-        connectedThread?.cancel()
-        connectedThread = null
-
-        // Start the thread to connect with the given device
-        connectThread = ConnectThread(device)
-        connectThread?.start()
-        setState(STATE_CONNECTING)
-    }
-
-    /**
      * Start the ConnectedThread to begin managing a Bluetooth connection
      */
     @Synchronized

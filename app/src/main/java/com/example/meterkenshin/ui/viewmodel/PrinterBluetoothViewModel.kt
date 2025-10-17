@@ -75,7 +75,7 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
     // Status monitoring
     private var statusHandler: Handler? = null
     private var statusRunnable: Runnable? = null
-    private val STATUS_CHECK_INTERVAL = 5000L
+    private val statusCheckInterval = 5000L
     private var statusWaiting = 0
 
     /**
@@ -283,12 +283,12 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
             override fun run() {
                 if (_connectionState.value == BluetoothPrinterManager.ConnectionState.CONNECTED) {
                     requestPrinterStatus()
-                    statusHandler?.postDelayed(this, STATUS_CHECK_INTERVAL)
+                    statusHandler?.postDelayed(this, statusCheckInterval)
                 }
             }
         }
         statusHandler?.post(statusRunnable!!)
-        Log.d(TAG, "Status monitoring started - querying every ${STATUS_CHECK_INTERVAL}ms")
+        Log.d(TAG, "Status monitoring started - querying every ${statusCheckInterval}ms")
     }
 
     fun stopStatusMonitoring() {

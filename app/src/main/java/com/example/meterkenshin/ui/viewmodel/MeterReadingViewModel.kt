@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.annotation.RequiresPermission
@@ -40,9 +41,9 @@ class MeterReadingViewModel : ViewModel() {
     companion object {
         private const val TAG = "MeterReadingViewModel"
         private const val APP_FILES_FOLDER = "app_files"
-        private const val SCAN_PERIOD: Long = 1000 // 1 seconds active scan
-        private const val SCAN_INTERVAL: Long = 5000 // 5 seconds between scans
-        private const val SCAN_COOLDOWN: Long = 1000 // 1000ms cooldown between stop/start
+        private const val SCAN_PERIOD: Long = 2000 // 2 seconds active scan
+        private const val SCAN_INTERVAL: Long = 4000 // 4 seconds between scans
+        private const val SCAN_COOLDOWN: Long = 500 // 500ms cooldown between stop/start
 
         // DLMS Message Constants
         private const val MSG_ADMIN = 0
@@ -112,6 +113,11 @@ class MeterReadingViewModel : ViewModel() {
     private var scanJob: Job? = null
     val discoveredDevices: StateFlow<Map<String, Int>> = _discoveredDevices.asStateFlow()
     private val _scannedInCurrentCycle = mutableSetOf<String>() // Track which devices already scanned this cycle
+    private var printerViewModel: PrinterBluetoothViewModel? = null
+
+    fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
+        printerViewModel = viewModel
+    }
 
     // Modified callback - only captures first RSSI per cycle
     @Suppress("DEPRECATION")
@@ -335,7 +341,9 @@ class MeterReadingViewModel : ViewModel() {
             addAction(BluetoothLeServiceConstants.ACTION_DATA_AVAILABLE)
             addAction(BluetoothLeServiceConstants.ACTION_GATT_ERROR)
         }
-        context.registerReceiver(mGattUpdateReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(mGattUpdateReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+        }
 
         // Bind BLE service
         val gattServiceIntent = Intent(context, BluetoothLeService::class.java)
@@ -378,12 +386,11 @@ class MeterReadingViewModel : ViewModel() {
         scanJob?.cancel()
         scanJob = viewModelScope.launch {
             while (isActive) {
-                // ✅ Clear discovered devices from previous cycle
-                _discoveredDevices.value = emptyMap()
-                _nearbyMeterCount.value = 0
-
                 // Clear the "already scanned" set for new cycle
                 _scannedInCurrentCycle.clear()
+
+                // ✅ Pause printer status monitoring during scan
+                printerViewModel?.stopStatusMonitoring()
 
                 // Start scan
                 startBLEScanningInternal()
@@ -394,13 +401,22 @@ class MeterReadingViewModel : ViewModel() {
                 // Stop scan
                 stopBLEScanningInternal()
 
+                // NOW clear old discovered devices and replace with new scan results
+                val newDiscoveredDevices = _discoveredDevices.value.filterKeys { mac ->
+                    _scannedInCurrentCycle.contains(mac)
+                }
+                _discoveredDevices.value = newDiscoveredDevices
+                _nearbyMeterCount.value = newDiscoveredDevices.size
+
                 // Update offline meters based on current discovered devices
                 updateOfflineMeters()
 
+                // ✅ Resume printer status monitoring after scan
+                printerViewModel?.startStatusMonitoring()
+
                 // Wait cooldown before next cycle
-                val remainingDelay = SCAN_INTERVAL
-                Log.d(TAG, "Waiting ${remainingDelay}ms before next scan cycle")
-                delay(remainingDelay)
+                Log.d(TAG, "Waiting ${SCAN_INTERVAL}ms before next scan cycle")
+                delay(SCAN_INTERVAL)
             }
         }
         Log.i(TAG, "Periodic scanning started: ${SCAN_PERIOD}ms scan every ${SCAN_INTERVAL}ms")
@@ -431,7 +447,7 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    private suspend fun stopBLEScanningInternal() {
+    private fun stopBLEScanningInternal() {
         if (mScanning) {
             try {
                 @Suppress("DEPRECATION")

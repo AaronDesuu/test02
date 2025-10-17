@@ -97,6 +97,11 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        // Wire the viewmodels together
+        meterReadingViewModel.setPrinterViewModel(printerBluetoothViewModel)
+    }
+
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
     val isMeterCsvUploaded = meterCsvFile?.isUploaded == true
