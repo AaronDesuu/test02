@@ -58,13 +58,10 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
 
@@ -148,15 +145,13 @@ fun MeterListComponent(
 
             // Success state with meters
             else -> {
-
-
                 // Search bar (without scan button - scanning is automatic)
                 if (showSearch) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Search field
@@ -212,13 +207,13 @@ fun MeterListComponent(
                         nearbyMeters = nearbyMeterCount,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 16.dp)
+                            .padding(bottom = 4.dp)
                     )
                 }
 
                 FilterSortControlRow(
                     meterReadingViewModel = meterReadingViewModel,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(bottom = 2.dp)
                 )
 
                 // Meter list
@@ -329,7 +324,7 @@ fun MeterStatisticsRow(
             // modifier = Modifier.weight(1f) // <-- REMOVE THIS
         )
         StatisticCard(
-            label = "Active",
+            label = "Online",
             value = nearbyMeters.toString(),
             icon = Icons.Default.CheckCircle,
             color = Color(0xFF4CAF50)
@@ -416,7 +411,7 @@ fun FilterSortControlRow(
         }
 
         // Sort Dropdown Button
-        Box(modifier = Modifier.weight(1f)) {
+        Box(modifier = Modifier.weight(1.5f)) {
             OutlinedButton(
                 onClick = { showSortMenu = true },
                 modifier = Modifier.fillMaxWidth()
@@ -471,7 +466,7 @@ fun FilterSortControlRow(
                     SortOrder.DESCENDING else SortOrder.ASCENDING
                 meterReadingViewModel.setSortConfig(sortConfig.field, newOrder)
             },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(0.5f)
         ) {
             Icon(
                 imageVector = if (sortConfig.order == SortOrder.ASCENDING)

@@ -118,9 +118,9 @@ class BluetoothPrinterManager(context: Context) {
                 _connectionState.value = ConnectionState.CONNECTED
                 val printerConfig = printerCsvParser.getActivePrinterConfig()
                 val printerInfo = if (printerConfig != null) {
-                    "Connected to ${printerConfig.printerModel ?: "Printer"}\nMAC: ${printerConfig.bluetoothMacAddress}"
+                    "Model:  ${printerConfig.printerModel ?: "Unknown"}"
                 } else {
-                    "Connected to printer"
+                    "Model: Unknown"
                 }
                 updateStatus(printerInfo)
             }

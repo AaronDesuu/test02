@@ -508,7 +508,7 @@
     <string name="auto_connect_no_devices">No Woosim devices found</string>
 
     <!-- Printer Configuration -->
-    <string name="printer_config_title">Printer Configuration</string>
+    <string name="printer_config_title">Bluetooth Printer Status</string>
     <string name="printer_config_hardcoded">Hardcoded MAC: %1$s</string>
     <string name="printer_config_csv_active">CSV Active: %1$s</string>
     <string name="printer_config_csv_mac">CSV MAC: %1$s</string>

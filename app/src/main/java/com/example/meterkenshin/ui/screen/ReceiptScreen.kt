@@ -78,6 +78,7 @@ import java.util.Locale
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     printerBluetoothViewModel: PrinterBluetoothViewModel = viewModel(),
+    onNavigateToHome: () -> Unit = {},
     onNavigateToFileUpload: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -216,72 +217,6 @@ fun ReceiptScreen(
                                 stringResource(R.string.receipt_upload_rate_files)
                             }
                         )
-                    }
-
-                    if (isRateCsvUploaded) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = colorResource(R.color.success_container_light)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = colorResource(R.color.success_light),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = stringResource(R.string.receipt_rate_csv_uploaded),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = colorResource(R.color.on_success_container_light)
-                                    )
-                                    rateData?.let { rates ->
-                                        Text(
-                                            text = stringResource(
-                                                R.string.receipt_rates_loaded,
-                                                rates.size
-                                            ),
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = colorResource(R.color.on_success_container_light)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = colorResource(R.color.warning_container_light)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = colorResource(R.color.warning_light),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(R.string.receipt_rate_csv_missing),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = colorResource(R.color.on_warning_container_light)
-                                )
-                            }
-                        }
                     }
 
                     errorMessage?.let { error ->
@@ -1079,13 +1014,13 @@ private fun RateCsvStatusIndicator(
     modifier: Modifier = Modifier
 ) {
     val backgroundColor = if (isUploaded) {
-        colorResource(R.color.success_container_light)
+        Color(0xFFE8F5E9) // Light green background
     } else {
         colorResource(R.color.warning_container_light)
     }
 
     val contentColor = if (isUploaded) {
-        colorResource(R.color.success_light)
+        Color(0xFF4CAF50) // Green
     } else {
         colorResource(R.color.warning_light)
     }
@@ -1286,7 +1221,10 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
     }
 }
 
-private fun getCurrentDate(@Suppress("SameParameterValue") monthOffset: Int, dayOffset: Int): String {
+private fun getCurrentDate(
+    @Suppress("SameParameterValue") monthOffset: Int,
+    dayOffset: Int
+): String {
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.MONTH, monthOffset)
     calendar.add(Calendar.DAY_OF_MONTH, dayOffset)

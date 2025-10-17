@@ -51,6 +51,7 @@ fun ReceiptPrintButton(
     printerBluetoothViewModel: PrinterBluetoothViewModel,
     bluetoothConnectionState: BluetoothPrinterManager.ConnectionState?,
     isBluetoothEnabled: Boolean,
+    onNavigateToHome: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isPrinterReady = bluetoothConnectionState == BluetoothPrinterManager.ConnectionState.CONNECTED
@@ -60,6 +61,9 @@ fun ReceiptPrintButton(
         onClick = {
             if (canPrint) {
                 printReceipt(receiptData, printerBluetoothViewModel)
+            } else if (!isPrinterReady) {
+                // Navigate to home when "Connect Printer" is clicked
+                onNavigateToHome()
             }
         },
         enabled = canPrint,

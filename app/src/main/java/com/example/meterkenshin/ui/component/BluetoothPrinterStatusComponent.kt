@@ -81,11 +81,6 @@ fun BluetoothStatusComponent(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        text = "Woosim Printer Connection",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
 
                 // Bluetooth Icon based on state
@@ -272,15 +267,6 @@ private fun PrinterStatusIndicators(
                 .fillMaxWidth()
                 .padding(12.dp)
         ) {
-            Text(
-                text = "Printer Status",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             // Paper Status
             Row(
                 verticalAlignment = Alignment.CenterVertically,

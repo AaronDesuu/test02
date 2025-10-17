@@ -197,12 +197,6 @@ private fun SystemOverviewSection(
     isMeterDataLoaded: Boolean
 ) {
     Column {
-        Text(
-            text = stringResource(R.string.overview_title),
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
 
         if (isLoading) {
             Row(
