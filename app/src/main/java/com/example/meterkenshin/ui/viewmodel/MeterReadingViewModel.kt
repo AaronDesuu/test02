@@ -378,6 +378,10 @@ class MeterReadingViewModel : ViewModel() {
         scanJob?.cancel()
         scanJob = viewModelScope.launch {
             while (isActive) {
+                // ✅ Clear discovered devices from previous cycle
+                _discoveredDevices.value = emptyMap()
+                _nearbyMeterCount.value = 0
+
                 // Clear the "already scanned" set for new cycle
                 _scannedInCurrentCycle.clear()
 
@@ -390,7 +394,10 @@ class MeterReadingViewModel : ViewModel() {
                 // Stop scan
                 stopBLEScanningInternal()
 
-                // Wait cooldown before next cycle (IMPORTANT to avoid "scanning too frequently")
+                // Update offline meters based on current discovered devices
+                updateOfflineMeters()
+
+                // Wait cooldown before next cycle
                 val remainingDelay = SCAN_INTERVAL
                 Log.d(TAG, "Waiting ${remainingDelay}ms before next scan cycle")
                 delay(remainingDelay)
@@ -398,7 +405,6 @@ class MeterReadingViewModel : ViewModel() {
         }
         Log.i(TAG, "Periodic scanning started: ${SCAN_PERIOD}ms scan every ${SCAN_INTERVAL}ms")
     }
-
 
     @RequiresPermission(allOf = [
         Manifest.permission.BLUETOOTH_SCAN,
@@ -439,7 +445,34 @@ class MeterReadingViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Mark meters as offline if they weren't discovered in the scan cycle
+     */
+    private fun updateOfflineMeters() {
+        val currentMeters = _uiState.value.allMeters.toMutableList()
+        val discoveredMacs = _discoveredDevices.value.keys
+        var updated = false
 
+        for (i in currentMeters.indices) {
+            val meter = currentMeters[i]
+            val meterMac = meter.bluetoothId?.uppercase()
+
+            if (meterMac != null) {
+                if (!discoveredMacs.contains(meterMac) && meter.status == MeterStatus.ACTIVE) {
+                    currentMeters[i] = meter.copy(status = MeterStatus.OFFLINE)
+                    updated = true
+                    Log.d(TAG, "Meter ${meter.serialNumber} went offline")
+                }
+            }
+        }
+
+        if (updated) {
+            _uiState.value = _uiState.value.copy(
+                allMeters = currentMeters,
+                filteredMeters = filterMeters(currentMeters, _searchQuery.value)
+            )
+        }
+    }
 
     /**
      * Load meters from CSV file

@@ -57,11 +57,9 @@ fun ModernMeterCard(
     signalStrength: Int? = null, // ✅ NEW (RSSI in dBm)
 ) {
     // Determine connection status based on activate field from CSV (via MeterReadingViewModel)
-    val connectionStatus = remember( isNearby) {
-        when {
-            isNearby -> ConnectionStatus.ONLINE_EXCELLENT
-            else -> ConnectionStatus.OFFLINE
-        }
+    val connectionStatus = when {
+        isNearby -> ConnectionStatus.ONLINE_EXCELLENT
+        else -> ConnectionStatus.OFFLINE
     }
 
     Card(
