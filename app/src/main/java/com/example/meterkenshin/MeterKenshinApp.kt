@@ -170,6 +170,10 @@ fun MeterKenshinApp(
                         currentScreen = "login"
                     },
                     onNavigateToMeterReading = { currentScreen = "meter_reading" },
+                    onNavigateToMeterDetail = { meter ->
+                        selectedMeter = meter
+                        currentScreen = "meter_detail"
+                    },
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel,
                     printerBluetoothViewModel = printerBluetoothViewModel

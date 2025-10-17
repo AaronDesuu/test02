@@ -65,6 +65,7 @@ fun HomeScreen(
     onNavigateToMeterReading: () -> Unit = {},
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
+    onNavigateToMeterDetail: (Meter) -> Unit = {},
     printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
     val context = LocalContext.current
@@ -149,6 +150,7 @@ fun HomeScreen(
             item {
                 RecentReadingsSection(
                     onNavigateToMeterReading = onNavigateToMeterReading,
+                    onNavigateToMeterDetail = onNavigateToMeterDetail,
                     fileUploadViewModel = fileUploadViewModel,
                     meterReadingViewModel = meterReadingViewModel
                 )
@@ -308,13 +310,14 @@ private fun OverviewCard(
 @Composable
 private fun RecentReadingsSection(
     onNavigateToMeterReading: () -> Unit,
+    onNavigateToMeterDetail: (Meter) -> Unit,
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel()
 ) {
     HomeMeterList(
         fileUploadViewModel = fileUploadViewModel,
         meterReadingViewModel = meterReadingViewModel,
-        onMeterClick = { onNavigateToMeterReading() },
+        onMeterClick = onNavigateToMeterDetail,
         onViewAllClick = onNavigateToMeterReading
     )
 }

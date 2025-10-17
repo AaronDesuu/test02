@@ -275,7 +275,7 @@ fun MeterStatisticsRow(
         StatisticCard(
             label = "Total",
             value = totalMeters.toString(),
-            icon = Icons.Default.Cable,
+            icon = Icons.Default.ElectricBolt,
             color = MaterialTheme.colorScheme.primary
             // modifier = Modifier.weight(1f) // <-- REMOVE THIS
         )
