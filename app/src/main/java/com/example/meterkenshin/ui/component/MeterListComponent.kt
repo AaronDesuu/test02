@@ -3,6 +3,7 @@ package com.example.meterkenshin.ui.component
 import android.annotation.SuppressLint
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,10 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ElectricBolt
@@ -35,6 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,6 +54,19 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import com.example.meterkenshin.ui.viewmodel.SortField
+import com.example.meterkenshin.ui.viewmodel.SortOrder
 
 /**
  * Reusable Meter List Component with Automatic BLE Scanning
@@ -196,6 +215,11 @@ fun MeterListComponent(
                             .padding(bottom = 16.dp)
                     )
                 }
+
+                FilterSortControlRow(
+                    meterReadingViewModel = meterReadingViewModel,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
 
                 // Meter list
                 val metersToShow = if (maxItemsToShow != null) {
@@ -360,6 +384,118 @@ private fun StatisticCard(
     }
 }
 
+/**
+ * Filter and Sort Control Row
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FilterSortControlRow(
+    meterReadingViewModel: MeterReadingViewModel,
+    modifier: Modifier = Modifier
+) {
+    val sortConfig by meterReadingViewModel.sortConfig.collectAsState()
+    var showSortMenu by remember { mutableStateOf(false) }
+    var showFilterMenu by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Filter Button
+        OutlinedButton(
+            onClick = { showFilterMenu = true },
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(
+                imageVector = Icons.Default.FilterList,
+                contentDescription = "Filter",
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("Filter")
+        }
+
+        // Sort Dropdown Button
+        Box(modifier = Modifier.weight(1f)) {
+            OutlinedButton(
+                onClick = { showSortMenu = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Sort,
+                    contentDescription = "Sort",
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = when(sortConfig.field) {
+                        SortField.SERIAL_NUMBER -> "S/N"
+                        SortField.LOCATION -> "Location"
+                        SortField.LAST_MAINTENANCE_DATE -> "Due Date"
+                    },
+                    maxLines = 1
+                )
+            }
+
+            DropdownMenu(
+                expanded = showSortMenu,
+                onDismissRequest = { showSortMenu = false }
+            ) {
+                SortField.entries.forEach { field ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(when(field) {
+                                SortField.SERIAL_NUMBER -> "Serial Number"
+                                SortField.LOCATION -> "Location"
+                                SortField.LAST_MAINTENANCE_DATE -> "Last Maintenance"
+                            })
+                        },
+                        onClick = {
+                            meterReadingViewModel.setSortConfig(field, sortConfig.order)
+                            showSortMenu = false
+                        },
+                        leadingIcon = {
+                            if (sortConfig.field == field) {
+                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        // Ascending/Descending Toggle Button
+        OutlinedButton(
+            onClick = {
+                val newOrder = if (sortConfig.order == SortOrder.ASCENDING)
+                    SortOrder.DESCENDING else SortOrder.ASCENDING
+                meterReadingViewModel.setSortConfig(sortConfig.field, newOrder)
+            },
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(
+                imageVector = if (sortConfig.order == SortOrder.ASCENDING)
+                    Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                contentDescription = if (sortConfig.order == SortOrder.ASCENDING) "Ascending" else "Descending",
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+
+    // Filter Dialog (placeholder for now)
+    if (showFilterMenu) {
+        AlertDialog(
+            onDismissRequest = { showFilterMenu = false },
+            title = { Text("Filter Options") },
+            text = { Text("Filter functionality coming soon!") },
+            confirmButton = {
+                TextButton(onClick = { showFilterMenu = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+}
 
 /**
  * Card shown when meter file is not uploaded

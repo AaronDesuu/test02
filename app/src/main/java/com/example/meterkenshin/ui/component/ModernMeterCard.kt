@@ -117,28 +117,6 @@ fun ModernMeterCard(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        if (isNearby && signalStrength != null) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Cable,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(14.dp),
-                                    tint = getSignalColor(signalStrength)
-                                )
-                                Text(
-                                    text = "$signalStrength dBm • ${getSignalQuality(signalStrength)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = getSignalColor(signalStrength),
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
                         // Last read date from CSV column 11 (readDate/lastMaintenanceDate)
                         meter.lastMaintenanceDate?.let { lastDate ->
                             val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
@@ -154,6 +132,15 @@ fun ModernMeterCard(
                                 color = MaterialTheme.colorScheme.error
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        Text(
+                            text = meter.location,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Normal
+                        )
 
                         Spacer(modifier = Modifier.height(4.dp))
 
@@ -197,6 +184,28 @@ fun ModernMeterCard(
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
+
+                    if (isNearby && signalStrength != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Cable,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = getSignalColor(signalStrength)
+                            )
+                            Text(
+                                text = "$signalStrength dBm • ${getSignalQuality(signalStrength)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = getSignalColor(signalStrength),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
 
                     // Show chevron if enabled
                     if (showChevron) {

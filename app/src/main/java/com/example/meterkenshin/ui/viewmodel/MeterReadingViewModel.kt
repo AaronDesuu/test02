@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
@@ -36,7 +37,6 @@ import java.util.Date
 import java.util.Locale
 
 class MeterReadingViewModel : ViewModel() {
-
     companion object {
         private const val TAG = "MeterReadingViewModel"
         private const val APP_FILES_FOLDER = "app_files"
@@ -83,6 +83,14 @@ class MeterReadingViewModel : ViewModel() {
 
     private val _nearbyMeterCount = MutableStateFlow(0)
     val nearbyMeterCount: StateFlow<Int> = _nearbyMeterCount.asStateFlow()
+
+    private val _sortConfig = MutableStateFlow(SortConfig())
+    val sortConfig: StateFlow<SortConfig> = _sortConfig.asStateFlow()
+
+    fun setSortConfig(field: SortField, order: SortOrder) {
+        _sortConfig.value = SortConfig(field, order)
+        applySorting()
+    }
 
     // Context and BLE
     @SuppressLint("StaticFieldLeak")
@@ -474,7 +482,30 @@ class MeterReadingViewModel : ViewModel() {
         }
     }
 
-    // ... rest of existing methods (updateSearchQuery, connectToMeter, etc.) ...
+    private fun applySorting() {
+        val currentMeters = _uiState.value.filteredMeters
+        val sorted = when (_sortConfig.value.field) {
+            SortField.SERIAL_NUMBER -> {
+                if (_sortConfig.value.order == SortOrder.ASCENDING)
+                    currentMeters.sortedBy { it.serialNumber }
+                else
+                    currentMeters.sortedByDescending { it.serialNumber }
+            }
+            SortField.LOCATION -> {
+                if (_sortConfig.value.order == SortOrder.ASCENDING)
+                    currentMeters.sortedBy { it.location }
+                else
+                    currentMeters.sortedByDescending { it.location }
+            }
+            SortField.LAST_MAINTENANCE_DATE -> {
+                if (_sortConfig.value.order == SortOrder.ASCENDING)
+                    currentMeters.sortedWith(compareBy(nullsLast()) { it.lastMaintenanceDate })
+                else
+                    currentMeters.sortedWith(compareByDescending(nullsLast()) { it.lastMaintenanceDate })
+            }
+        }
+        _uiState.update { it.copy(filteredMeters = sorted) }
+    }
 
     /**
      * Update search query and filter meters
@@ -585,6 +616,7 @@ class MeterReadingViewModel : ViewModel() {
         Log.i(TAG, "ViewModel cleared")
     }
 }
+
 
 
 // UI State
