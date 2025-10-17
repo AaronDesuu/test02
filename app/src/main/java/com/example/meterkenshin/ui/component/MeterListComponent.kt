@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.component
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,12 +19,14 @@ import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -51,6 +54,7 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
  * Handles all meter list functionality including CSV loading, search, and display
  * BLE scanning starts automatically when user is logged in
  */
+@SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterListComponent(
@@ -144,12 +148,26 @@ fun MeterListComponent(
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Search,
-                                    contentDescription = null
+                                    contentDescription = "Search"
                                 )
                             },
+                            trailingIcon = {
+                                IconButton(onClick = {
+                                    Toast.makeText(
+                                        context,
+                                        "Refreshing BLE connection...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    meterReadingViewModel.startBLEScanning()
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Refresh,
+                                        contentDescription = "Refresh BLE scan"
+                                    )
+                                }
+                            },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true
+                            shape = RoundedCornerShape(12.dp)
                         )
 
                         // Print Actions Dropdown
