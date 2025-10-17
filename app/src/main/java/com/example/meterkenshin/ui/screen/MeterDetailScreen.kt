@@ -1,7 +1,9 @@
 package com.example.meterkenshin.ui.screen
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,14 +37,20 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -62,13 +70,13 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 fun MeterDetailScreen(
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
-    onBack: () -> Unit = {},
     onRegistration: () -> Unit = {},
     onReadData: () -> Unit = {},
     onLoadProfile: () -> Unit = {},
     onEventLog: () -> Unit = {},
     onBillingData: () -> Unit = {},
-    onSetClock: () -> Unit = {}
+    onSetClock: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     // Collect BLE states
     val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
@@ -80,10 +88,12 @@ fun MeterDetailScreen(
 
     val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
 
-    // Connection status based on RSSI
+    // DLMS log state
+    var dlmsLog by remember { mutableStateOf("") }
+    val scrollState = rememberScrollState()
 
     Column(
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         Column(
             modifier = Modifier
@@ -93,23 +103,49 @@ fun MeterDetailScreen(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Connection status card with BLE info
             MeterStatusCard(
                 meter = meter,
                 rssi = rssi,
                 isNearby = isNearby
             )
 
-            // DLMS Functions Card
+            // DLMS function buttons
             DLMSFunctionsCard(
-                onRegistration = onRegistration,
-                onReadData = onReadData,
-                onLoadProfile = onLoadProfile,
-                onEventLog = onEventLog,
-                onBillingData = onBillingData,
-                onSetClock = onSetClock
+                onRegistration = {
+                    dlmsLog += "Starting Registration...\n"
+                    onRegistration()
+                },
+                onReadData = {
+                    dlmsLog += "Starting Read Data...\n"
+                    onReadData()
+                },
+                onLoadProfile = {
+                    dlmsLog += "Starting Load Profile...\n"
+                    onLoadProfile()
+                },
+                onEventLog = {
+                    dlmsLog += "Starting Event Log...\n"
+                    onEventLog()
+                },
+                onBillingData = {
+                    dlmsLog += "Starting Billing Data...\n"
+                    onBillingData()
+                },
+                onSetClock = {
+                    dlmsLog += "Starting Set Clock...\n"
+                    onSetClock()
+                }
             )
 
-            // Meter Specifications Card
+            // DLMS Log Output Card
+            DLMSLogCard(
+                logText = dlmsLog,
+                onClearLog = { dlmsLog = "" },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Meter specifications card
             MeterSpecificationsCard(meter = meter)
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -119,7 +155,98 @@ fun MeterDetailScreen(
 }
 
 /**
- * DLMS functions card with correct parameters
+ * DLMS Log Output Card - displays communication logs
+ */
+@Composable
+private fun DLMSLogCard(
+    logText: String,
+    onClearLog: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "DLMS Communication Log",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (logText.isNotEmpty()) {
+                    TextButton(onClick = onClearLog) {
+                        Text("Clear")
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Log output with scrollable container
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .padding(12.dp)
+            ) {
+                if (logText.isEmpty()) {
+                    Text(
+                        text = "No communication logs yet.\nExecute a DLMS function to see output here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.align(Alignment.Center),
+                        textAlign = TextAlign.Center
+                    )
+                } else {
+                    val scrollState = rememberScrollState()
+
+                    // Auto-scroll to bottom when log updates
+                    LaunchedEffect(logText) {
+                        scrollState.animateScrollTo(scrollState.maxValue)
+                    }
+
+                    Text(
+                        text = logText,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(scrollState)
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+/**
+ * DLMS functions card
  */
 @Composable
 private fun DLMSFunctionsCard(
