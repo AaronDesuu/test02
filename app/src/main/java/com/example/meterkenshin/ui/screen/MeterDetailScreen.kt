@@ -1,9 +1,7 @@
 package com.example.meterkenshin.ui.screen
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,37 +18,23 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Cable
-import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Payment
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,6 +44,9 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.data.MeterSpecifications
+import com.example.meterkenshin.ui.component.DLMSFunctionsCard
+import com.example.meterkenshin.ui.component.DLMSLogCard
+import com.example.meterkenshin.ui.viewmodel.DLMSRegistrationViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 
 /**
@@ -70,7 +57,7 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 fun MeterDetailScreen(
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
-    onRegistration: () -> Unit = {},
+    registrationViewModel: DLMSRegistrationViewModel = viewModel(),
     onReadData: () -> Unit = {},
     onLoadProfile: () -> Unit = {},
     onEventLog: () -> Unit = {},
@@ -78,23 +65,24 @@ fun MeterDetailScreen(
     onSetClock: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
-    // Collect BLE states
+    // Collect states
     val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
+    val registrationState by registrationViewModel.registrationState.collectAsState()
+    val dlmsLog by registrationViewModel.dlmsLog.collectAsState()
+
+    // Initialize DLMS on screen load
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        registrationViewModel.initializeDLMS(context)
+    }
 
     // Get RSSI for this meter
     val rssi = meter.bluetoothId?.let {
         discoveredDevices[it.uppercase()]
     } ?: -200
-
     val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
 
-    // DLMS log state
-    var dlmsLog by remember { mutableStateOf("") }
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = modifier.fillMaxSize()
-    ) {
+    Column(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -103,283 +91,53 @@ fun MeterDetailScreen(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Connection status card with BLE info
+            // 1. Connection status card
             MeterStatusCard(
                 meter = meter,
                 rssi = rssi,
                 isNearby = isNearby
             )
 
-            // DLMS function buttons
+            // 2. DLMS function buttons - NOW IN SEPARATE FILE
             DLMSFunctionsCard(
                 onRegistration = {
-                    dlmsLog += "Starting Registration...\n"
-                    onRegistration()
+                    registrationViewModel.startRegistration(meter)
                 },
                 onReadData = {
-                    dlmsLog += "Starting Read Data...\n"
+                    registrationViewModel.addLog("Read Data clicked")
                     onReadData()
                 },
                 onLoadProfile = {
-                    dlmsLog += "Starting Load Profile...\n"
+                    registrationViewModel.addLog("Load Profile clicked")
                     onLoadProfile()
                 },
                 onEventLog = {
-                    dlmsLog += "Starting Event Log...\n"
+                    registrationViewModel.addLog("Event Log clicked")
                     onEventLog()
                 },
                 onBillingData = {
-                    dlmsLog += "Starting Billing Data...\n"
+                    registrationViewModel.addLog("Billing Data clicked")
                     onBillingData()
                 },
                 onSetClock = {
-                    dlmsLog += "Starting Set Clock...\n"
+                    registrationViewModel.addLog("Set Clock clicked")
                     onSetClock()
-                }
+                },
+                isProcessing = registrationState.isRunning
             )
 
-            // DLMS Log Output Card
+            // 3. DLMS Log output - NOW IN SEPARATE FILE
             DLMSLogCard(
                 logText = dlmsLog,
-                onClearLog = { dlmsLog = "" },
-                modifier = Modifier.fillMaxWidth()
+                onClearLog = { registrationViewModel.clearLog() },
+                isProcessing = registrationState.isRunning
             )
 
-            // Meter specifications card
+            // 4. Meter specifications card
             MeterSpecificationsCard(meter = meter)
 
             Spacer(modifier = Modifier.height(16.dp))
             Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-        }
-    }
-}
-
-/**
- * DLMS Log Output Card - displays communication logs
- */
-@Composable
-private fun DLMSLogCard(
-    logText: String,
-    onClearLog: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "DLMS Communication Log",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                if (logText.isNotEmpty()) {
-                    TextButton(onClick = onClearLog) {
-                        Text("Clear")
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Log output with scrollable container
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surface,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .padding(12.dp)
-            ) {
-                if (logText.isEmpty()) {
-                    Text(
-                        text = "No communication logs yet.\nExecute a DLMS function to see output here.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.align(Alignment.Center),
-                        textAlign = TextAlign.Center
-                    )
-                } else {
-                    val scrollState = rememberScrollState()
-
-                    // Auto-scroll to bottom when log updates
-                    LaunchedEffect(logText) {
-                        scrollState.animateScrollTo(scrollState.maxValue)
-                    }
-
-                    Text(
-                        text = logText,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = FontFamily.Monospace
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(scrollState)
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-/**
- * DLMS functions card
- */
-@Composable
-private fun DLMSFunctionsCard(
-    onRegistration: () -> Unit,
-    onReadData: () -> Unit,
-    onLoadProfile: () -> Unit,
-    onEventLog: () -> Unit,
-    onBillingData: () -> Unit,
-    onSetClock: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.dlms_functions),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            FunctionButton(
-                text = stringResource(R.string.dlms_registration),
-                icon = Icons.Default.Person,
-                onClick = onRegistration,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FunctionButton(
-                text = stringResource(R.string.dlms_read_data),
-                icon = Icons.Default.Assessment,
-                onClick = onReadData,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FunctionButton(
-                text = stringResource(R.string.dlms_load_profile),
-                icon = Icons.Default.Storage,
-                onClick = onLoadProfile,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FunctionButton(
-                text = stringResource(R.string.dlms_event_log),
-                icon = Icons.Default.Event,
-                onClick = onEventLog,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FunctionButton(
-                text = stringResource(R.string.dlms_billing_data),
-                icon = Icons.Default.Payment,
-                onClick = onBillingData,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            FunctionButton(
-                text = stringResource(R.string.dlms_set_clock),
-                icon = Icons.Default.AccessTime,
-                onClick = onSetClock,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-
-/**
- * Function button component
- */
-@Composable
-private fun FunctionButton(
-    text: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    isActive: Boolean = true,
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(56.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isActive) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-            contentColor = if (isActive) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            }
-        ),
-        shape = RoundedCornerShape(16.dp),
-        enabled = true
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = text,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Medium
-            )
         }
     }
 }
