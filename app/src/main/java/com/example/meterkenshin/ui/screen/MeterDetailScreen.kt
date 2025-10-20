@@ -230,7 +230,7 @@ private fun MeterSpecificationsCard(
                 )
                 SpecificationRow(
                     label = "Last Reading Date",
-                    value = meter.lastMaintenanceDate?.let { dateFormat.format(it) } ?: "-"
+                    value = meter.readDate?.let { dateFormat.format(it) } ?: "-"
                 )
             }
             SpecificationRow(

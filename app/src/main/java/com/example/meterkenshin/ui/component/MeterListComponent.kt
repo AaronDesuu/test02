@@ -237,9 +237,8 @@ fun MeterListComponent(
                                 meter = meter,
                                 onClick = { onMeterClick(meter) },
                                 modifier = Modifier.fillMaxWidth(),
-                                dlmsMaxDemand = dlmsMaxDemandProvider?.invoke(meter),
                                 isNearby = isNearby,
-                                inspectionStatus = getInspectionStatus(meter, null, isNearby),
+                                inspectionStatus = getInspectionStatus(meter, isNearby),
                                 signalStrength = signalStrength
                             )
                         }
@@ -272,9 +271,8 @@ fun MeterListComponent(
                                 meter = meter,
                                 onClick = { onMeterClick(meter) },
                                 modifier = Modifier.fillMaxWidth(),
-                                dlmsMaxDemand = dlmsMaxDemandProvider?.invoke(meter),
                                 isNearby = isNearby,
-                                inspectionStatus = getInspectionStatus(meter, null, isNearby),
+                                inspectionStatus = getInspectionStatus(meter, isNearby),
                                 signalStrength = signalStrength
                             )
                         }

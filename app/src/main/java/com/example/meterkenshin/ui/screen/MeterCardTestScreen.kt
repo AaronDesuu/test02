@@ -232,7 +232,7 @@ private fun TestMeterCardItem(
  * Get scenario description based on meter properties
  */
 private fun getScenarioDescription(meter: Meter): String {
-    return when (meter.id) {
+    return when (meter.serialNumber) {
         "1" -> "✅ Scenario 1: Perfect meter - Active (activate=1), has readings (impKWh>0), no alerts (alert=0) → GREEN"
         "2" -> "⚠️ Scenario 2: Active with minor alerts - Has readings but alert=1.5 → ORANGE"
         "3" -> "❌ Scenario 3: Offline meter - activate=0 → RED (Not Inspected)"
@@ -241,7 +241,7 @@ private fun getScenarioDescription(meter: Meter): String {
         "6" -> "✅ Scenario 6: High consumption - Active, no alerts, good readings → GREEN"
         "7" -> "❌ Scenario 7: New installation - No maintenance history, impKWh=0 → RED"
         "8" -> "✅ Scenario 8: Solar/Export meter - Active, no alerts, good data → GREEN"
-        else -> "🧪 Stress test meter - ID: ${meter.id}, Serial: ${meter.serialNumber}"
+        else -> "🧪 Stress test meter - ID: ${meter.serialNumber}, Serial: ${meter.serialNumber}"
     }
 }
 

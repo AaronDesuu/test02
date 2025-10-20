@@ -44,18 +44,6 @@ class MeterReadingViewModel : ViewModel() {
         private const val SCAN_PERIOD: Long = 2000 // 2 seconds active scan
         private const val SCAN_INTERVAL: Long = 4000 // 4 seconds between scans
         private const val SCAN_COOLDOWN: Long = 500 // 500ms cooldown between stop/start
-
-        // DLMS Message Constants
-        private const val MSG_ADMIN = 0
-        private const val MSG_READER = 1
-        private const val MSG_CHANGE_THRESH = 2
-
-        // DLMS Object Constants
-        private const val IST_ENERGY_A_PLUS = 1
-        private const val IST_DEMAND_A_PLUS = 2
-        private const val IST_BILLING_PARAMS = 3
-        private const val IST_DEMAND_RESET = 4
-        private const val IST_DETECT = 5
     }
 
     // BluetoothLeService constants
@@ -548,9 +536,9 @@ class MeterReadingViewModel : ViewModel() {
             }
             SortField.LAST_MAINTENANCE_DATE -> {
                 if (_sortConfig.value.order == SortOrder.ASCENDING)
-                    currentMeters.sortedWith(compareBy(nullsLast()) { it.lastMaintenanceDate })
+                    currentMeters.sortedWith(compareBy(nullsLast()) { it.readDate })
                 else
-                    currentMeters.sortedWith(compareByDescending(nullsLast()) { it.lastMaintenanceDate })
+                    currentMeters.sortedWith(compareByDescending(nullsLast()) { it.readDate })
             }
         }
         _uiState.update { it.copy(filteredMeters = sorted) }
@@ -596,15 +584,12 @@ class MeterReadingViewModel : ViewModel() {
                         val columns = line.split(",").map { it.trim().removeSurrounding("\"") }
                         if (columns.size >= 12) {
                             val meter = Meter(
-                                id = columns[0],
                                 serialNumber = columns[2],
                                 location = "Location $lineNumber",
                                 type = MeterType.Type01,
                                 status = if (columns[1].toIntOrNull() == 1) MeterStatus.ACTIVE else MeterStatus.OFFLINE,
                                 installationDate = parseDate(columns[4]) ?: Date(),
-                                lastMaintenanceDate = parseDate(columns[11]),
-                                coordinates = null,
-                                activate = columns[1].toIntOrNull() ?: 0,
+                                readDate = parseDate(columns[11]),
                                 bluetoothId = columns[3].takeIf { it.isNotBlank() },
                                 fixedDate = parseDate(columns[4]),
                                 impKWh = columns[5].toDoubleOrNull(),
@@ -679,7 +664,6 @@ data class MeterReadingUiState(
 // Connection states
 enum class ConnectionState {
     DISCONNECTED,
-    CONNECTING,
     CONNECTED,
     FAILED
 }

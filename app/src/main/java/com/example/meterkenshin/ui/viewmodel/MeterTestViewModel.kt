@@ -36,15 +36,12 @@ class MeterTestViewModel : ViewModel() {
         // 1. Active meter with full data (Green - Inspected & Billing Printed)
         testMetersList.add(
             Meter(
-                id = "1",
                 serialNumber = "2286",
                 location = "Residential Block A",
                 type = MeterType.Type01,
                 status = MeterStatus.ACTIVE,
                 installationDate = Date(System.currentTimeMillis() - 365L * 24 * 60 * 60 * 1000), // 1 year ago
-                lastMaintenanceDate = Date(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000), // 30 days ago
-                coordinates = Coordinates(14.5995, 120.9842), // Manila coordinates
-                activate = 1,
+                readDate = Date(System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000), // 30 days ago
                 bluetoothId = "48:23:35:0E:47:E3",
                 fixedDate = Date(System.currentTimeMillis() - 365L * 24 * 60 * 60 * 1000),
                 impKWh = 1234.5,
@@ -59,15 +56,12 @@ class MeterTestViewModel : ViewModel() {
         // 2. Active meter - Orange (Inspected, Billing not Printed)
         testMetersList.add(
             Meter(
-                id = "2",
                 serialNumber = "2287",
                 location = "Commercial Center B",
                 type = MeterType.Type01,
                 status = MeterStatus.ACTIVE,
                 installationDate = Date(System.currentTimeMillis() - 200L * 24 * 60 * 60 * 1000),
-                lastMaintenanceDate = Date(System.currentTimeMillis() - 15L * 24 * 60 * 60 * 1000),
-                coordinates = Coordinates(14.6042, 120.9822),
-                activate = 1,
+                readDate = Date(System.currentTimeMillis() - 15L * 24 * 60 * 60 * 1000),
                 bluetoothId = "48:23:35:10:47:BC",
                 fixedDate = Date(System.currentTimeMillis() - 200L * 24 * 60 * 60 * 1000),
                 impKWh = 2567.8,
@@ -82,15 +76,12 @@ class MeterTestViewModel : ViewModel() {
         // 3. Offline meter - Red (Not Inspected)
         testMetersList.add(
             Meter(
-                id = "3",
                 serialNumber = "2288",
                 location = "Industrial Zone C",
                 type = MeterType.Type01,
                 status = MeterStatus.OFFLINE,
                 installationDate = Date(System.currentTimeMillis() - 500L * 24 * 60 * 60 * 1000),
-                lastMaintenanceDate = null, // Never maintained
-                coordinates = Coordinates(14.5844, 120.9794),
-                activate = 0, // Offline
+                readDate = null, // Never maintained
                 bluetoothId = "48:23:35:0E:33:CF",
                 fixedDate = Date(System.currentTimeMillis() - 500L * 24 * 60 * 60 * 1000),
                 impKWh = null, // No readings available
@@ -105,15 +96,12 @@ class MeterTestViewModel : ViewModel() {
         // 4. Maintenance meter with partial data
         testMetersList.add(
             Meter(
-                id = "4",
                 serialNumber = "2117",
                 location = "Office Complex D",
                 type = MeterType.Type01,
                 status = MeterStatus.MAINTENANCE,
                 installationDate = Date(System.currentTimeMillis() - 150L * 24 * 60 * 60 * 1000),
-                lastMaintenanceDate = Date(System.currentTimeMillis() - 5L * 24 * 60 * 60 * 1000),
-                coordinates = Coordinates(14.5729, 120.9944),
-                activate = 1,
+                readDate = Date(System.currentTimeMillis() - 5L * 24 * 60 * 60 * 1000),
                 bluetoothId = "48:23:35:0E:CB:F3",
                 fixedDate = Date(System.currentTimeMillis() - 150L * 24 * 60 * 60 * 1000),
                 impKWh = 856.3,
@@ -128,15 +116,12 @@ class MeterTestViewModel : ViewModel() {
         // 5. Error state meter
         testMetersList.add(
             Meter(
-                id = "5",
                 serialNumber = "2300",
                 location = "Hospital E",
                 type = MeterType.Type01,
                 status = MeterStatus.ERROR,
                 installationDate = Date(System.currentTimeMillis() - 100L * 24 * 60 * 60 * 1000),
-                lastMaintenanceDate = Date(System.currentTimeMillis() - 60L * 24 * 60 * 60 * 1000),
-                coordinates = Coordinates(14.5991, 120.9847),
-                activate = 0, // Error state
+                readDate = Date(System.currentTimeMillis() - 60L * 24 * 60 * 60 * 1000),
                 bluetoothId = "48:23:35:0E:55:AA",
                 fixedDate = Date(System.currentTimeMillis() - 100L * 24 * 60 * 60 * 1000),
                 impKWh = 3456.7,
@@ -151,15 +136,12 @@ class MeterTestViewModel : ViewModel() {
         // 6. High consumption meter (test max demand display)
         testMetersList.add(
             Meter(
-                id = "6",
                 serialNumber = "2400",
                 location = "Factory F",
                 type = MeterType.Type01,
                 status = MeterStatus.ACTIVE,
                 installationDate = Date(System.currentTimeMillis() - 300L * 24 * 60 * 60 * 1000),
-                lastMaintenanceDate = Date(System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000),
-                coordinates = Coordinates(14.5456, 120.9654),
-                activate = 1,
+                readDate = Date(System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000),
                 bluetoothId = "48:23:35:0E:77:BB",
                 fixedDate = Date(System.currentTimeMillis() - 300L * 24 * 60 * 60 * 1000),
                 impKWh = 9999.9, // High consumption
@@ -174,15 +156,12 @@ class MeterTestViewModel : ViewModel() {
         // 7. New meter with minimal data
         testMetersList.add(
             Meter(
-                id = "7",
                 serialNumber = "2500",
                 location = "Residential G",
                 type = MeterType.Type01,
                 status = MeterStatus.ACTIVE,
                 installationDate = Date(System.currentTimeMillis() - 1L * 24 * 60 * 60 * 1000), // Yesterday
-                lastMaintenanceDate = null, // New meter
-                coordinates = Coordinates(14.6123, 120.9765),
-                activate = 1,
+                readDate = null, // New meter
                 bluetoothId = "48:23:35:0E:88:CC",
                 fixedDate = Date(System.currentTimeMillis() - 1L * 24 * 60 * 60 * 1000),
                 impKWh = 12.3, // Minimal consumption
@@ -197,15 +176,12 @@ class MeterTestViewModel : ViewModel() {
         // 8. Meter with export functionality (Solar/Generator)
         testMetersList.add(
             Meter(
-                id = "8",
                 serialNumber = "2600",
                 location = "Solar Home H",
                 type = MeterType.Type01,
                 status = MeterStatus.ACTIVE,
                 installationDate = Date(System.currentTimeMillis() - 180L * 24 * 60 * 60 * 1000),
-                lastMaintenanceDate = Date(System.currentTimeMillis() - 20L * 24 * 60 * 60 * 1000),
-                coordinates = Coordinates(14.5678, 120.9543),
-                activate = 1,
+                readDate = Date(System.currentTimeMillis() - 20L * 24 * 60 * 60 * 1000),
                 bluetoothId = "48:23:35:0E:99:DD",
                 fixedDate = Date(System.currentTimeMillis() - 180L * 24 * 60 * 60 * 1000),
                 impKWh = 1567.4,
@@ -231,7 +207,7 @@ class MeterTestViewModel : ViewModel() {
                 delay(3000) // Update every 3 seconds
 
                 val updatedMeters = _testMeters.value.map { meter ->
-                    when (meter.id) {
+                    when (meter.serialNumber) {
                         "1", "2", "4", "6", "7", "8" -> {
                             // Simulate active meter updates
                             meter.copy(
@@ -239,14 +215,13 @@ class MeterTestViewModel : ViewModel() {
                                 expKWh = (meter.expKWh ?: 0.0) + Random.nextDouble(0.0, 0.5),
                                 impMaxDemandKW = (meter.impMaxDemandKW ?: 0.0) + Random.nextDouble(-1.0, 1.0),
                                 minVoltV = 220.0 + Random.nextDouble(-10.0, 15.0),
-                                lastMaintenanceDate = if (Random.nextBoolean()) Date() else meter.lastMaintenanceDate
+                                readDate = if (Random.nextBoolean()) Date() else meter.readDate
                             )
                         }
                         "3" -> {
                             // Simulate offline meter occasionally coming online
                             if (Random.nextDouble() < 0.1) { // 10% chance
                                 meter.copy(
-                                    activate = 1,
                                     status = MeterStatus.ACTIVE,
                                     impKWh = Random.nextDouble(100.0, 500.0),
                                     minVoltV = Random.nextDouble(210.0, 230.0)
@@ -261,7 +236,6 @@ class MeterTestViewModel : ViewModel() {
 
                             meter.copy(
                                 status = newStatus,
-                                activate = if (newStatus == MeterStatus.ACTIVE) 1 else 0,
                                 alert = Random.nextDouble(0.0, 3.0)
                             )
                         }
@@ -288,21 +262,14 @@ class MeterTestViewModel : ViewModel() {
         val existingMeters = _testMeters.value.toMutableList()
 
         repeat(count) { i ->
-            val meterIndex = existingMeters.size + i + 1
             existingMeters.add(
                 Meter(
-                    id = meterIndex.toString(),
                     serialNumber = (3000 + i).toString(),
                     location = "Test Location ${('A'..'Z').random()}$i",
                     type = MeterType.entries.toTypedArray().random(),
                     status = MeterStatus.entries.toTypedArray().random(),
                     installationDate = Date(System.currentTimeMillis() - Random.nextLong(1, 1000) * 24 * 60 * 60 * 1000),
-                    lastMaintenanceDate = if (Random.nextBoolean()) Date(System.currentTimeMillis() - Random.nextLong(1, 100) * 24 * 60 * 60 * 1000) else null,
-                    coordinates = Coordinates(
-                        14.0 + Random.nextDouble(0.0, 2.0),
-                        120.0 + Random.nextDouble(0.0, 2.0)
-                    ),
-                    activate = if (Random.nextDouble() < 0.8) 1 else 0,
+                    readDate = if (Random.nextBoolean()) Date(System.currentTimeMillis() - Random.nextLong(1, 100) * 24 * 60 * 60 * 1000) else null,
                     bluetoothId = "48:23:35:${String.format("%02X", Random.nextInt(256))}:${String.format("%02X", Random.nextInt(256))}:${String.format("%02X", Random.nextInt(256))}",
                     fixedDate = Date(System.currentTimeMillis() - Random.nextLong(1, 1000) * 24 * 60 * 60 * 1000),
                     impKWh = if (Random.nextBoolean()) Random.nextDouble(0.0, 10000.0) else null,

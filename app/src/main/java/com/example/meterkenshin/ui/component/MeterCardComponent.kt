@@ -50,9 +50,8 @@ fun ModernMeterCard(
     modifier: Modifier = Modifier,
     showChevron: Boolean = true,
     customContent: (@Composable () -> Unit)? = null,
-    dlmsMaxDemand: Double? = null,
     isNearby: Boolean = false,
-    inspectionStatus: InspectionStatus = getInspectionStatus(meter, dlmsMaxDemand, isNearby), // ✅ NEW
+    inspectionStatus: InspectionStatus = getInspectionStatus(meter, isNearby), // ✅ NEW
     signalStrength: Int? = null, // ✅ NEW (RSSI in dBm)
 ) {
     // Determine connection status based on activate field from CSV (via MeterReadingViewModel)
@@ -115,7 +114,7 @@ fun ModernMeterCard(
                         Spacer(modifier = Modifier.height(4.dp))
 
                         // Last read date from CSV column 11 (readDate/lastMaintenanceDate)
-                        meter.lastMaintenanceDate?.let { lastDate ->
+                        meter.readDate?.let { lastDate ->
                             val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
                             Text(
                                 text = "Last read: ${formatter.format(lastDate)}",
@@ -307,12 +306,12 @@ enum class ConnectionStatus(
  * Uses the meter's properties to determine the actual inspection and billing status
  */
 @Composable
-fun getInspectionStatus(meter: Meter, dlmsData: Any? = null, isNearby: Boolean): InspectionStatus {
+fun getInspectionStatus(meter: Meter, isNearby: Boolean): InspectionStatus {
     // Use meter data to determine inspection status
     return when {
 
         // If meter has no readings or is new (no lastMaintenanceDate), not inspected
-        meter.lastMaintenanceDate == null && (meter.impKWh == null || meter.impKWh == 0.0) -> {
+        meter.readDate == null && (meter.impKWh == null || meter.impKWh == 0.0) -> {
             InspectionStatus.NOT_INSPECTED
         }
 

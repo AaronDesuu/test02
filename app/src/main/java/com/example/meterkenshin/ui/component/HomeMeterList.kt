@@ -137,7 +137,7 @@ fun HomeMeterList(
                             modifier = Modifier.fillMaxWidth(),
                             isNearby = isNearby,              // BLE connection status
                             signalStrength = signalStrength,  // RSSI value
-                            inspectionStatus = getInspectionStatus(meter, null, isNearby)
+                            inspectionStatus = getInspectionStatus(meter, isNearby)
                         )
                     }
 
