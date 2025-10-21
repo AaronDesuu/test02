@@ -645,12 +645,35 @@ class MeterReadingViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(errorMessage = message)
     }
 
+
+    /**
+     * Pause periodic scanning (for MeterDetailScreen)
+     */
+    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
+    fun pauseScanning() {
+        scanJob?.cancel()
+        stopBLEScanningInternal()
+        Log.i(TAG, "BLE scanning paused")
+    }
+
+    /**
+     * Resume periodic scanning (when leaving MeterDetailScreen)
+     */
+    @RequiresPermission(allOf = [
+        Manifest.permission.BLUETOOTH_SCAN,
+        Manifest.permission.BLUETOOTH_CONNECT,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ])
+    fun resumeScanning() {
+        startPeriodicScanning()
+        Log.i(TAG, "BLE scanning resumed")
+    }
+
     override fun onCleared() {
         super.onCleared()
         Log.i(TAG, "ViewModel cleared")
     }
 }
-
 
 
 // UI State

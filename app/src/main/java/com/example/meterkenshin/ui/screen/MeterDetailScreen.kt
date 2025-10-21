@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.screen
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,6 +54,7 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
  */
+@SuppressLint("MissingPermission")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterDetailScreen(
@@ -81,6 +84,28 @@ fun MeterDetailScreen(
         discoveredDevices[it.uppercase()]
     } ?: -200
     val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+
+    // Pause scanning when this screen is displayed
+    LaunchedEffect(Unit) {
+        try {
+            meterReadingViewModel.pauseScanning()
+            Log.i("MeterDetailScreen", "BLE scanning paused on entry")
+        } catch (e: Exception) {
+            Log.e("MeterDetailScreen", "Error pausing BLE scan", e)
+        }
+    }
+
+    // Resume scanning when leaving
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                meterReadingViewModel.resumeScanning()
+                Log.i("MeterDetailScreen", "BLE scanning resumed on exit")
+            } catch (e: Exception) {
+                Log.e("MeterDetailScreen", "Error resuming BLE scan", e)
+            }
+        }
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         Column(
