@@ -358,32 +358,54 @@ class DLMSRegistrationViewModel : ViewModel() {
 
     private suspend fun performSetClock(): Boolean {
         mDataIndex = 0
+        mSel = 0
         mParameter = StringBuilder()
 
-        // Get current time + 1 second and format like project01
         val sec = dlms?.CurrentDatetimeSec()?.plus(1) ?: return false
         val rawDatetime = dlms?.SecToRawDatetime(sec) ?: return false
 
-        // CRITICAL: "090c" prefix is required for octet-string datetime
         mParameter.append("090c").append(rawDatetime)
 
-        return accessData(1, 8, 2, false)
+        return accessData(1, DLMS.IST_DATETIME_NOW, 2, false)
     }
 
     private suspend fun performDemandReset(): Boolean {
         mDataIndex = 0
-        mParameter = StringBuilder("120001")  // project01's demand reset parameter
-        return accessData(2, 1, 1, false)
+        mParameter = StringBuilder("120001")
+        // FIX: Use IST_DEMAND_RESET (88) instead of 1
+        return accessData(2, DLMS.IST_DEMAND_RESET, 1, false)
     }
 
     private suspend fun performGetBillingCount(): Boolean {
-        return accessData(0, 0, 2, false)
+        mDataIndex = 0
+        mSel = 0
+        mParameter = StringBuilder()
+        // Get billing count (attribute 7, not 2)
+        return accessData(0, DLMS.IST_BILLING_PARAMS, 7, false)
     }
 
     private suspend fun performGetBillingData(): Boolean {
-        mDataIndex = 1
-        mParameter = StringBuilder()
-        return accessData(0, 98, 2, true)
+        mDataIndex = 0
+        mSel = 2
+
+        // Get the billing count from mReceive (should be from previous step)
+        val billingCount = if (mReceive != null && mReceive!!.size > 1) {
+            try {
+                mReceive!![1].toInt()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse billing count: ${e.message}")
+                1 // Default to 1
+            }
+        } else {
+            1
+        }
+
+        // Build CounterParameter with the count
+        mParameter = StringBuilder(
+            String.format("020406%08x06%08x120001120000", billingCount, billingCount)
+        )
+
+        return accessData(0, DLMS.IST_BILLING_PARAMS, 2, true)
     }
 
     private suspend fun accessData(mode: Int, index: Int, attr: Int, modeling: Boolean): Boolean {
