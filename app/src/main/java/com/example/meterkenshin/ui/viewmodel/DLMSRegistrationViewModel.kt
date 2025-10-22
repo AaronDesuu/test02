@@ -1,6 +1,5 @@
 package com.example.meterkenshin.ui.viewmodel
 
-import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -10,6 +9,7 @@ import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.bluetooth.BluetoothLeService
@@ -35,6 +35,7 @@ data class RegistrationState(
 /**
  * ViewModel for DLMS Registration
  * Matches project01's MSG_SETUP flow with Bluetooth integration
+ * FIXED: Added bounds checking like project01
  */
 class DLMSRegistrationViewModel : ViewModel() {
 
@@ -63,36 +64,41 @@ class DLMSRegistrationViewModel : ViewModel() {
         private const val TAG = "DLMSRegistration"
     }
 
-    // Broadcast receiver for Bluetooth data
+    /**
+     * Broadcast receiver for GATT events
+     */
     private val mGattUpdateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 BluetoothLeService.ACTION_GATT_CONNECTED -> {
-                    Log.i(TAG, "ACTION_GATT_CONNECTED")
+                    Log.i(TAG, "GATT Connected")
                 }
                 BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
-                    Log.i(TAG, "ACTION_GATT_DISCONNECTED")
-                    appendLog("ERROR: Bluetooth disconnected")
+                    Log.i(TAG, "GATT Disconnected")
                 }
                 BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED -> {
-                    Log.i(TAG, "ACTION_GATT_SERVICES_DISCOVERED")
-                    mArrived = 0
+                    Log.i(TAG, "GATT Services Discovered - READY")
+                    mArrived = 0  // Set ready flag
                 }
                 BluetoothLeService.ACTION_DATA_AVAILABLE -> {
-                    Log.i(TAG, "ACTION_DATA_AVAILABLE")
-                    mData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA) ?: ByteArray(0)
-                    mArrived++
+                    val data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA)
+                    if (data != null) {
+                        mData = data
+                        mArrived++
+                        Log.d(TAG, "Data: ${data.size} bytes")
+                    }
                 }
             }
         }
     }
-
-    // Service connection for BLE
+    /**
+     * Service connection for Bluetooth LE
+     */
     private val mServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
             mBluetoothLeService = (service as BluetoothLeService.LocalBinder).service
-            if (mBluetoothLeService?.initialize() != true) {
-                Log.i(TAG, "Fail to initialize Bluetooth service.")
+            if (mBluetoothLeService == null) {
+                Log.e(TAG, "Failed to initialize Bluetooth service")
                 mServiceActive = false
             } else {
                 Log.i(TAG, "Success to initialize Bluetooth service.")
@@ -110,60 +116,79 @@ class DLMSRegistrationViewModel : ViewModel() {
     /**
      * Initialize DLMS with Admin level and bind Bluetooth service
      */
-    fun initializeDLMS(context: Context) {
-        try {
-            mContext = context
-            dlms = DLMS(context)
-            dlms?.readMeterInformation()
-            dlms?.setCurrentLevel(DLMS.RANK_ADMIN)
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    fun initializeDLMS(context: Context, meter: Meter) {
+        mContext = context
+        dlms = DLMS(context)
 
-            // Register broadcast receiver - FIX FOR ANDROID 13+
-            val filter = IntentFilter().apply {
-                addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
-                addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
-                addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED)
-                addAction(BluetoothLeService.ACTION_DATA_AVAILABLE)
-                addAction(BluetoothLeService.ACTION_GATT_ERROR)
-            }
+        // Set DLMS credentials
+        dlms?.Password(meter.key, 1)
+        dlms?.writeAddress(meter.logical, 1)
+        dlms?.writeRank(String.format("%02x", meter.rank), 1)
 
-            // Use RECEIVER_NOT_EXPORTED for Android 13+ (like MeterReadingViewModel does)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(mGattUpdateReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                @Suppress("UnspecifiedRegisterReceiverFlag")
-                context.registerReceiver(mGattUpdateReceiver, filter)
-            }
-
-            // Bind Bluetooth service
-            val gattServiceIntent = Intent(context, BluetoothLeService::class.java)
-            context.bindService(gattServiceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
-
-            Log.i(TAG, "DLMS initialized")
-        } catch (e: Exception) {
-            Log.e(TAG, "Init failed: ${e.message}")
+        // Register broadcast receiver with proper flag
+        val filter = IntentFilter().apply {
+            addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
+            addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
+            addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED)
+            addAction(BluetoothLeService.ACTION_DATA_AVAILABLE)
         }
+
+        context.registerReceiver(
+            mGattUpdateReceiver,
+            filter,
+            Context.RECEIVER_NOT_EXPORTED  // Add this flag
+        )
+
+        // Bind BluetoothLeService
+        val serviceIntent = Intent(context, BluetoothLeService::class.java)
+        context.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
+
+        appendLog("DLMS initialized")
     }
 
     /**
      * Start registration - NOW WITH SESSION ESTABLISHMENT
      */
-    fun startRegistration(meter: Meter) {
+    fun startRegistration(context: Context, meter: Meter) {
         viewModelScope.launch {
             try {
-                if (dlms == null) {
-                    appendLog("ERROR: DLMS not initialized")
-                    return@launch
-                }
-
-                if (!mServiceActive) {
-                    appendLog("ERROR: Bluetooth service not active")
+                if (dlms == null || !mServiceActive || meter.bluetoothId.isNullOrEmpty()) {
+                    appendLog("ERROR: Not ready")
                     return@launch
                 }
 
                 _registrationState.value = RegistrationState(isRunning = true)
                 _dlmsLog.value = ""
 
-                // STEP 1: Establish DLMS session FIRST
+                // Connect to meter
+                appendLog("Connecting to ${meter.bluetoothId}...")
+                mArrived = -1  // Reset flag
+
+                if (mBluetoothLeService?.connect(meter.bluetoothId) != true) {
+                    appendLog("ERROR: Failed to connect")
+                    return@launch
+                }
+
+                // Wait for GATT_SERVICES_DISCOVERED (mArrived becomes 0)
+                var ready = false
+                for (i in 0..100) {
+                    delay(100)
+                    if (mArrived == 0) {
+                        ready = true
+                        break
+                    }
+                }
+
+                if (!ready) {
+                    appendLog("ERROR: Services not discovered")
+                    return@launch
+                }
+
+                appendLog("Connected and ready")
+                delay(500)
+
+                // Now start DLMS session
                 appendLog("Establishing DLMS session...")
                 if (!establishSession()) {
                     appendLog("ERROR: Failed to establish DLMS session")
@@ -273,18 +298,12 @@ class DLMSRegistrationViewModel : ViewModel() {
                             mStep++
                             Log.i(TAG, "Challenge: ${challengeRequest.size}")
                         } else {
-                            // No challenge needed for this rank
-                            if (dlms?.Rank() == DLMS.RANK_POWER.toByte() ||
-                                dlms?.Rank() == DLMS.RANK_READER.toByte() ||
-                                dlms?.Rank() == DLMS.RANK_PUBLIC.toByte()
-                            ) {
-                                sessionEstablished = true
-                                mStep = 0
-                            } else {
-                                return false
-                            }
+                            // No challenge needed
+                            sessionEstablished = true
+                            return true
                         }
                     } else {
+                        Log.e(TAG, "Challenge failed")
                         return false
                     }
                 }
@@ -293,21 +312,19 @@ class DLMSRegistrationViewModel : ViewModel() {
                     val res = IntArray(2)
                     dlms?.Confirm(res, mData)
                     if (res[0] != 0) {
-                        if (dlms?.Rank() == DLMS.RANK_ADMIN.toByte() || dlms?.Rank() == DLMS.RANK_SUPER.toByte()) {
-                            sessionEstablished = true
-                            mStep = 0
-                            Log.i(TAG, "Confirm - Session established")
-                        }
+                        sessionEstablished = true
+                        return true
                     } else {
+                        Log.e(TAG, "Confirm failed")
                         return false
                     }
                 }
                 1, 3, 5 -> {
-                    // Wait for data
+                    // Waiting for response
                     mTimer++
-                    if (mArrived > 0) {
+                    if (mArrived > 0 && mTimer > 5) {
                         mStep++
-                        Log.i(TAG, "DataArrived-session: ${mData.size}")
+                        Log.i(TAG, "DataArrived-session:${mData.size}")
                     }
                 }
             }
@@ -316,7 +333,7 @@ class DLMSRegistrationViewModel : ViewModel() {
             timeout++
         }
 
-        return sessionEstablished
+        return false // Timeout
     }
 
     /**
@@ -327,11 +344,6 @@ class DLMSRegistrationViewModel : ViewModel() {
         mStep = 0
         mSel = 0
         mParameter.clear()
-
-        // Build clock parameter
-        val currentTimeSec = System.currentTimeMillis() / 1000 + 1
-        mParameter.append("090c")
-        // TODO: Implement SecToRawDatetime - for now use placeholder
         mParameter.append("0007e50a160f0a00ffff8000") // Example datetime
 
         return accessData(1, DLMS.IST_DATETIME_NOW, 2, false)
@@ -376,6 +388,7 @@ class DLMSRegistrationViewModel : ViewModel() {
 
     /**
      * Access Data - matches project01's AccessData method
+     * FIXED: Added bounds checking like project01
      * @param mode 0=GET, 1=SET, 2=ACTION
      * @param index Object index
      * @param attr Attribute
@@ -416,6 +429,13 @@ class DLMSRegistrationViewModel : ViewModel() {
                 res[1] = 0
                 mReceive = dlms?.DataRes(res, mData, modeling)
 
+                // FIX: Add bounds checking like project01 does
+                if (mReceive == null || mReceive!!.isEmpty()) {
+                    Log.e(TAG, "ERROR: mReceive is null or empty")
+                    mStep = 0
+                    return false
+                }
+
                 if (res[1] < 0) {
                     ret = res[1]
                     mStep = 0
@@ -423,6 +443,23 @@ class DLMSRegistrationViewModel : ViewModel() {
                 } else {
                     ret = res[0]
                     mStep = 0
+
+                    // FIX: Validate response data based on mode (matching project01 pattern)
+                    // For SET/ACTION operations (mode 1,2), check if response indicates success
+                    if (mode > 0) {
+                        // Check bounds before accessing index 1
+                        if (mReceive!!.size > 1) {
+                            // Check for "success (0)" response like project01 does
+                            if (!mReceive!![1].equals("success (0)")) {
+                                Log.e(TAG, "Operation failed: ${mReceive!![1]}")
+                                return false
+                            }
+                        } else {
+                            Log.e(TAG, "ERROR: Index 1 out of bounds for length ${mReceive!!.size}")
+                            return false
+                        }
+                    }
+
                     return ret == 0 // Success if ret == 0
                 }
             }

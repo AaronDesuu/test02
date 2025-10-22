@@ -20,6 +20,12 @@ data class Meter(
     val status: MeterStatus,
     val installationDate: Date?,
     val bluetoothId: String? = null,
+
+    // DLMS credentials (add these)
+    val account: String = "Admin",
+    val key: String = "30303030303030303030303030303030",
+    val logical: String = "61",
+    val rank: Int = 1,
     )
 
 enum class MeterType(val displayName: String) {

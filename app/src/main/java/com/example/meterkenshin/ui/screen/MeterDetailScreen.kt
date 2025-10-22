@@ -76,7 +76,7 @@ fun MeterDetailScreen(
     // Initialize DLMS on screen load
     val context = LocalContext.current
     LaunchedEffect(Unit) {
-        registrationViewModel.initializeDLMS(context)
+        registrationViewModel.initializeDLMS(context, meter)
     }
 
     // Get RSSI for this meter
@@ -126,7 +126,7 @@ fun MeterDetailScreen(
             // 2. DLMS function buttons - NOW IN SEPARATE FILE
             DLMSFunctionsCard(
                 onRegistration = {
-                    registrationViewModel.startRegistration(meter)
+                    registrationViewModel.startRegistration(context, meter)
                 },
                 onReadData = {
                     registrationViewModel.addLog("Read Data clicked")
