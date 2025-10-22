@@ -30,6 +30,7 @@ data class RegistrationState(
     val error: String? = null
 )
 
+@SuppressLint("MissingPermission")
 class DLMSRegistrationViewModel : ViewModel() {
 
     private val _registrationState = MutableStateFlow(RegistrationState())
@@ -405,7 +406,20 @@ class DLMSRegistrationViewModel : ViewModel() {
             String.format("020406%08x06%08x120001120000", billingCount, billingCount)
         )
 
-        return accessData(0, DLMS.IST_BILLING_PARAMS, 2, true)
+        // FIX: Use modeling=false (like project01)
+        val success = accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
+
+        // FIX: Check size >= 10 to safely access indices 0-9
+        if (success && mReceive != null && mReceive!!.size >= 10) {
+            Log.i(TAG, "Billing data retrieved successfully: ${mReceive!!.size} fields")
+            // Data is now available in mReceive[0] through mReceive[9]:
+            // [0]=Read date, [1]=Fixed date, [2]=IMP, [3]=EXP, [4]=ABS, [5]=NET
+            // [6]=Max_Imp, [7]=Max_Exp, [8]=Min_Volt0, [9]=Alert
+            return true
+        } else {
+            Log.e(TAG, "Billing data size insufficient. Size: ${mReceive?.size ?: 0}, expected >= 10")
+            return false
+        }
     }
 
     private suspend fun accessData(mode: Int, index: Int, attr: Int, modeling: Boolean): Boolean {
