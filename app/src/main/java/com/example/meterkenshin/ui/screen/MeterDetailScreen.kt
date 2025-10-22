@@ -148,7 +148,7 @@ fun MeterDetailScreen(
                 onRegistration = {
                     // FIX: Only allow if DLMS is initialized
                     if (isDlmsInitialized) {
-                        registrationViewModel.startRegistration(context, meter)
+                        registrationViewModel.startRegistration(meter)
                     } else {
                         Log.w("MeterDetailScreen", "DLMS not yet initialized")
                     }

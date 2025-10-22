@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.viewmodel
 
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -39,6 +40,7 @@ class DLMSRegistrationViewModel : ViewModel() {
 
     private var dlms: DLMS? = null
     private var mBluetoothLeService: BluetoothLeService? = null
+
     private var mContext: Context? = null
 
     // FIX: Track service readiness and receiver registration
@@ -74,7 +76,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                 BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED -> {
                     Log.i(TAG, "!!! GATT Services Discovered - Setting mArrived = 0 !!!")
                     mArrived = 0  // THIS IS THE KEY FLAG
-                    Log.i(TAG, "mArrived is now: $mArrived")
+                    Log.i(TAG, "mArrived is now: ${0}")
                 }
                 BluetoothLeService.ACTION_DATA_AVAILABLE -> {
                     val data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA)
@@ -94,15 +96,9 @@ class DLMSRegistrationViewModel : ViewModel() {
     private val mServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
             mBluetoothLeService = (service as BluetoothLeService.LocalBinder).service
-            if (mBluetoothLeService == null) {
-                Log.e(TAG, "Failed to initialize Bluetooth service")
-                mServiceBound = false
-                mServiceActive = false
-            } else {
-                Log.i(TAG, "Success to initialize Bluetooth service.")
-                mServiceBound = true  // FIX: Mark as bound
-                mServiceActive = true
-            }
+            Log.i(TAG, "Success to initialize Bluetooth service.")
+            mServiceBound = true  // FIX: Mark as bound
+            mServiceActive = true
         }
 
         override fun onServiceDisconnected(componentName: ComponentName) {
@@ -138,16 +134,11 @@ class DLMSRegistrationViewModel : ViewModel() {
             try {
                 // CRITICAL: Use RECEIVER_EXPORTED for Android 13+
                 // Service broadcasts need to reach this receiver within the same app
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    context.registerReceiver(
-                        mGattUpdateReceiver,
-                        filter,
-                        Context.RECEIVER_EXPORTED  // Allow broadcasts from our own service
-                    )
-                } else {
-                    @Suppress("UnspecifiedRegisterReceiverFlag")
-                    context.registerReceiver(mGattUpdateReceiver, filter)
-                }
+                context.registerReceiver(
+                    mGattUpdateReceiver,
+                    filter,
+                    Context.RECEIVER_EXPORTED  // Allow broadcasts from our own service
+                )
                 mReceiverRegistered = true
                 Log.i(TAG, "Broadcast receiver registered successfully")
             } catch (e: Exception) {
@@ -181,7 +172,7 @@ class DLMSRegistrationViewModel : ViewModel() {
     /**
      * Start registration - NOW ASSUMES SERVICE IS READY
      */
-    fun startRegistration(context: Context, meter: Meter) {
+    fun startRegistration(meter: Meter) {
         viewModelScope.launch {
             try {
                 // FIX: Check service is actually bound
@@ -210,7 +201,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                     Log.v(TAG, "Wait loop $i: mArrived=$mArrived")
                     if (mArrived == 0) {
                         ready = true
-                        Log.i(TAG, "Service discovered! mArrived=$mArrived at iteration $i")
+                        Log.i(TAG, "Service discovered! mArrived=${0} at iteration $i")
                         break
                     }
                 }
@@ -452,7 +443,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                     }
 
                     if (mode > 0 && mReceive!!.size > 1) {
-                        if (!mReceive!![1].equals("success (0)")) {
+                        if (mReceive!![1] != "success (0)") {
                             Log.e(TAG, "Operation failed: ${mReceive!![1]}")
                             return false
                         }
