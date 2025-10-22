@@ -16,6 +16,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.data.manager.RegistrationDataManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,6 +58,8 @@ class DLMSRegistrationViewModel : ViewModel() {
     private var mDataIndex: Byte = 0
     private var mParameter = StringBuilder()
     private var mReceive: ArrayList<String>? = null
+    private var registrationDataManager: RegistrationDataManager? = null
+    private var currentMeter: Meter? = null
 
     companion object {
         private const val TAG = "DLMSRegistration"
@@ -118,6 +121,8 @@ class DLMSRegistrationViewModel : ViewModel() {
     suspend fun initializeDLMS(context: Context, meter: Meter) {
         mContext = context
         dlms = DLMS(context)
+        currentMeter = meter
+        registrationDataManager = RegistrationDataManager(context)
 
         dlms?.Password(meter.key, 1)
         dlms?.writeAddress(meter.logical, 1)
@@ -389,37 +394,43 @@ class DLMSRegistrationViewModel : ViewModel() {
         mDataIndex = 0
         mSel = 2
 
-        // Get the billing count from mReceive (should be from previous step)
         val billingCount = if (mReceive != null && mReceive!!.size > 1) {
             try {
                 mReceive!![1].toInt()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to parse billing count: ${e.message}")
-                1 // Default to 1
+                1
             }
         } else {
             1
         }
 
-        // Build CounterParameter with the count
         mParameter = StringBuilder(
             String.format("020406%08x06%08x120001120000", billingCount, billingCount)
         )
 
-        // FIX: Use modeling=false (like project01)
         val success = accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
 
-        // FIX: Check size >= 10 to safely access indices 0-9
         if (success && mReceive != null && mReceive!!.size >= 10) {
-            Log.i(TAG, "Billing data retrieved successfully: ${mReceive!!.size} fields")
-            // Data is now available in mReceive[0] through mReceive[9]:
-            // [0]=Read date, [1]=Fixed date, [2]=IMP, [3]=EXP, [4]=ABS, [5]=NET
-            // [6]=Max_Imp, [7]=Max_Exp, [8]=Min_Volt0, [9]=Alert
+            Log.i(TAG, "Billing data retrieved: ${mReceive!!.joinToString(",")}")
+            appendLog("Billing data retrieved")
+
+            // Save registration data to CSV files
+            currentMeter?.let { meter ->
+                registrationDataManager?.let { manager ->
+                    if (manager.saveRegistrationData(meter, mReceive!!)) {
+                        appendLog("Registration data saved to CSV files")
+                    } else {
+                        appendLog("WARNING: Failed to save registration data")
+                    }
+                }
+            }
+
             return true
-        } else {
-            Log.e(TAG, "Billing data size insufficient. Size: ${mReceive?.size ?: 0}, expected >= 10")
-            return false
         }
+
+        Log.e(TAG, "Failed to get billing data or insufficient data")
+        return false
     }
 
     private suspend fun accessData(mode: Int, index: Int, attr: Int, modeling: Boolean): Boolean {

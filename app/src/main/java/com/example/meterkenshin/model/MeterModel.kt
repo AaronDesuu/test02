@@ -4,6 +4,7 @@ import java.util.Date
 
 data class Meter(
     // Existing variable
+    val uid: Int,
     val serialNumber: String,
     val fixedDate: Date? = null,
     val impKWh: Double? = null,

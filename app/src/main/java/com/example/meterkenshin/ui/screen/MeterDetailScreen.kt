@@ -387,6 +387,12 @@ private fun MeterStatusCard(
                 value = meter.serialNumber.ifBlank { "-" }
             )
 
+            // Serial Number
+            SpecificationRow(
+                label = stringResource(R.string.uid).replace(": %1\$s", ""),
+                value = meter.uid.toString().ifBlank { "-" }
+            )
+
             // BLE Connection Status
             SpecificationRow(
                 label = stringResource(R.string.status_connected),

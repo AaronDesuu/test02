@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.lang.Math.random
 import java.util.*
 import kotlin.random.Random
 
@@ -36,6 +37,7 @@ class MeterTestViewModel : ViewModel() {
         // 1. Active meter with full data (Green - Inspected & Billing Printed)
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2286",
                 location = "Residential Block A",
                 type = MeterType.Type01,
@@ -56,6 +58,7 @@ class MeterTestViewModel : ViewModel() {
         // 2. Active meter - Orange (Inspected, Billing not Printed)
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2287",
                 location = "Commercial Center B",
                 type = MeterType.Type01,
@@ -76,6 +79,7 @@ class MeterTestViewModel : ViewModel() {
         // 3. Offline meter - Red (Not Inspected)
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2288",
                 location = "Industrial Zone C",
                 type = MeterType.Type01,
@@ -96,6 +100,7 @@ class MeterTestViewModel : ViewModel() {
         // 4. Maintenance meter with partial data
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2117",
                 location = "Office Complex D",
                 type = MeterType.Type01,
@@ -116,6 +121,7 @@ class MeterTestViewModel : ViewModel() {
         // 5. Error state meter
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2300",
                 location = "Hospital E",
                 type = MeterType.Type01,
@@ -136,6 +142,7 @@ class MeterTestViewModel : ViewModel() {
         // 6. High consumption meter (test max demand display)
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2400",
                 location = "Factory F",
                 type = MeterType.Type01,
@@ -156,6 +163,7 @@ class MeterTestViewModel : ViewModel() {
         // 7. New meter with minimal data
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2500",
                 location = "Residential G",
                 type = MeterType.Type01,
@@ -176,6 +184,7 @@ class MeterTestViewModel : ViewModel() {
         // 8. Meter with export functionality (Solar/Generator)
         testMetersList.add(
             Meter(
+                uid = 0,
                 serialNumber = "2600",
                 location = "Solar Home H",
                 type = MeterType.Type01,
@@ -264,6 +273,7 @@ class MeterTestViewModel : ViewModel() {
         repeat(count) { i ->
             existingMeters.add(
                 Meter(
+                    uid = 0,
                     serialNumber = (3000 + i).toString(),
                     location = "Test Location ${('A'..'Z').random()}$i",
                     type = MeterType.entries.toTypedArray().random(),

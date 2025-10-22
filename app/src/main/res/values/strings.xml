@@ -710,5 +710,6 @@
     <string name="select_and_print_description">Select meter(s) from the list that are not yet printed, then print the receipts of all selected meter(s)</string>
     <string name="settings_title">Settings</string>
     <string name="test">test</string>
+    <string name="uid">Meter UID: %1$s</string>
 
 </resources>
