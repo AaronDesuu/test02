@@ -390,6 +390,7 @@ class DLMSRegistrationViewModel : ViewModel() {
         return accessData(0, DLMS.IST_BILLING_PARAMS, 7, false)
     }
 
+    @SuppressLint("DefaultLocale")
     private suspend fun performGetBillingData(): Boolean {
         mDataIndex = 0
         mSel = 2
@@ -413,7 +414,22 @@ class DLMSRegistrationViewModel : ViewModel() {
 
         if (success && mReceive != null && mReceive!!.size >= 10) {
             Log.i(TAG, "Billing data retrieved: ${mReceive!!.joinToString(",")}")
-            appendLog("Billing data retrieved")
+
+            // Parse and log billing data fields
+            val readDate = mReceive!![0]
+            val fixedDate = mReceive!![1]
+            val imp = String.format("%.3f", dlms?.Float(1000.0, mReceive!![2]) ?: 0.0)
+            val exp = String.format("%.3f", dlms?.Float(1000.0, mReceive!![3]) ?: 0.0)
+            val impMaxDemand = String.format("%.3f", dlms?.Float(1000.0, mReceive!![6]) ?: 0.0)
+            val expMaxDemand = String.format("%.3f", dlms?.Float(1000.0, mReceive!![7]) ?: 0.0)
+            val minVolt = String.format("%.3f", dlms?.Float(100.0, mReceive!![8]) ?: 0.0)
+            val alert = mReceive!![9]
+
+            appendLog("Fixed date: $fixedDate")
+            appendLog("Imp: $imp kWh, Exp: $exp kWh")
+            appendLog("ImpMaxDemand: $impMaxDemand kW, ExpMaxDemand: $expMaxDemand kW")
+            appendLog("MinVolt: $minVolt V, Alert: $alert")
+            appendLog("Read date: $readDate")
 
             // Save registration data to CSV files
             currentMeter?.let { meter ->
@@ -427,10 +443,11 @@ class DLMSRegistrationViewModel : ViewModel() {
             }
 
             return true
+        } else {
+            Log.e(TAG, "Billing data size insufficient. Size: ${mReceive?.size ?: 0}, expected >= 10")
+            appendLog("ERROR: Billing data incomplete")
+            return false
         }
-
-        Log.e(TAG, "Failed to get billing data or insufficient data")
-        return false
     }
 
     private suspend fun accessData(mode: Int, index: Int, attr: Int, modeling: Boolean): Boolean {

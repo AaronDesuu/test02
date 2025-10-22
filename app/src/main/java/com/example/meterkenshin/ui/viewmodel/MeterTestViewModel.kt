@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.lang.Math.random
 import java.util.*
 import kotlin.random.Random
 
@@ -38,6 +37,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2286",
                 location = "Residential Block A",
                 type = MeterType.Type01,
@@ -59,6 +59,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2287",
                 location = "Commercial Center B",
                 type = MeterType.Type01,
@@ -80,6 +81,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2288",
                 location = "Industrial Zone C",
                 type = MeterType.Type01,
@@ -101,6 +103,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2117",
                 location = "Office Complex D",
                 type = MeterType.Type01,
@@ -122,6 +125,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2300",
                 location = "Hospital E",
                 type = MeterType.Type01,
@@ -143,6 +147,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2400",
                 location = "Factory F",
                 type = MeterType.Type01,
@@ -164,6 +169,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2500",
                 location = "Residential G",
                 type = MeterType.Type01,
@@ -185,6 +191,7 @@ class MeterTestViewModel : ViewModel() {
         testMetersList.add(
             Meter(
                 uid = 0,
+                activate = 1,
                 serialNumber = "2600",
                 location = "Solar Home H",
                 type = MeterType.Type01,
@@ -274,6 +281,7 @@ class MeterTestViewModel : ViewModel() {
             existingMeters.add(
                 Meter(
                     uid = 0,
+                    activate = 1,
                     serialNumber = (3000 + i).toString(),
                     location = "Test Location ${('A'..'Z').random()}$i",
                     type = MeterType.entries.toTypedArray().random(),

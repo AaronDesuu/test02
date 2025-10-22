@@ -5,6 +5,7 @@ import java.util.Date
 data class Meter(
     // Existing variable
     val uid: Int,
+    val activate: Int,
     val serialNumber: String,
     val fixedDate: Date? = null,
     val impKWh: Double? = null,
@@ -16,9 +17,9 @@ data class Meter(
     val readDate: Date?,
 
     // New variable
+    val status: MeterStatus,
     val location: String,
     val type: MeterType,
-    val status: MeterStatus,
     val installationDate: Date?,
     val bluetoothId: String? = null,
 

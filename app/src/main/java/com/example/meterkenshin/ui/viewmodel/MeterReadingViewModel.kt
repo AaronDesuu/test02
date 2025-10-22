@@ -585,6 +585,7 @@ class MeterReadingViewModel : ViewModel() {
                         if (columns.size >= 12) {
                             val meter = Meter(
                                 uid = columns[0].toIntOrNull() ?: 0,
+                                activate = columns[1].toIntOrNull() ?: 0,
                                 serialNumber = columns[2],
                                 location = "Location $lineNumber",
                                 type = MeterType.Type01,
