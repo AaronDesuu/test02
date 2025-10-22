@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.screen
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,15 +73,29 @@ fun MeterDetailScreen(
     onSetClock: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Track DLMS initialization state
+    var isDlmsInitialized by remember { mutableStateOf(false) }
+
     // Collect states
     val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
     val registrationState by registrationViewModel.registrationState.collectAsState()
     val dlmsLog by registrationViewModel.dlmsLog.collectAsState()
 
-    // Initialize DLMS on screen load
-    val context = LocalContext.current
+    // FIX: Initialize DLMS on screen load and WAIT for completion
     LaunchedEffect(Unit) {
-        registrationViewModel.initializeDLMS(context, meter)
+        try {
+            Log.i("MeterDetailScreen", "Initializing DLMS...")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registrationViewModel.initializeDLMS(context, meter)
+            }
+            isDlmsInitialized = true
+            Log.i("MeterDetailScreen", "DLMS initialization complete")
+        } catch (e: Exception) {
+            Log.e("MeterDetailScreen", "Failed to initialize DLMS", e)
+        }
     }
 
     // Get RSSI for this meter
@@ -89,7 +108,7 @@ fun MeterDetailScreen(
     LaunchedEffect(Unit) {
         try {
             meterReadingViewModel.pauseScanning()
-            Log.i("MeterDetailScreen", "BLE scanning paused on entry")
+            Log.i("MeterDetailScreen", "BLE scanning paused")
         } catch (e: Exception) {
             Log.e("MeterDetailScreen", "Error pausing BLE scan", e)
         }
@@ -99,10 +118,11 @@ fun MeterDetailScreen(
     DisposableEffect(Unit) {
         onDispose {
             try {
+                registrationViewModel.cleanup(context)
                 meterReadingViewModel.resumeScanning()
-                Log.i("MeterDetailScreen", "BLE scanning resumed on exit")
+                Log.i("MeterDetailScreen", "Cleanup complete")
             } catch (e: Exception) {
-                Log.e("MeterDetailScreen", "Error resuming BLE scan", e)
+                Log.e("MeterDetailScreen", "Error during cleanup", e)
             }
         }
     }
@@ -126,29 +146,45 @@ fun MeterDetailScreen(
             // 2. DLMS function buttons - NOW IN SEPARATE FILE
             DLMSFunctionsCard(
                 onRegistration = {
-                    registrationViewModel.startRegistration(context, meter)
+                    // FIX: Only allow if DLMS is initialized
+                    if (isDlmsInitialized) {
+                        registrationViewModel.startRegistration(context, meter)
+                    } else {
+                        Log.w("MeterDetailScreen", "DLMS not yet initialized")
+                    }
                 },
                 onReadData = {
-                    registrationViewModel.addLog("Read Data clicked")
-                    onReadData()
+                    if (isDlmsInitialized) {
+                        registrationViewModel.appendLog("Read Data clicked")
+                        onReadData()
+                    }
                 },
                 onLoadProfile = {
-                    registrationViewModel.addLog("Load Profile clicked")
-                    onLoadProfile()
+                    if (isDlmsInitialized) {
+                        registrationViewModel.appendLog("Load Profile clicked")
+                        onLoadProfile()
+                    }
                 },
                 onEventLog = {
-                    registrationViewModel.addLog("Event Log clicked")
-                    onEventLog()
+                    if (isDlmsInitialized) {
+                        registrationViewModel.appendLog("Event Log clicked")
+                        onEventLog()
+                    }
                 },
                 onBillingData = {
-                    registrationViewModel.addLog("Billing Data clicked")
-                    onBillingData()
+                    if (isDlmsInitialized) {
+                        registrationViewModel.appendLog("Billing Data clicked")
+                        onBillingData()
+                    }
                 },
                 onSetClock = {
-                    registrationViewModel.addLog("Set Clock clicked")
-                    onSetClock()
+                    if (isDlmsInitialized) {
+                        registrationViewModel.appendLog("Set Clock clicked")
+                        onSetClock()
+                    }
                 },
-                isProcessing = registrationState.isRunning
+                // Disable buttons until initialized
+                isProcessing = registrationState.isRunning || !isDlmsInitialized
             )
 
             // 3. DLMS Log output - NOW IN SEPARATE FILE
