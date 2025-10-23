@@ -70,6 +70,7 @@ fun MeterDetailScreen(
     onEventLog: () -> Unit = {},
     onBillingData: () -> Unit = {},
     onSetClock: () -> Unit = {},
+    onMeterUpdated: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -93,6 +94,11 @@ fun MeterDetailScreen(
             Log.i("MeterDetailScreen", "DLMS initialization complete")
         } catch (e: Exception) {
             Log.e("MeterDetailScreen", "Failed to initialize DLMS", e)
+        }
+    }
+    LaunchedEffect(registrationState.isComplete) {
+        if (registrationState.isComplete) {
+            onMeterUpdated() // This callback will reload the meter from DB
         }
     }
 

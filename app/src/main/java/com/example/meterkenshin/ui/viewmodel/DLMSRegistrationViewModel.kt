@@ -55,6 +55,9 @@ class DLMSRegistrationViewModel : ViewModel() {
     private var mStep = 0
     private var mTimer = 0
 
+    private val _meterUpdated = MutableStateFlow<Boolean>(false)
+    val meterUpdated: StateFlow<Boolean> = _meterUpdated.asStateFlow()
+
     /**
      * Initialize DLMS - delegates to DLMSInit
      */
@@ -165,6 +168,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                 } else {
                     appendLog("ERROR: Failed to get billing data")
                 }
+                _meterUpdated.value = true // Trigger UI update
 
             } catch (e: Exception) {
                 appendLog("ERROR: ${e.message}")
