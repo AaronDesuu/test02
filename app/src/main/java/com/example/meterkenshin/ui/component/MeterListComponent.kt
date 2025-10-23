@@ -64,6 +64,10 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Reusable Meter List Component with Automatic BLE Scanning
@@ -98,10 +102,23 @@ fun MeterListComponent(
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
     val isMeterCsvUploaded = meterCsvFile?.isUploaded == true
 
+    val currentYearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
+    val currentMeterFile = "${currentYearMonth}_meter.csv"
+    val fallbackFile = "meter.csv"
+
     // Load meters when CSV is available
     LaunchedEffect(isMeterCsvUploaded) {
         if (isMeterCsvUploaded) {
-            meterReadingViewModel.loadMeters(context, "meter.csv")
+            val fileToLoad = if (File(
+                    context.getExternalFilesDir(null),
+                    "app_files/$currentMeterFile"
+                ).exists()) {
+                currentMeterFile
+            } else {
+                fallbackFile
+            }
+
+            meterReadingViewModel.loadMeters(context, fileToLoad)
         }
     }
 
