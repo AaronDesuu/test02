@@ -55,9 +55,6 @@ class DLMSRegistrationViewModel : ViewModel() {
     private var mStep = 0
     private var mTimer = 0
 
-    private val _meterUpdated = MutableStateFlow<Boolean>(false)
-    val meterUpdated: StateFlow<Boolean> = _meterUpdated.asStateFlow()
-
     /**
      * Initialize DLMS - delegates to DLMSInit
      */
@@ -168,7 +165,6 @@ class DLMSRegistrationViewModel : ViewModel() {
                 } else {
                     appendLog("ERROR: Failed to get billing data")
                 }
-                _meterUpdated.value = true // Trigger UI update
 
             } catch (e: Exception) {
                 appendLog("ERROR: ${e.message}")
@@ -411,7 +407,6 @@ class DLMSRegistrationViewModel : ViewModel() {
             val filename = "${yearMonth}_meter.csv"
             val meterFile = File(csvDir, filename)
 
-            val header = "UID,Activate,SerialNo,BluetoothID,FixedDate,Imp[kWh],Exp[kWh],ImpMaxDemand[kW],ExpMaxDemand[kW],MinVolt[V],Alert,ReadDate"
             val newRowData = listOf(
                 uid, activate, serialNo, bluetoothId, fixedDate,
                 imp, exp, impMaxDemand, expMaxDemand, minVolt, alert, readDate
