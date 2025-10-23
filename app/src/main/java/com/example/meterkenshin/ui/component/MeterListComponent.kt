@@ -107,7 +107,7 @@ fun MeterListComponent(
     val fallbackFile = "meter.csv"
 
     // Load meters when CSV is available
-    LaunchedEffect(isMeterCsvUploaded) {
+    LaunchedEffect(isMeterCsvUploaded, Unit) {
         if (isMeterCsvUploaded) {
             val fileToLoad = if (File(
                     context.getExternalFilesDir(null),
