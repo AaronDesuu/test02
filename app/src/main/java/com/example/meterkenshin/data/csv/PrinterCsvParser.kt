@@ -1,4 +1,4 @@
-package com.example.meterkenshin.data.parser
+package com.example.meterkenshin.data.csv
 
 import android.content.Context
 import android.util.Log

@@ -18,6 +18,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.text.format
 
 class FileUploadViewModel : ViewModel() {
     private val _uploadState = MutableStateFlow(FileUploadState())
@@ -278,6 +282,16 @@ class FileUploadViewModel : ViewModel() {
                 val success = targetFile.exists() && targetFile.length() > 0
                 if (success) {
                     Log.i(TAG, "File copied successfully to: ${targetFile.absolutePath} (${formatFileSize(targetFile.length())})")
+
+                    // If the uploaded file is meter.csv, create a date-stamped copy
+                    if (file.type == RequiredFile.FileType.METER && file.fileName == "meter.csv") {
+                        val yearMonth = getCurrentYearMonth() // e.g., "202410"
+                        val datedFileName = "${yearMonth}_meter.csv"
+                        val datedFile = File(appFilesDir, datedFileName)
+
+                        targetFile.copyTo(datedFile, overwrite = true)
+                        Log.i(TAG, "Created date-stamped copy: ${datedFile.absolutePath}")
+                    }
                 }
                 success
 
@@ -286,6 +300,12 @@ class FileUploadViewModel : ViewModel() {
                 false
             }
         }
+
+    }
+
+    private fun getCurrentYearMonth(): String {
+        val sdf = SimpleDateFormat("yyyyMM", Locale.getDefault())
+        return sdf.format(Date())
     }
 
     /**

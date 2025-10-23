@@ -11,7 +11,7 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import com.example.meterkenshin.data.parser.PrinterCsvParser
+import com.example.meterkenshin.data.csv.PrinterCsvParser
 import com.woosim.printer.WoosimService
 
 /**

@@ -15,6 +15,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class RegistrationState(
     val isRunning: Boolean = false,
@@ -363,10 +367,105 @@ class DLMSRegistrationViewModel : ViewModel() {
                 appendLog("Alert: $alert")
                 appendLog("Read date: $readDate")
                 appendLog("══════════════════")
+
+                // Export meter data to CSV
+                exportMeterData(
+                    uid = (meter?.uid ?: "none").toString(),
+                    activate = "1",
+                    serialNo = meter?.serialNumber ?: "none",
+                    bluetoothId = meter?.bluetoothId ?: "none",
+                    fixedDate = fixedDate,
+                    imp = imp,
+                    exp = exp,
+                    impMaxDemand = impMaxDemand,
+                    expMaxDemand = expMaxDemand,
+                    minVolt = minVolt,
+                    alert = receive[9],
+                    readDate = readDate
+                )
             }
         }
 
         return success
+    }
+
+    private fun exportMeterData(
+        uid: String, activate: String, serialNo: String, bluetoothId: String,
+        fixedDate: String, imp: String, exp: String, impMaxDemand: String,
+        expMaxDemand: String, minVolt: String, alert: String, readDate: String
+    ) {
+        try {
+            // Define file and directory
+            val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return
+            val csvDir = File(externalFilesDir, "app_files")
+            if (!csvDir.exists()) {
+                csvDir.mkdirs()
+            }
+            val yearMonth = getCurrentYearMonth()
+            val filename = "${yearMonth}_meter.csv"
+            val meterFile = File(csvDir, filename)
+
+            val header = "UID,Activate,SerialNo,BluetoothID,FixedDate,Imp[kWh],Exp[kWh],ImpMaxDemand[kW],ExpMaxDemand[kW],MinVolt[V],Alert,ReadDate"
+            val newRowData = listOf(
+                uid, activate, serialNo, bluetoothId, fixedDate,
+                imp, exp, impMaxDemand, expMaxDemand, minVolt, alert, readDate
+            )
+
+            // Read all existing lines from the file. If the file doesn't exist, start with an empty list.
+            val lines = if (meterFile.exists()) meterFile.readLines().toMutableList() else mutableListOf()
+            val newRowString = newRowData.joinToString(",")
+
+            if (lines.isEmpty()) {
+
+                appendLog("ERROR: No such meter data exist inside the csv file")
+            } else {
+                // If file exists, find and replace the row or add it if it's not present.
+                val uidIndex = 0
+                val serialNoIndex = 2
+                var wasRowUpdated = false
+
+                // Use mapIndexedNotNull to find and replace the line in one go.
+                val updatedLines = lines.map { line ->
+                    if (line.startsWith("UID,")) { // Keep header as is
+                        line
+                    } else {
+                        val columns = line.split(',')
+                        if (columns.size > serialNoIndex && columns[uidIndex] == uid && columns[serialNoIndex] == serialNo) {
+                            wasRowUpdated = true
+                            newRowString // Replace with the new data
+                        } else {
+                            line // Keep the existing line
+                        }
+                    }
+                }.toMutableList()
+
+                if (wasRowUpdated) {
+                    // If a row was replaced, our work is done.
+                    lines.clear()
+                    lines.addAll(updatedLines)
+                    appendLog("Overwriting existing meter data for UID: $uid in $filename")
+                } else {
+                    // If no row was updated, it means this is a new entry, so append it.
+                    lines.add(newRowString)
+                    appendLog("Appending new meter data for UID: $uid to $filename")
+                }
+            }
+
+            // Write all lines (original, updated, and/or appended) back to the file.
+            meterFile.writeText(lines.joinToString("\n"))
+
+            appendLog("Meter data successfully exported to $filename")
+            appendLog("File path: ${meterFile.absolutePath}")
+
+        } catch (e: Exception) {
+            appendLog("ERROR: Failed to export meter data: ${e.message}")
+            Log.e(TAG, "Export error", e)
+        }
+    }
+
+    private fun getCurrentYearMonth(): String {
+        val sdf = SimpleDateFormat("yyyyMM", Locale.getDefault())
+        return sdf.format(Date())
     }
 
     /**
