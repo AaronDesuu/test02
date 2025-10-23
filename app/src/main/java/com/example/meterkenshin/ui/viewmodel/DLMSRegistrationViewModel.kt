@@ -16,7 +16,6 @@ import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.data.manager.RegistrationDataManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -58,7 +57,6 @@ class DLMSRegistrationViewModel : ViewModel() {
     private var mDataIndex: Byte = 0
     private var mParameter = StringBuilder()
     private var mReceive: ArrayList<String>? = null
-    private var registrationDataManager: RegistrationDataManager? = null
     private var currentMeter: Meter? = null
 
     companion object {
@@ -122,7 +120,6 @@ class DLMSRegistrationViewModel : ViewModel() {
         mContext = context
         dlms = DLMS(context)
         currentMeter = meter
-        registrationDataManager = RegistrationDataManager(context)
 
         dlms?.Password(meter.key, 1)
         dlms?.writeAddress(meter.logical, 1)
@@ -430,17 +427,6 @@ class DLMSRegistrationViewModel : ViewModel() {
             appendLog("ImpMaxDemand: $impMaxDemand kW, ExpMaxDemand: $expMaxDemand kW")
             appendLog("MinVolt: $minVolt V, Alert: $alert")
             appendLog("Read date: $readDate")
-
-            // Save registration data to CSV files
-            currentMeter?.let { meter ->
-                registrationDataManager?.let { manager ->
-                    if (manager.saveRegistrationData(meter, mReceive!!)) {
-                        appendLog("Registration data saved to CSV files")
-                    } else {
-                        appendLog("WARNING: Failed to save registration data")
-                    }
-                }
-            }
 
             return true
         } else {
