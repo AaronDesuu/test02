@@ -1,19 +1,12 @@
 package com.example.meterkenshin.ui.viewmodel
 
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.content.ServiceConnection
 import android.os.Build
-import android.os.IBinder
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
 import kotlinx.coroutines.delay
@@ -33,154 +26,51 @@ data class RegistrationState(
 @SuppressLint("MissingPermission")
 class DLMSRegistrationViewModel : ViewModel() {
 
+    companion object {
+        private const val TAG = "DLMSRegistration"
+    }
+
+    // State flows
     private val _registrationState = MutableStateFlow(RegistrationState())
     val registrationState: StateFlow<RegistrationState> = _registrationState.asStateFlow()
 
     private val _dlmsLog = MutableStateFlow("")
     val dlmsLog: StateFlow<String> = _dlmsLog.asStateFlow()
 
-    private var dlms: DLMS? = null
-    private var mBluetoothLeService: BluetoothLeService? = null
+    // DLMS Initializer handles all Bluetooth/service setup
+    private val dlmsInitializer = DLMSInit { appendLog(it) }
 
     private var mContext: Context? = null
+    private var currentMeter: Meter? = null
 
-    // FIX: Track service readiness and receiver registration
-    private var mServiceBound = false
-    private var mServiceActive = false
-    private var mReceiverRegistered = false
-
+    // DLMS operation variables
     private var mStep = 0
     private var mTimer = 0
-    private var mArrived = 0
-    private var mData: ByteArray = ByteArray(0)
     private var mSel: Byte = 0
     private var mDataIndex: Byte = 0
     private var mParameter = StringBuilder()
     private var mReceive: ArrayList<String>? = null
-    private var currentMeter: Meter? = null
-
-    companion object {
-        private const val TAG = "DLMSRegistration"
-    }
-
-    private val mGattUpdateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val action = intent.action
-            Log.d(TAG, "=== BROADCAST RECEIVED: $action ===")
-
-            when (action) {
-                BluetoothLeService.ACTION_GATT_CONNECTED -> {
-                    Log.i(TAG, "GATT Connected")
-                }
-                BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
-                    Log.i(TAG, "GATT Disconnected")
-                }
-                BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED -> {
-                    Log.i(TAG, "!!! GATT Services Discovered - Setting mArrived = 0 !!!")
-                    mArrived = 0  // THIS IS THE KEY FLAG
-                    Log.i(TAG, "mArrived is now: ${0}")
-                }
-                BluetoothLeService.ACTION_DATA_AVAILABLE -> {
-                    val data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA)
-                    if (data != null) {
-                        mData = data
-                        mArrived++
-                        Log.d(TAG, "Data received: ${data.size} bytes, mArrived=$mArrived")
-                    }
-                }
-                else -> {
-                    Log.w(TAG, "Unknown action received: $action")
-                }
-            }
-        }
-    }
-
-    private val mServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
-            mBluetoothLeService = (service as BluetoothLeService.LocalBinder).service
-            Log.i(TAG, "Success to initialize Bluetooth service.")
-            mServiceBound = true  // FIX: Mark as bound
-            mServiceActive = true
-        }
-
-        override fun onServiceDisconnected(componentName: ComponentName) {
-            mBluetoothLeService = null
-            mServiceBound = false
-            mServiceActive = false
-            Log.i(TAG, "onServiceDisconnected")
-        }
-    }
 
     /**
-     * FIX: Initialize must complete BEFORE registration starts
-     * CRITICAL: Register receiver FIRST, then bind service
+     * Initialize DLMS - delegates to DLMSInit
      */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun initializeDLMS(context: Context, meter: Meter) {
         mContext = context
-        dlms = DLMS(context)
         currentMeter = meter
-
-        dlms?.Password(meter.key, 1)
-        dlms?.writeAddress(meter.logical, 1)
-        dlms?.writeRank(String.format("%02x", meter.rank), 1)
-
-        // FIX: Register receiver FIRST, before any BLE operations
-        if (!mReceiverRegistered) {
-            val filter = IntentFilter().apply {
-                addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
-                addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
-                addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED)
-                addAction(BluetoothLeService.ACTION_DATA_AVAILABLE)
-            }
-
-            try {
-                // CRITICAL: Use RECEIVER_EXPORTED for Android 13+
-                // Service broadcasts need to reach this receiver within the same app
-                context.registerReceiver(
-                    mGattUpdateReceiver,
-                    filter,
-                    Context.RECEIVER_EXPORTED  // Allow broadcasts from our own service
-                )
-                mReceiverRegistered = true
-                Log.i(TAG, "Broadcast receiver registered successfully")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to register receiver: ${e.message}")
-                return
-            }
-        }
-
-        // Small delay to ensure receiver is ready
-        delay(100)
-
-        // Bind service and WAIT for it
-        val serviceIntent = Intent(context, BluetoothLeService::class.java)
-        context.bindService(serviceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
-
-        // FIX: Wait for service to be bound (like project01 does)
-        var waited = 0
-        while (!mServiceBound && waited < 50) {
-            delay(100)
-            waited++
-        }
-
-        if (!mServiceBound) {
-            appendLog("ERROR: Service binding timeout")
-            return
-        }
-
-        appendLog("DLMS initialized and service bound")
+        dlmsInitializer.initialize(context, meter)
     }
 
     /**
-     * Start registration - NOW ASSUMES SERVICE IS READY
+     * Start registration process
+     * NOW ASSUMES SERVICE IS READY (initialized via initializeDLMS)
      */
     fun startRegistration(meter: Meter) {
         viewModelScope.launch {
             try {
-                // FIX: Check service is actually bound
-                if (dlms == null || !mServiceBound || !mServiceActive || meter.bluetoothId.isNullOrEmpty()) {
-                    appendLog("ERROR: Not ready (service bound: $mServiceBound, active: $mServiceActive)")
+                // Check if initializer is ready
+                if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                    appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
                     return@launch
                 }
 
@@ -188,10 +78,10 @@ class DLMSRegistrationViewModel : ViewModel() {
                 _dlmsLog.value = ""
 
                 appendLog("Connecting to ${meter.bluetoothId}...")
-                mArrived = -1  // Reset to waiting state
-                Log.d(TAG, "Initial mArrived set to: $mArrived")
+                dlmsInitializer.mArrived = -1  // Reset to waiting state
+                Log.d(TAG, "Initial mArrived set to: ${dlmsInitializer.mArrived}")
 
-                if (mBluetoothLeService?.connect(meter.bluetoothId) != true) {
+                if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                     appendLog("ERROR: Failed to start connection")
                     return@launch
                 }
@@ -201,17 +91,17 @@ class DLMSRegistrationViewModel : ViewModel() {
                 var ready = false
                 for (i in 0..100) {
                     delay(100)
-                    Log.v(TAG, "Wait loop $i: mArrived=$mArrived")
-                    if (mArrived == 0) {
+                    Log.v(TAG, "Wait loop $i: mArrived=${dlmsInitializer.mArrived}")
+                    if (dlmsInitializer.mArrived == 0) {
                         ready = true
-                        Log.i(TAG, "Service discovered! mArrived=${0} at iteration $i")
+                        Log.i(TAG, "Service discovered! mArrived=${dlmsInitializer.mArrived} at iteration $i")
                         break
                     }
                 }
 
                 if (!ready) {
-                    appendLog("ERROR: Services not discovered (timeout) - final mArrived=$mArrived")
-                    Log.e(TAG, "Timeout: mArrived never became 0, final value=$mArrived")
+                    appendLog("ERROR: Services not discovered (timeout) - final mArrived=${dlmsInitializer.mArrived}")
+                    Log.e(TAG, "Timeout: mArrived never became 0, final value=${dlmsInitializer.mArrived}")
                     return@launch
                 }
 
@@ -280,6 +170,9 @@ class DLMSRegistrationViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Establish DLMS session (Open -> Session -> Challenge -> Confirm)
+     */
     private suspend fun establishSession(): Boolean {
         mStep = 0
         var sessionEstablished = false
@@ -288,22 +181,22 @@ class DLMSRegistrationViewModel : ViewModel() {
         while (!sessionEstablished && timeout < 100) {
             when (mStep) {
                 0 -> {
-                    val openRequest = dlms?.Open()
+                    val openRequest = dlmsInitializer.dlms?.Open()
                     if (openRequest != null) {
                         mTimer = 0
-                        mArrived = 0
-                        mBluetoothLeService?.write(openRequest)
+                        dlmsInitializer.mArrived = 0
+                        dlmsInitializer.bluetoothLeService?.write(openRequest)
                         mStep++
                         Log.i(TAG, "Open: ${openRequest.size}")
                     }
                 }
                 2 -> {
                     val res = IntArray(2)
-                    val sessionRequest = dlms?.Session(res, mData)
+                    val sessionRequest = dlmsInitializer.dlms?.Session(res, dlmsInitializer.mData)
                     if (res[0] != 0 && sessionRequest != null) {
                         mTimer = 0
-                        mArrived = 0
-                        mBluetoothLeService?.write(sessionRequest)
+                        dlmsInitializer.mArrived = 0
+                        dlmsInitializer.bluetoothLeService?.write(sessionRequest)
                         mStep++
                         Log.i(TAG, "Session: ${sessionRequest.size}")
                     } else {
@@ -313,11 +206,11 @@ class DLMSRegistrationViewModel : ViewModel() {
                 }
                 4 -> {
                     val res = IntArray(2)
-                    val challengeRequest = dlms?.Challenge(res, mData)
+                    val challengeRequest = dlmsInitializer.dlms?.Challenge(res, dlmsInitializer.mData)
                     if (res[0] != 0 && challengeRequest != null) {
                         mTimer = 0
-                        mArrived = 0
-                        mBluetoothLeService?.write(challengeRequest)
+                        dlmsInitializer.mArrived = 0
+                        dlmsInitializer.bluetoothLeService?.write(challengeRequest)
                         mStep++
                         Log.i(TAG, "Challenge: ${challengeRequest.size}")
                     } else {
@@ -327,7 +220,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                 }
                 6 -> {
                     val res = IntArray(2)
-                    dlms?.Confirm(res, mData)
+                    dlmsInitializer.dlms?.Confirm(res, dlmsInitializer.mData)
                     if (res[0] != 0) {
                         mStep = 0
                         sessionEstablished = true
@@ -341,11 +234,11 @@ class DLMSRegistrationViewModel : ViewModel() {
 
             if (mStep % 2 == 1) {
                 mTimer = 0
-                while (mArrived == 0 && mTimer < 300) {
+                while (dlmsInitializer.mArrived == 0 && mTimer < 300) {
                     delay(10)
                     mTimer++
                 }
-                if (mArrived == 0) {
+                if (dlmsInitializer.mArrived == 0) {
                     Log.e(TAG, "Timeout waiting for response at step $mStep")
                     return false
                 }
@@ -359,34 +252,44 @@ class DLMSRegistrationViewModel : ViewModel() {
         return sessionEstablished
     }
 
+    /**
+     * Set clock on the meter
+     */
     private suspend fun performSetClock(): Boolean {
         mDataIndex = 0
         mSel = 0
         mParameter = StringBuilder()
 
-        val sec = dlms?.CurrentDatetimeSec()?.plus(1) ?: return false
-        val rawDatetime = dlms?.SecToRawDatetime(sec) ?: return false
+        val sec = dlmsInitializer.dlms?.CurrentDatetimeSec()?.plus(1) ?: return false
+        val rawDatetime = dlmsInitializer.dlms?.SecToRawDatetime(sec) ?: return false
 
         mParameter.append("090c").append(rawDatetime)
 
         return accessData(1, DLMS.IST_DATETIME_NOW, 2, false)
     }
 
+    /**
+     * Perform demand reset
+     */
     private suspend fun performDemandReset(): Boolean {
         mDataIndex = 0
         mParameter = StringBuilder("120001")
-        // FIX: Use IST_DEMAND_RESET (88) instead of 1
         return accessData(2, DLMS.IST_DEMAND_RESET, 1, false)
     }
 
+    /**
+     * Get billing count
+     */
     private suspend fun performGetBillingCount(): Boolean {
         mDataIndex = 0
         mSel = 0
         mParameter = StringBuilder()
-        // Get billing count (attribute 7, not 2)
         return accessData(0, DLMS.IST_BILLING_PARAMS, 7, false)
     }
 
+    /**
+     * Get billing data
+     */
     @SuppressLint("DefaultLocale")
     private suspend fun performGetBillingData(): Boolean {
         mDataIndex = 0
@@ -412,74 +315,106 @@ class DLMSRegistrationViewModel : ViewModel() {
         if (success && mReceive != null && mReceive!!.size >= 10) {
             Log.i(TAG, "Billing data retrieved: ${mReceive!!.joinToString(",")}")
 
-            // Parse and log billing data fields
+            // Parse billing data fields according to mReceive structure:
+            // [0] = Read date (first date)
+            // [1] = Fixed date (billing date)
+            // [2] = Import energy
+            // [3] = Export energy
+            // [4] = Absolute energy (not logged)
+            // [5] = Net energy (not logged)
+            // [6] = Import max demand
+            // [7] = Export max demand
+            // [8] = Minimum voltage
+            // [9] = Alert status
+
             val readDate = mReceive!![0]
             val fixedDate = mReceive!![1]
-            val imp = String.format("%.3f", dlms?.Float(1000.0, mReceive!![2]) ?: 0.0)
-            val exp = String.format("%.3f", dlms?.Float(1000.0, mReceive!![3]) ?: 0.0)
-            val impMaxDemand = String.format("%.3f", dlms?.Float(1000.0, mReceive!![6]) ?: 0.0)
-            val expMaxDemand = String.format("%.3f", dlms?.Float(1000.0, mReceive!![7]) ?: 0.0)
-            val minVolt = String.format("%.3f", dlms?.Float(100.0, mReceive!![8]) ?: 0.0)
+            val imp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![2]) ?: 0.0)
+            val exp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![3]) ?: 0.0)
+            val impMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![6]) ?: 0.0)
+            val expMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![7]) ?: 0.0)
+            val minVolt = String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, mReceive!![8]) ?: 0.0)
             val alert = mReceive!![9]
 
-            appendLog("Fixed date: $fixedDate")
-            appendLog("Imp: $imp kWh, Exp: $exp kWh")
-            appendLog("ImpMaxDemand: $impMaxDemand kW, ExpMaxDemand: $expMaxDemand kW")
-            appendLog("MinVolt: $minVolt V, Alert: $alert")
-            appendLog("Read date: $readDate")
+            // Get meter info from currentMeter
+            val meter = currentMeter
+            val uid = meter?.uid ?: "none"
+            val activate = "1"  // Meter is activated after successful registration
+            val serialNo = meter?.serialNumber ?: "none"
+            val bluetoothId = meter?.bluetoothId ?: "none"
 
-            return true
-        } else {
-            Log.e(TAG, "Billing data size insufficient. Size: ${mReceive?.size ?: 0}, expected >= 10")
-            appendLog("ERROR: Billing data incomplete")
-            return false
+            // Log in the specified order:
+            // UID, Activate, Serial NO., Bluetooth ID, Fixed date, Imp [kWh], Exp [kWh],
+            // ImpMaxDemand [kW], ExpMaxDemand [kW], MinVolt [V], Alert, Read date
+            appendLog("══════════════════")
+            appendLog("Registration Successful!")
+            appendLog("══════════════════")
+            appendLog("UID: $uid")
+            appendLog("Activate: $activate")
+            appendLog("Serial NO.: $serialNo")
+            appendLog("Bluetooth ID: $bluetoothId")
+            appendLog("Fixed date: $fixedDate")
+            appendLog("Imp [kWh]: $imp")
+            appendLog("Exp [kWh]: $exp")
+            appendLog("ImpMaxDemand [kW]: $impMaxDemand")
+            appendLog("ExpMaxDemand [kW]: $expMaxDemand")
+            appendLog("MinVolt [V]: $minVolt")
+            appendLog("Alert: $alert")
+            appendLog("Read date: $readDate")
+            appendLog("══════════════════")
         }
+
+        return success
     }
 
-    private suspend fun accessData(mode: Int, index: Int, attr: Int, modeling: Boolean): Boolean {
+    /**
+     * Generic DLMS data access method
+     */
+    private suspend fun accessData(mode: Int, obj: Int, mth: Int, modeling: Boolean): Boolean {
         mStep = 0
         var timeout = 0
 
         while (mStep < 2 && timeout < 100) {
             when (mStep) {
                 0 -> {
-                    val send = when (mode) {
+                    val para = mParameter.toString()
+                    val data = when (mode) {
                         0 -> {
-                            Log.i(TAG, "Getting index:$index, attr:$attr")
-                            dlms?.getReq(index, attr.toByte(), mSel, mParameter.toString(), mDataIndex)
+                            Log.i(TAG, "Getting index:$obj, attr:$mth")
+                            dlmsInitializer.dlms?.getReq(obj, mth.toByte(), mSel, para, mDataIndex)
                         }
                         1 -> {
-                            Log.i(TAG, "Setting index:$index, attr:$attr")
-                            dlms?.setReq(index, attr.toByte(), mSel, mParameter.toString(), mDataIndex)
+                            Log.i(TAG, "Setting index:$obj, attr:$mth")
+                            dlmsInitializer.dlms?.setReq(obj, mth.toByte(), mSel, para, mDataIndex)
                         }
                         2 -> {
-                            Log.i(TAG, "Calling index:$index, attr:$attr")
-                            dlms?.actReq(index, attr.toByte(), mParameter.toString(), mDataIndex)
+                            Log.i(TAG, "Calling index:$obj, attr:$mth")
+                            dlmsInitializer.dlms?.actReq(obj, mth.toByte(), para, mDataIndex)
                         }
                         else -> null
                     }
 
-                    if (send != null) {
+                    if (data != null) {
                         mTimer = 0
-                        mArrived = 0
-                        mBluetoothLeService?.write(send)
+                        dlmsInitializer.mArrived = 0
+                        dlmsInitializer.bluetoothLeService?.write(data)
                         mStep++
                     }
                 }
                 1 -> {
                     mTimer = 0
-                    while (mArrived == 0 && mTimer < 300) {
+                    while (dlmsInitializer.mArrived == 0 && mTimer < 300) {
                         delay(10)
                         mTimer++
                     }
 
-                    if (mArrived == 0) {
-                        Log.e(TAG, "Timeout at access step 1")
+                    if (dlmsInitializer.mArrived == 0) {
+                        Log.e(TAG, "Timeout waiting for data response")
                         return false
                     }
 
                     val res = IntArray(2)
-                    mReceive = dlms?.DataRes(res, mData, modeling)
+                    mReceive = dlmsInitializer.dlms?.DataRes(res, dlmsInitializer.mData, modeling)
 
                     if (mReceive == null || mReceive!!.isEmpty()) {
                         Log.e(TAG, "ERROR: mReceive is null or empty")
@@ -510,31 +445,26 @@ class DLMSRegistrationViewModel : ViewModel() {
         return false
     }
 
+    /**
+     * Append message to log
+     */
     fun appendLog(message: String) {
-        _dlmsLog.value += "${message}\n"
+        _dlmsLog.value += "$message\n"
         Log.d(TAG, message)
     }
 
+    /**
+     * Clear log
+     */
     fun clearLog() {
         _dlmsLog.value = ""
     }
 
+    /**
+     * Cleanup - delegates to DLMSInit
+     */
     fun cleanup(context: Context) {
-        try {
-            if (mReceiverRegistered) {
-                context.unregisterReceiver(mGattUpdateReceiver)
-                mReceiverRegistered = false
-                Log.i(TAG, "Receiver unregistered")
-            }
-            mBluetoothLeService?.disconnect()
-            if (mServiceBound) {
-                context.unbindService(mServiceConnection)
-                mServiceBound = false
-                Log.i(TAG, "Service unbound")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Cleanup error: ${e.message}")
-        }
+        dlmsInitializer.cleanup(context)
     }
 
     override fun onCleared() {
