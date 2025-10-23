@@ -8,6 +8,7 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.dlms.DLMS
+import com.example.meterkenshin.dlms.DLMSDataAccess
 import com.example.meterkenshin.model.Meter
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,16 +41,15 @@ class DLMSRegistrationViewModel : ViewModel() {
     // DLMS Initializer handles all Bluetooth/service setup
     private val dlmsInitializer = DLMSInit { appendLog(it) }
 
+    // DLMS Data Access Handler
+    private lateinit var dlmsDataAccess: DLMSDataAccess
+
     private var mContext: Context? = null
     private var currentMeter: Meter? = null
 
     // DLMS operation variables
     private var mStep = 0
     private var mTimer = 0
-    private var mSel: Byte = 0
-    private var mDataIndex: Byte = 0
-    private var mParameter = StringBuilder()
-    private var mReceive: ArrayList<String>? = null
 
     /**
      * Initialize DLMS - delegates to DLMSInit
@@ -59,6 +59,7 @@ class DLMSRegistrationViewModel : ViewModel() {
         mContext = context
         currentMeter = meter
         dlmsInitializer.initialize(context, meter)
+        dlmsDataAccess = DLMSDataAccess(dlmsInitializer)
     }
 
     /**
@@ -94,68 +95,29 @@ class DLMSRegistrationViewModel : ViewModel() {
                     Log.v(TAG, "Wait loop $i: mArrived=${dlmsInitializer.mArrived}")
                     if (dlmsInitializer.mArrived == 0) {
                         ready = true
-                        Log.i(TAG, "Service discovered! mArrived=${dlmsInitializer.mArrived} at iteration $i")
+                        Log.i(TAG, "Service discovered!")
                         break
                     }
                 }
 
                 if (!ready) {
-                    appendLog("ERROR: Services not discovered (timeout) - final mArrived=${dlmsInitializer.mArrived}")
-                    Log.e(TAG, "Timeout: mArrived never became 0, final value=${dlmsInitializer.mArrived}")
+                    appendLog("ERROR: Timeout during service discovery")
                     return@launch
                 }
 
-                appendLog("Connected and ready")
-                delay(500)
+                appendLog("Connection established, starting registration...")
 
-                // Continue with DLMS session establishment
-                appendLog("Establishing DLMS session...")
+                // Establish DLMS session
                 if (!establishSession()) {
-                    appendLog("ERROR: Failed to establish DLMS session")
+                    appendLog("ERROR: Failed to establish session")
                     return@launch
                 }
-                appendLog("DLMS session established")
+                appendLog("Session established successfully")
 
-                delay(500)
-
-                // Set clock
-                appendLog("Setting clock...")
-                if (performSetClock()) {
-                    appendLog("Success to set clock")
-                } else {
-                    appendLog("ERROR: Failed to set clock")
-                    return@launch
-                }
-
-                delay(500)
-
-                // Demand reset
-                appendLog("Calling demand reset...")
-                if (performDemandReset()) {
-                    appendLog("Success to call demand reset")
-                } else {
-                    appendLog("ERROR: Failed to call demand reset")
-                    return@launch
-                }
-
-                delay(500)
-
-                // Get billing count
-                appendLog("Getting billing count...")
-                if (performGetBillingCount()) {
-                    appendLog("Billing count retrieved")
-                } else {
-                    appendLog("ERROR: Failed to get billing count")
-                    return@launch
-                }
-
-                delay(500)
-
-                // Get billing data
-                appendLog("Getting billing data...")
-                if (performGetBillingData()) {
-                    appendLog("Success to register meter")
-                    appendLog("Finish!")
+                // Retrieve billing data
+                val billingSuccess = retrieveBillingData(meter)
+                if (billingSuccess) {
+                    appendLog("Billing data retrieved successfully")
                     _registrationState.value = RegistrationState(isComplete = true)
                 } else {
                     appendLog("ERROR: Failed to get billing data")
@@ -222,29 +184,27 @@ class DLMSRegistrationViewModel : ViewModel() {
                     val res = IntArray(2)
                     dlmsInitializer.dlms?.Confirm(res, dlmsInitializer.mData)
                     if (res[0] != 0) {
-                        mStep = 0
                         sessionEstablished = true
-                        Log.i(TAG, "Session established")
+                        Log.i(TAG, "Session established!")
                     } else {
                         Log.e(TAG, "Failed confirm")
                         return false
                     }
                 }
-            }
-
-            if (mStep % 2 == 1) {
-                mTimer = 0
-                while (dlmsInitializer.mArrived == 0 && mTimer < 300) {
-                    delay(10)
-                    mTimer++
+                1, 3, 5 -> {
+                    mTimer = 0
+                    while (dlmsInitializer.mArrived == 0 && mTimer < 300) {
+                        delay(10)
+                        mTimer++
+                    }
+                    if (dlmsInitializer.mArrived == 0) {
+                        Log.e(TAG, "Timeout at step $mStep")
+                        return false
+                    } else {
+                        mStep++
+                    }
                 }
-                if (dlmsInitializer.mArrived == 0) {
-                    Log.e(TAG, "Timeout waiting for response at step $mStep")
-                    return false
-                }
-                mStep++
             }
-
             timeout++
             delay(10)
         }
@@ -253,196 +213,58 @@ class DLMSRegistrationViewModel : ViewModel() {
     }
 
     /**
-     * Set clock on the meter
+     * Retrieve billing data using accessData
      */
-    private suspend fun performSetClock(): Boolean {
-        mDataIndex = 0
-        mSel = 0
-        mParameter = StringBuilder()
+    private suspend fun retrieveBillingData(meter: Meter?): Boolean {
+        // Reset data access parameters
+        dlmsDataAccess.reset()
+        dlmsDataAccess.setParameter("")
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setDataIndex(0)
 
-        val sec = dlmsInitializer.dlms?.CurrentDatetimeSec()?.plus(1) ?: return false
-        val rawDatetime = dlmsInitializer.dlms?.SecToRawDatetime(sec) ?: return false
+        // Access billing parameters (index 2)
+        val success = dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
 
-        mParameter.append("090c").append(rawDatetime)
+        if (success) {
+            val receive = dlmsDataAccess.getReceive()
+            if (receive != null && receive.size >= 8) {
+                // Parse the billing data
+                val uid = receive.getOrNull(0) ?: "none"
+                val activate = receive.getOrNull(1) ?: "none"
+                val serialNo = receive.getOrNull(2) ?: "none"
+                val fixedDate = receive.getOrNull(3) ?: "none"
+                val readDate = receive.getOrNull(4) ?: "none"
+                val imp = receive.getOrNull(5) ?: "none"
+                val exp = receive.getOrNull(6) ?: "none"
+                val alert = receive.getOrNull(7) ?: "none"
+                val impMaxDemand = receive.getOrNull(8) ?: "none"
+                val expMaxDemand = receive.getOrNull(9) ?: "none"
+                val minVolt = receive.getOrNull(10) ?: "none"
+                val bluetoothId = meter?.bluetoothId ?: "none"
 
-        return accessData(1, DLMS.IST_DATETIME_NOW, 2, false)
-    }
-
-    /**
-     * Perform demand reset
-     */
-    private suspend fun performDemandReset(): Boolean {
-        mDataIndex = 0
-        mParameter = StringBuilder("120001")
-        return accessData(2, DLMS.IST_DEMAND_RESET, 1, false)
-    }
-
-    /**
-     * Get billing count
-     */
-    private suspend fun performGetBillingCount(): Boolean {
-        mDataIndex = 0
-        mSel = 0
-        mParameter = StringBuilder()
-        return accessData(0, DLMS.IST_BILLING_PARAMS, 7, false)
-    }
-
-    /**
-     * Get billing data
-     */
-    @SuppressLint("DefaultLocale")
-    private suspend fun performGetBillingData(): Boolean {
-        mDataIndex = 0
-        mSel = 2
-
-        val billingCount = if (mReceive != null && mReceive!!.size > 1) {
-            try {
-                mReceive!![1].toInt()
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to parse billing count: ${e.message}")
-                1
+                // Log in the specified order:
+                // UID, Activate, Serial NO., Bluetooth ID, Fixed date, Imp [kWh], Exp [kWh],
+                // ImpMaxDemand [kW], ExpMaxDemand [kW], MinVolt [V], Alert, Read date
+                appendLog("══════════════════")
+                appendLog("Registration Successful!")
+                appendLog("══════════════════")
+                appendLog("UID: $uid")
+                appendLog("Activate: $activate")
+                appendLog("Serial NO.: $serialNo")
+                appendLog("Bluetooth ID: $bluetoothId")
+                appendLog("Fixed date: $fixedDate")
+                appendLog("Imp [kWh]: $imp")
+                appendLog("Exp [kWh]: $exp")
+                appendLog("ImpMaxDemand [kW]: $impMaxDemand")
+                appendLog("ExpMaxDemand [kW]: $expMaxDemand")
+                appendLog("MinVolt [V]: $minVolt")
+                appendLog("Alert: $alert")
+                appendLog("Read date: $readDate")
+                appendLog("══════════════════")
             }
-        } else {
-            1
-        }
-
-        mParameter = StringBuilder(
-            String.format("020406%08x06%08x120001120000", billingCount, billingCount)
-        )
-
-        val success = accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
-
-        if (success && mReceive != null && mReceive!!.size >= 10) {
-            Log.i(TAG, "Billing data retrieved: ${mReceive!!.joinToString(",")}")
-
-            // Parse billing data fields according to mReceive structure:
-            // [0] = Read date (first date)
-            // [1] = Fixed date (billing date)
-            // [2] = Import energy
-            // [3] = Export energy
-            // [4] = Absolute energy (not logged)
-            // [5] = Net energy (not logged)
-            // [6] = Import max demand
-            // [7] = Export max demand
-            // [8] = Minimum voltage
-            // [9] = Alert status
-
-            val readDate = mReceive!![0]
-            val fixedDate = mReceive!![1]
-            val imp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![2]) ?: 0.0)
-            val exp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![3]) ?: 0.0)
-            val impMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![6]) ?: 0.0)
-            val expMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, mReceive!![7]) ?: 0.0)
-            val minVolt = String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, mReceive!![8]) ?: 0.0)
-            val alert = mReceive!![9]
-
-            // Get meter info from currentMeter
-            val meter = currentMeter
-            val uid = meter?.uid ?: "none"
-            val activate = "1"  // Meter is activated after successful registration
-            val serialNo = meter?.serialNumber ?: "none"
-            val bluetoothId = meter?.bluetoothId ?: "none"
-
-            // Log in the specified order:
-            // UID, Activate, Serial NO., Bluetooth ID, Fixed date, Imp [kWh], Exp [kWh],
-            // ImpMaxDemand [kW], ExpMaxDemand [kW], MinVolt [V], Alert, Read date
-            appendLog("══════════════════")
-            appendLog("Registration Successful!")
-            appendLog("══════════════════")
-            appendLog("UID: $uid")
-            appendLog("Activate: $activate")
-            appendLog("Serial NO.: $serialNo")
-            appendLog("Bluetooth ID: $bluetoothId")
-            appendLog("Fixed date: $fixedDate")
-            appendLog("Imp [kWh]: $imp")
-            appendLog("Exp [kWh]: $exp")
-            appendLog("ImpMaxDemand [kW]: $impMaxDemand")
-            appendLog("ExpMaxDemand [kW]: $expMaxDemand")
-            appendLog("MinVolt [V]: $minVolt")
-            appendLog("Alert: $alert")
-            appendLog("Read date: $readDate")
-            appendLog("══════════════════")
         }
 
         return success
-    }
-
-    /**
-     * Generic DLMS data access method
-     */
-    private suspend fun accessData(mode: Int, obj: Int, mth: Int, modeling: Boolean): Boolean {
-        mStep = 0
-        var timeout = 0
-
-        while (mStep < 2 && timeout < 100) {
-            when (mStep) {
-                0 -> {
-                    val para = mParameter.toString()
-                    val data = when (mode) {
-                        0 -> {
-                            Log.i(TAG, "Getting index:$obj, attr:$mth")
-                            dlmsInitializer.dlms?.getReq(obj, mth.toByte(), mSel, para, mDataIndex)
-                        }
-                        1 -> {
-                            Log.i(TAG, "Setting index:$obj, attr:$mth")
-                            dlmsInitializer.dlms?.setReq(obj, mth.toByte(), mSel, para, mDataIndex)
-                        }
-                        2 -> {
-                            Log.i(TAG, "Calling index:$obj, attr:$mth")
-                            dlmsInitializer.dlms?.actReq(obj, mth.toByte(), para, mDataIndex)
-                        }
-                        else -> null
-                    }
-
-                    if (data != null) {
-                        mTimer = 0
-                        dlmsInitializer.mArrived = 0
-                        dlmsInitializer.bluetoothLeService?.write(data)
-                        mStep++
-                    }
-                }
-                1 -> {
-                    mTimer = 0
-                    while (dlmsInitializer.mArrived == 0 && mTimer < 300) {
-                        delay(10)
-                        mTimer++
-                    }
-
-                    if (dlmsInitializer.mArrived == 0) {
-                        Log.e(TAG, "Timeout waiting for data response")
-                        return false
-                    }
-
-                    val res = IntArray(2)
-                    mReceive = dlmsInitializer.dlms?.DataRes(res, dlmsInitializer.mData, modeling)
-
-                    if (mReceive == null || mReceive!!.isEmpty()) {
-                        Log.e(TAG, "ERROR: mReceive is null or empty")
-                        mStep = 0
-                        return false
-                    }
-
-                    if (res[1] < 0) {
-                        Log.e(TAG, "DataRes error: ${res[1]}")
-                        return false
-                    }
-
-                    if (mode > 0 && mReceive!!.size > 1) {
-                        if (mReceive!![1] != "success (0)") {
-                            Log.e(TAG, "Operation failed: ${mReceive!![1]}")
-                            return false
-                        }
-                    }
-
-                    mStep = 0
-                    return true
-                }
-            }
-            timeout++
-            delay(10)
-        }
-
-        return false
     }
 
     /**
