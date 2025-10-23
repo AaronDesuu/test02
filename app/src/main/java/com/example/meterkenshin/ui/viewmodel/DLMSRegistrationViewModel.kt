@@ -95,29 +95,68 @@ class DLMSRegistrationViewModel : ViewModel() {
                     Log.v(TAG, "Wait loop $i: mArrived=${dlmsInitializer.mArrived}")
                     if (dlmsInitializer.mArrived == 0) {
                         ready = true
-                        Log.i(TAG, "Service discovered!")
+                        Log.i(TAG, "Service discovered! mArrived=${0} at iteration $i")
                         break
                     }
                 }
 
                 if (!ready) {
-                    appendLog("ERROR: Timeout during service discovery")
+                    appendLog("ERROR: Services not discovered (timeout) - final mArrived=${dlmsInitializer.mArrived}")
+                    Log.e(TAG, "Timeout: mArrived never became 0, final value=${dlmsInitializer.mArrived}")
                     return@launch
                 }
 
-                appendLog("Connection established, starting registration...")
+                appendLog("Connected and ready")
+                delay(500)
 
-                // Establish DLMS session
+                // Continue with DLMS session establishment
+                appendLog("Establishing DLMS session...")
                 if (!establishSession()) {
-                    appendLog("ERROR: Failed to establish session")
+                    appendLog("ERROR: Failed to establish DLMS session")
                     return@launch
                 }
-                appendLog("Session established successfully")
+                appendLog("DLMS session established")
 
-                // Retrieve billing data
-                val billingSuccess = retrieveBillingData(meter)
-                if (billingSuccess) {
-                    appendLog("Billing data retrieved successfully")
+                delay(500)
+
+                // Set clock
+                appendLog("Setting clock...")
+                if (performSetClock()) {
+                    appendLog("Success to set clock")
+                } else {
+                    appendLog("ERROR: Failed to set clock")
+                    return@launch
+                }
+
+                delay(500)
+
+                // Demand reset
+                appendLog("Calling demand reset...")
+                if (performDemandReset()) {
+                    appendLog("Success to call demand reset")
+                } else {
+                    appendLog("ERROR: Failed to call demand reset")
+                    return@launch
+                }
+
+                delay(500)
+
+                // Get billing count
+                appendLog("Getting billing count...")
+                if (performGetBillingCount()) {
+                    appendLog("Billing count retrieved")
+                } else {
+                    appendLog("ERROR: Failed to get billing count")
+                    return@launch
+                }
+
+                delay(500)
+
+                // Get billing data
+                appendLog("Getting billing data...")
+                if (performGetBillingData()) {
+                    appendLog("Success to register meter")
+                    appendLog("Finish!")
                     _registrationState.value = RegistrationState(isComplete = true)
                 } else {
                     appendLog("ERROR: Failed to get billing data")
@@ -213,33 +252,96 @@ class DLMSRegistrationViewModel : ViewModel() {
     }
 
     /**
-     * Retrieve billing data using accessData
+     * Set clock on the meter
      */
-    private suspend fun retrieveBillingData(meter: Meter?): Boolean {
-        // Reset data access parameters
-        dlmsDataAccess.reset()
-        dlmsDataAccess.setParameter("")
-        dlmsDataAccess.setSelector(0)
+    private suspend fun performSetClock(): Boolean {
         dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
 
-        // Access billing parameters (index 2)
+        val sec = dlmsInitializer.dlms?.CurrentDatetimeSec()?.plus(1) ?: return false
+        val rawDatetime = dlmsInitializer.dlms?.SecToRawDatetime(sec) ?: return false
+
+        dlmsDataAccess.setParameter("090c$rawDatetime")
+
+        return dlmsDataAccess.accessData(1, DLMS.IST_DATETIME_NOW, 2, false)
+    }
+
+    /**
+     * Perform demand reset
+     */
+    private suspend fun performDemandReset(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setParameter("120001")
+        return dlmsDataAccess.accessData(2, DLMS.IST_DEMAND_RESET, 1, false)
+    }
+
+    /**
+     * Get billing count
+     */
+    private suspend fun performGetBillingCount(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setParameter("")
+        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 7, false)
+    }
+
+    /**
+     * Get billing data
+     */
+    @SuppressLint("DefaultLocale")
+    private suspend fun performGetBillingData(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(2)
+
+        val mReceive = dlmsDataAccess.getReceive()
+        val billingCount = if (mReceive != null && mReceive.size > 1) {
+            try {
+                mReceive[1].toInt()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse billing count: ${e.message}")
+                1
+            }
+        } else {
+            1
+        }
+
+        dlmsDataAccess.setParameter(
+            String.format("020406%08x06%08x120001120000", billingCount, billingCount)
+        )
+
         val success = dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
 
         if (success) {
             val receive = dlmsDataAccess.getReceive()
-            if (receive != null && receive.size >= 8) {
-                // Parse the billing data
-                val uid = receive.getOrNull(0) ?: "none"
-                val activate = receive.getOrNull(1) ?: "none"
-                val serialNo = receive.getOrNull(2) ?: "none"
-                val fixedDate = receive.getOrNull(3) ?: "none"
-                val readDate = receive.getOrNull(4) ?: "none"
-                val imp = receive.getOrNull(5) ?: "none"
-                val exp = receive.getOrNull(6) ?: "none"
-                val alert = receive.getOrNull(7) ?: "none"
-                val impMaxDemand = receive.getOrNull(8) ?: "none"
-                val expMaxDemand = receive.getOrNull(9) ?: "none"
-                val minVolt = receive.getOrNull(10) ?: "none"
+            if (receive != null && receive.size >= 10) {
+                Log.i(TAG, "Billing data retrieved: ${receive.joinToString(",")}")
+
+                // Parse billing data fields according to mReceive structure:
+                // [0] = Read date (first date)
+                // [1] = Fixed date (billing date)
+                // [2] = Import energy
+                // [3] = Export energy
+                // [4] = Absolute energy (not logged)
+                // [5] = Net energy (not logged)
+                // [6] = Import max demand
+                // [7] = Export max demand
+                // [8] = Minimum voltage
+                // [9] = Alert status
+
+                val readDate = receive[0]
+                val fixedDate = receive[1]
+                val imp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[2]) ?: 0.0)
+                val exp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[3]) ?: 0.0)
+                val impMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[6]) ?: 0.0)
+                val expMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[7]) ?: 0.0)
+                val minVolt = String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, receive[8]) ?: 0.0)
+                val alert = receive[9]
+
+                // Get meter info from currentMeter
+                val meter = currentMeter
+                val uid = meter?.uid ?: "none"
+                val activate = "1"  // Meter is activated after successful registration
+                val serialNo = meter?.serialNumber ?: "none"
                 val bluetoothId = meter?.bluetoothId ?: "none"
 
                 // Log in the specified order:

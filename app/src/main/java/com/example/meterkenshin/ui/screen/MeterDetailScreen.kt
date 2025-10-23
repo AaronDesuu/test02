@@ -35,7 +35,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,7 +64,7 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 fun MeterDetailScreen(
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
-    registrationViewModel: DLMSRegistrationViewModel = viewModel(),
+    registrationViewModel: DLMSRegistrationViewModel = viewModel(key = "meter_${meter.uid}"),
     onReadData: () -> Unit = {},
     onLoadProfile: () -> Unit = {},
     onEventLog: () -> Unit = {},
@@ -74,7 +73,6 @@ fun MeterDetailScreen(
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     // Track DLMS initialization state
     var isDlmsInitialized by remember { mutableStateOf(false) }
