@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun DLMSFunctionsCard(
     modifier: Modifier = Modifier,
+    meterActivate: Int = 0,
     onRegistration: () -> Unit,
     onReadData: () -> Unit,
     onLoadProfile: () -> Unit,
@@ -62,20 +63,22 @@ fun DLMSFunctionsCard(
                 )
             }
 
-            // Function buttons
+            // Registration button - only enabled when activate = 0
             DLMSFunctionButton(
                 text = "Registration",
                 icon = Icons.Default.Person,
                 onClick = onRegistration,
-                enabled = !isProcessing
+                enabled = !isProcessing && meterActivate == 0
             )
             Spacer(modifier = Modifier.height(8.dp))
 
+
+            // Other buttons - enabled when activate ≠ 0
             DLMSFunctionButton(
                 text = "Read data",
                 icon = Icons.Default.Assessment,
                 onClick = onReadData,
-                enabled = !isProcessing
+                enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -83,7 +86,7 @@ fun DLMSFunctionsCard(
                 text = "Load profile",
                 icon = Icons.Default.Storage,
                 onClick = onLoadProfile,
-                enabled = !isProcessing
+                enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -91,7 +94,7 @@ fun DLMSFunctionsCard(
                 text = "Event log",
                 icon = Icons.Default.Event,
                 onClick = onEventLog,
-                enabled = !isProcessing
+                enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -99,15 +102,16 @@ fun DLMSFunctionsCard(
                 text = "Billing data",
                 icon = Icons.Default.Payment,
                 onClick = onBillingData,
-                enabled = !isProcessing
+                enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Set Clock - ALWAYS enabled (exception)
             DLMSFunctionButton(
                 text = "Set Clock",
-                icon = Icons.Default.AccessTime,
+                icon = Icons.Default.Schedule,
                 onClick = onSetClock,
-                enabled = !isProcessing
+                enabled = !isProcessing  // No meterActivate check
             )
         }
     }
