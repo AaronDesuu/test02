@@ -3,7 +3,6 @@ package com.example.meterkenshin.ui.component
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,10 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Meter
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -41,6 +38,7 @@ import java.util.Locale
  * Universal Modern Meter Card Component with MeterReadingViewModel Integration
  * This component works with MeterReadingViewModel and can be reused across screens
  * Updated to match the PNG design with three status states at bottom
+ * MODIFIED: Added "Meter not Registered" status for activate=0 with pale/transparent card
  */
 @SuppressLint("DefaultLocale")
 @Composable
@@ -51,9 +49,12 @@ fun ModernMeterCard(
     showChevron: Boolean = true,
     customContent: (@Composable () -> Unit)? = null,
     isNearby: Boolean = false,
-    inspectionStatus: InspectionStatus = getInspectionStatus(meter, isNearby), // ✅ NEW
-    signalStrength: Int? = null, // ✅ NEW (RSSI in dBm)
+    inspectionStatus: InspectionStatus = getInspectionStatus(meter, isNearby),
+    signalStrength: Int? = null,
 ) {
+    // Check if meter is not registered (activate = 0)
+    val isNotRegistered = meter.activate == 0
+
     // Determine connection status based on activate field from CSV (via MeterReadingViewModel)
     val connectionStatus = when {
         isNearby -> ConnectionStatus.ONLINE_EXCELLENT
@@ -68,7 +69,7 @@ fun ModernMeterCard(
         ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isNearby) 4.dp else 2.dp // ✅ Elevated if nearby
+            defaultElevation = if (isNearby) 4.dp else 2.dp
         ),
         border = BorderStroke(
             width = 1.dp,
@@ -174,101 +175,108 @@ fun ModernMeterCard(
                         Text(
                             text = connectionStatus.displayName,
                             style = MaterialTheme.typography.bodySmall,
-                            color = connectionStatus.color,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    if (isNearby && signalStrength != null) {
+                    // Signal strength if available
+                    signalStrength?.let { rssi ->
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Cable,
                                 contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = getSignalColor(signalStrength)
+                                tint = getSignalColor(rssi),
+                                modifier = Modifier.size(12.dp)
                             )
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
                             Text(
-                                text = "$signalStrength dBm • ${getSignalQuality(signalStrength)}",
+                                text = "${getSignalQuality(rssi)} ($rssi dBm)",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = getSignalColor(signalStrength),
+                                color = getSignalColor(rssi),
                                 fontWeight = FontWeight.Medium
                             )
                         }
+
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    // Show chevron if enabled
+                    // Chevron icon
                     if (showChevron) {
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
-                            contentDescription = stringResource(R.string.view_details),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            contentDescription = "View details",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
 
-            // Bottom section with max demand and status bar
-            Column {
-                // Max demand display (bottom right, above status bar)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    // Max demand from CSV (impMaxDemandKW) or formatted usage as max demand
-                    val maxDemandText = meter.impMaxDemandKW?.let {
+            // Max Demand display area (right aligned above status bar)
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End
+            ) {
+                // Max demand text from impMaxDemandKW or impKWh
+                val maxDemandText = meter.impMaxDemandKW?.let {
+                    String.format("%07.1f kW", it)
+                } ?: run {
+                    // Use impKWh as max demand if impMaxDemandKW is not available
+                    meter.impKWh?.let {
                         String.format("%07.1f kWh", it)
-                    } ?: run {
-                        // Use impKWh as max demand if impMaxDemandKW is not available
-                        meter.impKWh?.let {
-                            String.format("%07.1f kWh", it)
-                        } ?: "0000000.0 kWh"
-                    }
-
-                    Text(
-                        text = maxDemandText,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(end = 16.dp, bottom = 8.dp)
-                    )
+                    } ?: "0000000.0 kWh"
                 }
 
-                // Status bar with three states - now using dynamic inspection status
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(32.dp)
-                        .background(
-                            color = when (inspectionStatus) {
+                Text(
+                    text = maxDemandText,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(end = 16.dp, bottom = 8.dp)
+                )
+            }
+
+            // Status bar with inspection status - Shows "Meter not Registered" when activate=0
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(32.dp)
+                    .background(
+                        color = if (isNotRegistered) {
+                            Color(0xFF9E9E9E) // Gray color for not registered
+                        } else {
+                            when (inspectionStatus) {
                                 InspectionStatus.INSPECTED_BILLING_PRINTED -> Color(0xFF4CAF50) // Green
                                 InspectionStatus.INSPECTED_BILLING_NOT_PRINTED -> Color(0xFFFF9800) // Yellow/Orange
                                 InspectionStatus.NOT_INSPECTED -> Color(0xFFF44336) // Red
-                            },
-                            shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
-                        )
-                ) {
-                    Text(
-                        text = when (inspectionStatus) {
+                            }
+                        },
+                        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
+                    )
+            ) {
+                Text(
+                    text = if (isNotRegistered) {
+                        "Meter not Registered"
+                    } else {
+                        when (inspectionStatus) {
                             InspectionStatus.INSPECTED_BILLING_PRINTED -> "Inspected & Billing Printed"
                             InspectionStatus.INSPECTED_BILLING_NOT_PRINTED -> "Inspected, Billing not Printed"
                             InspectionStatus.NOT_INSPECTED -> "Not Inspected"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(horizontal = 8.dp)
-                    )
-                }
+                        }
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 8.dp)
+                )
             }
         }
 
@@ -309,7 +317,6 @@ enum class ConnectionStatus(
 fun getInspectionStatus(meter: Meter, isNearby: Boolean): InspectionStatus {
     // Use meter data to determine inspection status
     return when {
-
         // If meter has no readings or is new (no lastMaintenanceDate), not inspected
         meter.readDate == null && (meter.impKWh == null || meter.impKWh == 0.0) -> {
             InspectionStatus.NOT_INSPECTED

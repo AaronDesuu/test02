@@ -332,7 +332,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                 // [8] = Minimum voltage
                 // [9] = Alert status
 
-                val readDate = receive[0]
+                val registerDate = receive[0]
                 val fixedDate = receive[1]
                 val imp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[2]) ?: 0.0)
                 val exp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[3]) ?: 0.0)
@@ -340,6 +340,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                 val expMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[7]) ?: 0.0)
                 val minVolt = String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, receive[8]) ?: 0.0)
                 val alert = receive[9]
+                val readDate = ""
 
                 // Get meter info from currentMeter
                 val meter = currentMeter
@@ -366,6 +367,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                 appendLog("MinVolt [V]: $minVolt")
                 appendLog("Alert: $alert")
                 appendLog("Read date: $readDate")
+                appendLog("Registration date: $registerDate")
                 appendLog("══════════════════")
 
                 // Export meter data to CSV
@@ -443,19 +445,18 @@ class DLMSRegistrationViewModel : ViewModel() {
                     // If a row was replaced, our work is done.
                     lines.clear()
                     lines.addAll(updatedLines)
-                    appendLog("Overwriting existing meter data for UID: $uid in $filename")
+                    appendLog("Overwriting existing meter data for UID: $uid")
                 } else {
                     // If no row was updated, it means this is a new entry, so append it.
                     lines.add(newRowString)
-                    appendLog("Appending new meter data for UID: $uid to $filename")
+                    appendLog("Appending new meter data for UID: $uid")
                 }
             }
 
             // Write all lines (original, updated, and/or appended) back to the file.
             meterFile.writeText(lines.joinToString("\n"))
 
-            appendLog("Meter data successfully exported to $filename")
-            appendLog("File path: ${meterFile.absolutePath}")
+            appendLog("Meter data successfully exported")
 
         } catch (e: Exception) {
             appendLog("ERROR: Failed to export meter data: ${e.message}")
