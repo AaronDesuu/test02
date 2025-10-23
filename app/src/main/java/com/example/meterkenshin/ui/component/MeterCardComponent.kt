@@ -317,34 +317,18 @@ enum class ConnectionStatus(
 fun getInspectionStatus(meter: Meter, isNearby: Boolean): InspectionStatus {
     // Use meter data to determine inspection status
     return when {
-        // If meter has no readings or is new (no lastMaintenanceDate), not inspected
         meter.readDate == null && (meter.impKWh == null || meter.impKWh == 0.0) -> {
             InspectionStatus.NOT_INSPECTED
         }
 
-        // If meter has critical alerts (alert level > 2), billing not printed
-        meter.alert != null && meter.alert > 2.0 -> {
+        // If meter has readings, and no alerts
+        meter.impKWh != null && meter.impKWh > 0.0 &&
+                meter.readDate != null -> {
             InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
         }
 
-        // If voltage is too low (critical issue), billing not printed
-        meter.minVoltV != null && meter.minVoltV < 200.0 -> {
-            InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
-        }
-
-        // If meter has minor alerts (0 < alert <= 2), billing not printed
-        meter.alert != null && meter.alert > 0.0 -> {
-            InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
-        }
-
-        // If meter is active, has readings, and no alerts, billing printed
-        isNearby && meter.impKWh != null && meter.impKWh > 0.0 &&
-                (meter.alert == null || meter.alert == 0.0) -> {
-            InspectionStatus.INSPECTED_BILLING_PRINTED
-        }
-
-        // Default case - inspected but billing not printed
-        else -> InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
+        // Default case - not inspected
+        else -> InspectionStatus.NOT_INSPECTED
     }
 }
 
