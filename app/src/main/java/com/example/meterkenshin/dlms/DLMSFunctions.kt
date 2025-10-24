@@ -10,7 +10,7 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * DLMS Functions - Extracted from DLMSRegistrationViewModel
+ * DLMS Functions - Extracted from DLMSViewModel
  * Contains reusable DLMS operations for meter registration and data retrieval
  */
 class DLMSFunctions(
@@ -37,7 +37,11 @@ class DLMSFunctions(
         dlmsDataAccess.setSelector(0)
 
         val sec = dlmsInitializer.dlms?.CurrentDatetimeSec()?.plus(1) ?: return false
-        val rawDatetime = dlmsInitializer.dlms?.SecToRawDatetime(sec) ?: return false
+
+        // FIX: Add 86400 seconds (1 day) to compensate for bug
+        val secFixed = sec + 86400
+
+        val rawDatetime = dlmsInitializer.dlms?.SecToRawDatetime(secFixed) ?: return false
 
         dlmsDataAccess.setParameter("090c$rawDatetime")
 

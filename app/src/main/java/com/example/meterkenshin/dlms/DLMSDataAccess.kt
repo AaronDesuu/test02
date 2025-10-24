@@ -6,7 +6,7 @@ import kotlinx.coroutines.delay
 
 /**
  * DLMS Data Access Handler
- * Extracted from DLMSRegistrationViewModel for better modularity and reusability
+ * Extracted from DLMSViewModel for better modularity and reusability
  */
 class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
 

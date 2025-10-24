@@ -17,7 +17,7 @@ import kotlinx.coroutines.delay
 
 /**
  * Handles DLMS initialization, Bluetooth service connection, and broadcast receiver management
- * Extracted from DLMSRegistrationViewModel for better separation of concerns
+ * Extracted from DLMSViewModel for better separation of concerns
  */
 @SuppressLint("MissingPermission")
 class DLMSInit(

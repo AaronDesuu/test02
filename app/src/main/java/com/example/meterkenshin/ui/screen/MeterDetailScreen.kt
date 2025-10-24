@@ -52,7 +52,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.data.MeterSpecifications
 import com.example.meterkenshin.ui.component.DLMSFunctionsCard
 import com.example.meterkenshin.ui.component.DLMSLogCard
-import com.example.meterkenshin.ui.viewmodel.DLMSRegistrationViewModel
+import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 
 /**
@@ -64,7 +64,7 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 fun MeterDetailScreen(
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
-    registrationViewModel: DLMSRegistrationViewModel = viewModel(key = "meter_${meter.uid}"),
+    registrationViewModel: DLMSViewModel = viewModel(key = "meter_${meter.uid}"),
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current

@@ -29,7 +29,7 @@ data class RegistrationState(
 
 @Suppress("SameParameterValue")
 @SuppressLint("MissingPermission")
-class DLMSRegistrationViewModel : ViewModel() {
+class DLMSViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "DLMSRegistration"
@@ -66,7 +66,7 @@ class DLMSRegistrationViewModel : ViewModel() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun initializeDLMS(context: Context, meter: Meter) {
         mContext = context
-        this@DLMSRegistrationViewModel.meter = meter
+        this@DLMSViewModel.meter = meter
         dlmsInitializer.initialize(context, meter)
         dlmsDataAccess = DLMSDataAccess(dlmsInitializer)
         dlmsFunctions = DLMSFunctions(dlmsInitializer, dlmsDataAccess, mContext) { appendLog(it) }
@@ -777,11 +777,11 @@ class DLMSRegistrationViewModel : ViewModel() {
     }
 
     /**
-     * setClock
+     * Set Clock on the meter
      */
     fun setClock(meter: Meter) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
-            appendLog("set Clock already running")
+            appendLog("Set Clock already running")
             return@launch
         }
 
@@ -798,7 +798,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                 return@launch
             }
 
-            startOperation("set Clock")
+            startOperation("Set Clock")
 
             appendLog("Connecting to ${meter.bluetoothId}...")
             dlmsInitializer.mArrived = -1
@@ -816,7 +816,6 @@ class DLMSRegistrationViewModel : ViewModel() {
                 delay(100)
                 if (dlmsInitializer.mArrived == 0) {
                     ready = true
-
                     break
                 }
             }
@@ -840,9 +839,26 @@ class DLMSRegistrationViewModel : ViewModel() {
             appendLog("DLMS session established")
             delay(500)
 
+            // === USE DLMSFUNCTIONS.PERFORMSETCLOCK ===
+            appendLog("Setting clock...")
+            if (dlmsFunctions.performSetClock()) {
+                val receive = dlmsDataAccess.getReceive()
+                if (receive != null && receive.size > 1) {
+                    if (receive[1] == "success (0)") {
+                        appendLog("✅ Success to set clock")
+                    } else {
+                        appendLog("ERROR: Failed to set clock - ${receive[1]}")
+                    }
+                } else {
+                    appendLog("✅ Clock set (response parsing incomplete)")
+                }
+            } else {
+                appendLog("ERROR: Failed to set clock")
+            }
+
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
-            Log.e(TAG, "set Clock error", e)
+            Log.e(TAG, "Set Clock error", e)
         } finally {
             finishOperation()
         }
