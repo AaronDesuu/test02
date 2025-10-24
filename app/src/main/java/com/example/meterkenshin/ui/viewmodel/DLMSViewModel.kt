@@ -290,8 +290,9 @@ class DLMSViewModel : ViewModel() {
                 // Get billing data
                 appendLog("Getting billing data...")
                 if (dlmsFunctions.performGetBillingDataRegistration()) {
-                    appendLog("Success to register meter")
-                    appendLog("Finish!")
+
+                    appendLog("Success to register meter with S/N: ${meter.serialNumber}")
+                    appendLog("✅ Registration Complete")
                     _registrationState.value = RegistrationState(isComplete = true)
                 } else {
                     appendLog("ERROR: Failed to get billing data")
@@ -565,11 +566,6 @@ class DLMSViewModel : ViewModel() {
 
     /**
      * Save complete load profile data to CSV file
-     *
-     * Data format (from your actual output):
-     * - First entry [0] = timestamp (for filename)
-     * - Repeating groups of 5: Clock, Status, AveVolt[V], BlockImp[kW], BlockExp[kW]
-     *
      * Example entry:
      * 2025/05/09 13:30:00,128,23299,183,0
      */
@@ -633,7 +629,7 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
-     * eventLog
+     * eventLog - Retrieve ALL power quality event records from meter using block transfer
      */
     fun eventLog(meter: Meter) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
@@ -672,7 +668,6 @@ class DLMSViewModel : ViewModel() {
                 delay(100)
                 if (dlmsInitializer.mArrived == 0) {
                     ready = true
-
                     break
                 }
             }
@@ -696,11 +691,144 @@ class DLMSViewModel : ViewModel() {
             appendLog("DLMS session established")
             delay(500)
 
+            // ===== BLOCK TRANSFER LOOP PATTERN =====
+            // This is the key difference - we need to loop to get ALL records
+
+            // Accumulate all event data across blocks
+            val allEventData = ArrayList<String>()
+            var blockCount = 0
+
+            // First request - starts block transfer
+            appendLog("Requesting event records...")
+
+            // Initial access to Power Quality event log
+            if (!dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false)) {
+                appendLog("ERROR: Failed to access event records")
+                finishOperation()
+                return@launch
+            }
+
+            // Collect data from first block
+            var mReceive = dlmsDataAccess.getReceive()
+            if (mReceive != null && mReceive.isNotEmpty()) {
+                allEventData.addAll(mReceive)
+                blockCount++
+                appendLog("Block $blockCount received (${mReceive.size} entries)")
+            }
+
+            // Continue requesting blocks until complete
+            // dlmsDataAccess tracks whether more blocks are available via shouldContinueBlockTransfer()
+            // This is based on res[0] = 2 (continue) or res[0] = 0 (done)
+            var continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
+
+            while (continueTransfer && blockCount < 200) { // Safety limit of 200 blocks
+                delay(200) // Small delay between block requests
+
+                // Request next block (DLMS internally tracks mBlockNo)
+                if (!dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false)) {
+                    appendLog("ERROR: Failed to get event log block")
+                    break
+                }
+
+                mReceive = dlmsDataAccess.getReceive()
+                if (mReceive != null && mReceive.isNotEmpty()) {
+                    allEventData.addAll(mReceive)
+                    blockCount++
+                    appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allEventData.size})")
+                }
+
+                continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
+            }
+
+            appendLog("Event log transfer complete: $blockCount blocks, ${allEventData.size} total entries")
+
+            // Save to CSV if we have data
+            if (allEventData.size > 3) {
+                val success = saveEventLogToCSV(meter.serialNumber, allEventData)
+
+                if (success) {
+                    appendLog("Success to get and save ${allEventData.size} event records to file")
+                    appendLog("✅ Load Profile Complete")
+                } else {
+                    appendLog("ERROR: Failed to save event log to CSV")
+                }
+            } else {
+                appendLog("ERROR: Insufficient event data (received ${allEventData.size} entries)")
+            }
+
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Event Log error", e)
         } finally {
             finishOperation()
+        }
+    }
+
+    /**
+     * Save complete event log data to CSV file
+     * Format: Clock,Event,Volt V
+     * Based on project01's SecondFragment implementation
+     */
+    private fun saveEventLogToCSV(serialId: String?, data: ArrayList<String>): Boolean {
+        return try {
+            if (serialId.isNullOrEmpty()) {
+                Log.e(TAG, "Serial ID is null or empty")
+                return false
+            }
+
+            val externalDir = mContext?.getExternalFilesDir(null)
+            if (externalDir == null) {
+                Log.e(TAG, "External storage not available")
+                return false
+            }
+
+            // Extract timestamp from first entry and format filename
+            // Example timestamp: "2024/10/24 15:30:45"
+            var timestamp = data[0]
+            timestamp = timestamp.replace("/", "")
+                .replace(":", "")
+                .replace(" ", "_")
+
+            // Create filename: {SerialID}_EV_{timestamp}.csv
+            val filename = "${serialId}_EV_${timestamp}.csv"
+            val file = File(externalDir, filename)
+
+            // Create CSV content
+            val csvContent = StringBuilder()
+            // Header matches project01: "Clock,Event,Volt[V]"
+            csvContent.append("Clock,Event,Volt[V]\n")
+
+            // Remove timestamp from data (already used for filename)
+            val eventData = ArrayList(data)
+            eventData.removeAt(0)
+
+            // Write data rows
+            var i = 0
+            var rowCount = 0
+            while (i < eventData.size) {
+                if (i + 2 < eventData.size) {
+                    val clock = eventData[i]      // Clock (datetime)
+                    val event = eventData[i + 1]  // Event code
+                    val volt = eventData[i + 2]   // Voltage
+
+                    csvContent.append("$clock,$event,$volt\n")
+                    i += 3
+                    rowCount++
+                } else {
+                    break
+                }
+            }
+
+            // Write to file
+            file.writeText(csvContent.toString())
+
+            Log.i(TAG, "Event log saved to: ${file.absolutePath}")
+            appendLog("File saved: $filename ($rowCount events)")
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving event log CSV: ${e.message}", e)
+            false
         }
     }
 
@@ -839,13 +967,13 @@ class DLMSViewModel : ViewModel() {
             appendLog("DLMS session established")
             delay(500)
 
-            // === USE DLMSFUNCTIONS.PERFORMSETCLOCK ===
             appendLog("Setting clock...")
             if (dlmsFunctions.performSetClock()) {
                 val receive = dlmsDataAccess.getReceive()
                 if (receive != null && receive.size > 1) {
                     if (receive[1] == "success (0)") {
-                        appendLog("✅ Success to set clock")
+                        appendLog("Success to set clock")
+                        appendLog("✅ set Clock Complete")
                     } else {
                         appendLog("ERROR: Failed to set clock - ${receive[1]}")
                     }
