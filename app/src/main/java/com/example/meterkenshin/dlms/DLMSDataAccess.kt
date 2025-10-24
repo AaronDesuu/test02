@@ -2,7 +2,6 @@ package com.example.meterkenshin.dlms
 
 import android.annotation.SuppressLint
 import android.util.Log
-import com.example.meterkenshin.ui.viewmodel.DLMSInit
 import kotlinx.coroutines.delay
 
 /**

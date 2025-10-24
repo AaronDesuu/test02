@@ -152,14 +152,14 @@ fun MeterDetailScreen(
                 meterActivate = activeMeter.activate,  // This will update when CSV is written
                 onRegistration = {
                     if (meter.activate == 0) {
-                        registrationViewModel.startRegistration(meter)
+                        registrationViewModel.registration(meter)
                     } else {
                         Log.w("MeterDetailScreen", "DLMS not yet initialized")
                     }
                 },
                 onReadData = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        registrationViewModel.performReadData(meter)
+                        registrationViewModel.readData(meter)
                     }
                 },
                 onLoadProfile = {

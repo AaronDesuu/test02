@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.viewmodel
+package com.example.meterkenshin.dlms
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -12,7 +12,6 @@ import android.os.IBinder
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.meterkenshin.bluetooth.BluetoothLeService
-import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
 import kotlinx.coroutines.delay
 
@@ -58,19 +57,19 @@ class DLMSInit(
             Log.d(TAG, "=== BROADCAST RECEIVED: $action ===")
 
             when (action) {
-                BluetoothLeService.ACTION_GATT_CONNECTED -> {
+                BluetoothLeService.Companion.ACTION_GATT_CONNECTED -> {
                     Log.i(TAG, "GATT Connected")
                 }
-                BluetoothLeService.ACTION_GATT_DISCONNECTED -> {
+                BluetoothLeService.Companion.ACTION_GATT_DISCONNECTED -> {
                     Log.i(TAG, "GATT Disconnected")
                 }
-                BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED -> {
+                BluetoothLeService.Companion.ACTION_GATT_SERVICES_DISCOVERED -> {
                     Log.i(TAG, "!!! GATT Services Discovered - Setting mArrived = 0 !!!")
                     mArrived = 0  // THIS IS THE KEY FLAG
                     Log.i(TAG, "mArrived is now: $mArrived")
                 }
-                BluetoothLeService.ACTION_DATA_AVAILABLE -> {
-                    val data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA)
+                BluetoothLeService.Companion.ACTION_DATA_AVAILABLE -> {
+                    val data = intent.getByteArrayExtra(BluetoothLeService.Companion.EXTRA_DATA)
                     if (data != null) {
                         mData = data
                         mArrived++
@@ -124,10 +123,10 @@ class DLMSInit(
         // Register receiver FIRST, before any BLE operations
         if (!mReceiverRegistered) {
             val filter = IntentFilter().apply {
-                addAction(BluetoothLeService.ACTION_GATT_CONNECTED)
-                addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED)
-                addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED)
-                addAction(BluetoothLeService.ACTION_DATA_AVAILABLE)
+                addAction(BluetoothLeService.Companion.ACTION_GATT_CONNECTED)
+                addAction(BluetoothLeService.Companion.ACTION_GATT_DISCONNECTED)
+                addAction(BluetoothLeService.Companion.ACTION_GATT_SERVICES_DISCOVERED)
+                addAction(BluetoothLeService.Companion.ACTION_DATA_AVAILABLE)
             }
 
             try {
