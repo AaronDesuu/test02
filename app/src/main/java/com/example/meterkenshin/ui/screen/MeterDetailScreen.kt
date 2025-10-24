@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.screen
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
@@ -50,10 +51,13 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.data.MeterSpecifications
+import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.component.DLMSFunctionsCard
 import com.example.meterkenshin.ui.component.DLMSLogCard
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import java.io.File
 
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
@@ -65,6 +69,7 @@ fun MeterDetailScreen(
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     registrationViewModel: DLMSViewModel = viewModel(key = "meter_${meter.uid}"),
+    fileUploadViewModel: FileUploadViewModel = viewModel(),
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -170,7 +175,8 @@ fun MeterDetailScreen(
                 },
                 onBillingData = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        registrationViewModel.billingData(meter)
+                        val rates = loadRatesFromUploadedCSV(context, fileUploadViewModel)
+                        registrationViewModel.billingData(meter, rates)
                     }
                 },
                 onSetClock = {
@@ -460,5 +466,114 @@ private fun SpecificationRow(
             modifier = Modifier.weight(1f)
         )
     }
+}
+
+/**
+ * Load rates from uploaded rate.csv file
+ */
+private fun loadRatesFromUploadedCSV(
+    context: Context,
+    fileUploadViewModel: FileUploadViewModel
+): FloatArray {
+    val uploadState = fileUploadViewModel.uploadState.value
+    val rateCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.RATE }
+
+    // Check if rate.csv is uploaded
+    if (rateCsvFile?.isUploaded == true) {
+        try {
+            // Get the uploaded file from external files directory
+            val externalFilesDir = context.getExternalFilesDir(null)
+            if (externalFilesDir != null) {
+                val rateFile = File(externalFilesDir, rateCsvFile.fileName)
+
+                if (rateFile.exists()) {
+                    Log.d("MeterDetail", "Loading rates from: ${rateFile.absolutePath}")
+
+                    // Parse CSV file
+                    val rates = mutableListOf<Float>()
+                    val reader = java.io.BufferedReader(java.io.FileReader(rateFile))
+
+                    var isFirstLine = true
+                    reader.useLines { lines ->
+                        lines.forEach { line ->
+                            if (line.isNotBlank() && !line.startsWith("#")) {
+                                if (isFirstLine) {
+                                    // First line might be headers, try to parse it
+                                    val firstCell = line.split(",").firstOrNull()?.trim()
+                                    if (firstCell != null) {
+                                        try {
+                                            // If we can parse as float, it's data not headers
+                                            rates.add(firstCell.toFloat())
+                                            // Parse rest of first line
+                                            line.split(",").drop(1).forEach { cell ->
+                                                try {
+                                                    rates.add(cell.trim().toFloat())
+                                                } catch (_: NumberFormatException) {
+                                                    // Skip non-numeric values
+                                                }
+                                            }
+                                        } catch (_: NumberFormatException) {
+                                            // First line is headers, skip to next line
+                                            Log.d("MeterDetail", "Headers detected, skipping")
+                                        }
+                                    }
+                                    isFirstLine = false
+                                } else {
+                                    // Parse data line
+                                    line.split(",").forEach { cell ->
+                                        val trimmed = cell.trim()
+                                        if (trimmed.isNotEmpty()) {
+                                            try {
+                                                rates.add(trimmed.toFloat())
+                                            } catch (_: NumberFormatException) {
+                                                // Skip non-numeric values
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Log.d("MeterDetail", "Parsed ${rates.size} rate values from CSV")
+
+                    if (rates.size >= 21) {
+                        return rates.take(21).toFloatArray()
+                    } else {
+                        Log.w("MeterDetail", "Insufficient rates in CSV (${rates.size}), using defaults")
+                        return getDefaultRates()
+                    }
+                } else {
+                    Log.w("MeterDetail", "Rate file not found: ${rateFile.absolutePath}")
+                    return getDefaultRates()
+                }
+            } else {
+                Log.e("MeterDetail", "External files directory not available")
+                return getDefaultRates()
+            }
+        } catch (e: Exception) {
+            Log.e("MeterDetail", "Error loading rates from CSV: ${e.message}", e)
+            return getDefaultRates()
+        }
+    } else {
+        Log.i("MeterDetail", "rate.csv not uploaded, using default rates")
+        return getDefaultRates()
+    }
+}
+
+/**
+ * Default rates matching project01
+ */
+private fun getDefaultRates(): FloatArray {
+    return floatArrayOf(
+        2.5f, 150.0f, 0.1f,           // Gen/Trans charges (0-2)
+        50.0f, 100.0f, 50.0f,         // Distribution charges (3-5)
+        0.05f, 0.03f,                 // Sustainable CAPEX (6-7)
+        0.02f, 0.01f,                 // Other charges (8-9)
+        0.001f, 0.12f, 0.0025f,       // Universal charges (10-15)
+        0.04f, 0.1f, 0.25f,
+        0.3f, 0.3f, 0.012f,           // VAT (16-20)
+        0.12f, 0.12f
+    )
 }
 

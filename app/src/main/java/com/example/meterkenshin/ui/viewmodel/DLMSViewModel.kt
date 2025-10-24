@@ -833,22 +833,20 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
-     * Billing Data
+     * Billing Data - Retrieves ALL billing records using block transfer and calculates charges
      */
-    fun billingData(meter: Meter) = viewModelScope.launch {
+    fun billingData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Billing Data already running")
             return@launch
         }
 
-        // Check if DLMS is initialized
         if (!::dlmsDataAccess.isInitialized) {
             appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
             return@launch
         }
 
         try {
-            // Check if initializer is ready
             if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
                 appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
                 return@launch
@@ -872,7 +870,6 @@ class DLMSViewModel : ViewModel() {
                 delay(100)
                 if (dlmsInitializer.mArrived == 0) {
                     ready = true
-
                     break
                 }
             }
@@ -896,6 +893,93 @@ class DLMSViewModel : ViewModel() {
             appendLog("DLMS session established")
             delay(500)
 
+            // ===== BLOCK TRANSFER LOOP FOR BILLING DATA =====
+            appendLog("Getting billing data (may take multiple requests)...")
+            val allBillingData = ArrayList<String>()
+            var blockCount = 0
+
+            // First request - starts block transfer
+            if (!performGetBillingData()) {
+                appendLog("ERROR: Failed to get billing data")
+                finishOperation()
+                return@launch
+            }
+
+            // Collect data from first block
+            var mReceive = dlmsDataAccess.getReceive()
+            if (mReceive != null && mReceive.isNotEmpty()) {
+                allBillingData.addAll(mReceive)
+                blockCount++
+                appendLog("Block $blockCount received (${mReceive.size} entries)")
+            }
+
+            // Continue requesting blocks until complete
+            var continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
+
+            while (continueTransfer && blockCount < 200) {
+                delay(200) // Small delay between requests
+
+                // Request next block
+                if (!performGetBillingDataBlock()) {
+                    appendLog("ERROR: Failed to get billing data block")
+                    break
+                }
+
+                mReceive = dlmsDataAccess.getReceive()
+                if (mReceive != null && mReceive.isNotEmpty()) {
+                    allBillingData.addAll(mReceive)
+                    blockCount++
+                    appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allBillingData.size})")
+                }
+
+                continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
+            }
+
+            appendLog("Billing data transfer complete: $blockCount blocks, ${allBillingData.size} total entries")
+
+            // Parse and save billing data
+            if (allBillingData.size >= 10) {
+                // Remove timestamp if present (first entry)
+                if (allBillingData.isNotEmpty() && allBillingData[0].contains("/")) {
+                    allBillingData.removeAt(0)
+                }
+
+                // Parse billing records
+                val records = parseBillingRecords(allBillingData)
+                appendLog("Parsed ${records.size} billing records")
+
+                // Calculate charges for each record (except first, which has no previous reading)
+                if (records.size > 1) {
+                    for (i in 1 until records.size) {
+                        val prevRecord = records[i - 1]
+                        val currentRecord = records[i]
+
+                        val charges = calculateBillingCharges(
+                            currentRecord.imp,
+                            prevRecord.imp,
+                            currentRecord.maxImp / 1000f, // Convert W to kW
+                            rates
+                        )
+
+                        appendLog("Period: ${currentRecord.clock}")
+                        appendLog("  Total Use: %.3f kWh".format(charges["totalUse"]))
+                        appendLog("  Gen/Trans: %.2f".format(charges["genTransCharges"]))
+                        appendLog("  Total Amount: %.2f".format(charges["totalAmount"]))
+                    }
+                }
+
+                // Save to CSV
+                val success = saveBillingToCSV(meter, records, rates)
+                if (success) {
+                    appendLog("Success to get and save ${records.size} billing records to file")
+                    appendLog("✅ Billing Data Complete")
+                } else {
+                    appendLog("ERROR: Failed to save billing data to CSV")
+                }
+            } else {
+                appendLog("ERROR: Insufficient billing data (received ${allBillingData.size} entries)")
+            }
+
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Billing Data error", e)
@@ -904,6 +988,187 @@ class DLMSViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Perform initial billing data request
+     */
+    private suspend fun performGetBillingData(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setParameter("")
+        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
+    }
+
+    /**
+     * Perform billing data block continuation request
+     */
+    private suspend fun performGetBillingDataBlock(): Boolean {
+        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
+    }
+
+    /**
+     * Parse billing data entries: Clock, Imp, Exp, Abs, Net, MaxImp, MaxExp, MinVolt, Alert1, Alert2
+     * Each record = 10 consecutive entries
+     */
+    private fun parseBillingRecords(data: ArrayList<String>): List<BillingRecord> {
+        val records = mutableListOf<BillingRecord>()
+
+        var i = 0
+        while (i + 9 < data.size) {
+            records.add(
+                BillingRecord(
+                    clock = data[i],
+                    imp = data[i + 1].toFloatOrNull() ?: 0f,
+                    exp = data[i + 2].toFloatOrNull() ?: 0f,
+                    abs = data[i + 3].toFloatOrNull() ?: 0f,
+                    net = data[i + 4].toFloatOrNull() ?: 0f,
+                    maxImp = data[i + 5].toFloatOrNull() ?: 0f,
+                    maxExp = data[i + 6].toFloatOrNull() ?: 0f,
+                    minVolt = data[i + 7].toFloatOrNull() ?: 0f,
+                    alert1 = data[i + 8],
+                    alert2 = data[i + 9]
+                )
+            )
+            i += 10
+        }
+
+        return records
+    }
+
+    /**
+     * Calculate billing charges using project01 formula
+     * @param nowReading Current import reading [kWh]
+     * @param prevReading Previous import reading [kWh]
+     * @param maxDemand Maximum demand [kW]
+     * @param rates Array of 21 rate values
+     * @return Map with all calculated charges
+     */
+    private fun calculateBillingCharges(
+        nowReading: Float,
+        prevReading: Float,
+        maxDemand: Float,
+        rates: FloatArray
+    ): Map<String, Float> {
+        val totalUse = nowReading - prevReading
+
+        val genTransCharges = totalUse * rates[0] + maxDemand * rates[1] + totalUse * rates[2]
+        val distributionCharges = maxDemand * rates[3] + 1f * rates[4] + 1f * rates[5]
+        val sustainableCapex = totalUse * rates[6] + totalUse * rates[7]
+        val otherCharges = totalUse * rates[8] + totalUse * rates[9]
+        val universalCharges = totalUse * rates[10] + sustainableCapex * rates[11] +
+                totalUse * rates[12] + totalUse * rates[13] +
+                totalUse * rates[14] + totalUse * rates[15]
+        val valueAddedTax = totalUse * rates[16] + totalUse * rates[17] + totalUse * rates[18] +
+                distributionCharges * rates[19] + otherCharges * rates[20]
+
+        val totalAmount = genTransCharges + distributionCharges + sustainableCapex +
+                otherCharges + universalCharges + valueAddedTax
+
+        return mapOf(
+            "totalUse" to totalUse,
+            "genTransCharges" to genTransCharges,
+            "distributionCharges" to distributionCharges,
+            "sustainableCapex" to sustainableCapex,
+            "otherCharges" to otherCharges,
+            "universalCharges" to universalCharges,
+            "valueAddedTax" to valueAddedTax,
+            "totalAmount" to totalAmount
+        )
+    }
+
+    /**
+     * Save complete billing data to CSV file
+     * CSV format: Clock,Imp[kWh],Exp[kWh],Abs[kWh],Net[kWh],ImpMaxDemand[W],ExpMaxDemand[W],MinVolt[V],Alert1,Alert2,
+     *             TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount
+     */
+    @SuppressLint("SimpleDateFormat")
+    private fun saveBillingToCSV(meter: Meter, records: List<BillingRecord>, rates: FloatArray): Boolean {
+        return try {
+            // Get timestamp from first record for filename
+            val timestamp = records.firstOrNull()?.clock
+                ?.replace("/", "")
+                ?.replace(":", "")
+                ?.replace(" ", "_") ?: "unknown"
+
+            val serialId = meter.serialNumber
+            val filename = "${serialId}_BL_${timestamp}.csv"
+
+            val externalDir = mContext?.getExternalFilesDir(null)
+            if (externalDir == null) {
+                Log.e(TAG, "External storage not available")
+                return false
+            }
+
+            val file = File(externalDir, filename)
+
+            // Create CSV content
+            val csvContent = StringBuilder()
+            csvContent.append("Clock,Imp[kWh],Exp[kWh],Abs[kWh],Net[kWh],ImpMaxDemand[W],ExpMaxDemand[W],MinVolt[V],Alert1,Alert2,")
+            csvContent.append("TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount\n")
+
+            // Write data rows with calculated charges
+            records.forEachIndexed { index, record ->
+                // Base billing data
+                csvContent.append("${record.clock},")
+                csvContent.append("${record.imp},")
+                csvContent.append("${record.exp},")
+                csvContent.append("${record.abs},")
+                csvContent.append("${record.net},")
+                csvContent.append("${record.maxImp},")
+                csvContent.append("${record.maxExp},")
+                csvContent.append("${record.minVolt},")
+                csvContent.append("${record.alert1},")
+                csvContent.append("${record.alert2},")
+
+                // Calculate and append charges (skip first record, no previous reading)
+                if (index > 0) {
+                    val prevRecord = records[index - 1]
+                    val charges = calculateBillingCharges(
+                        record.imp,
+                        prevRecord.imp,
+                        record.maxImp / 1000f,
+                        rates
+                    )
+                    csvContent.append("${String.format("%.3f", charges["totalUse"])},")
+                    csvContent.append("${String.format("%.2f", charges["genTransCharges"])},")
+                    csvContent.append("${String.format("%.2f", charges["distributionCharges"])},")
+                    csvContent.append("${String.format("%.2f", charges["sustainableCapex"])},")
+                    csvContent.append("${String.format("%.2f", charges["otherCharges"])},")
+                    csvContent.append("${String.format("%.2f", charges["universalCharges"])},")
+                    csvContent.append("${String.format("%.2f", charges["valueAddedTax"])},")
+                    csvContent.append("${String.format("%.2f", charges["totalAmount"])}\n")
+                } else {
+                    csvContent.append("0.000,0.00,0.00,0.00,0.00,0.00,0.00,0.00\n")
+                }
+            }
+
+            // Write to file
+            file.writeText(csvContent.toString())
+
+            Log.i(TAG, "Billing data saved to: ${file.absolutePath}")
+            appendLog("File saved: $filename (${records.size} records)")
+
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving billing CSV: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Data class for billing record
+     */
+    data class BillingRecord(
+        val clock: String,      // Date/time
+        val imp: Float,         // Import energy [kWh]
+        val exp: Float,         // Export energy [kWh]
+        val abs: Float,         // Absolute energy [kWh]
+        val net: Float,         // Net energy [kWh]
+        val maxImp: Float,      // Max import demand [W]
+        val maxExp: Float,      // Max export demand [W]
+        val minVolt: Float,     // Minimum voltage [V]
+        val alert1: String,     // Alert status 1
+        val alert2: String      // Alert status 2
+    )
     /**
      * Set Clock on the meter
      */
