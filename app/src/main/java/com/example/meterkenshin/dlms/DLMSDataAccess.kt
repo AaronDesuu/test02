@@ -21,7 +21,12 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
     private var mDataIndex: Byte = 0
     private var mParameter = StringBuilder()
     private var mReceive: ArrayList<String>? = null
+    private var continueBlockTransfer = false
 
+
+    fun shouldContinueBlockTransfer(): Boolean {
+        return continueBlockTransfer
+    }
     /**
      * Generic DLMS data access method
      */
@@ -66,6 +71,7 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
 
                     if (dlmsInitializer.mArrived == 0) {
                         Log.e(TAG, "Timeout waiting for data response")
+                        continueBlockTransfer = false  // ADDED: Reset on timeout
                         return false
                     }
 
@@ -74,20 +80,34 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
 
                     if (mReceive == null || mReceive!!.isEmpty()) {
                         Log.e(TAG, "ERROR: mReceive is null or empty")
+                        continueBlockTransfer = false  // ADDED: Reset on error
                         mStep = 0
                         return false
                     }
 
                     if (res[1] < 0) {
                         Log.e(TAG, "DataRes error: ${res[1]}")
+                        continueBlockTransfer = false  // ADDED: Reset on error
                         return false
                     }
 
                     if (mode > 0 && mReceive!!.size > 1) {
                         if (mReceive!![1] != "success (0)") {
                             Log.e(TAG, "Operation failed: ${mReceive!![1]}")
+                            continueBlockTransfer = false  // ADDED: Reset on operation failure
                             return false
                         }
+                    }
+
+                    // ADDED: Check block transfer status
+                    // res[0] = 2 means "continue" (more blocks available)
+                    // res[0] = 0 means "complete" (last block received)
+                    continueBlockTransfer = (res[0] == 2)
+
+                    if (continueBlockTransfer) {
+                        Log.d(TAG, "Block transfer continues (res[0]=2, more data available)")
+                    } else {
+                        Log.d(TAG, "Block transfer complete (res[0]=${res[0]})")
                     }
 
                     mStep = 0
@@ -98,6 +118,7 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
             delay(10)
         }
 
+        continueBlockTransfer = false  // ADDED: Reset on timeout
         return false
     }
 
