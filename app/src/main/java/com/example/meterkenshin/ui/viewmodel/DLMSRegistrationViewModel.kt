@@ -28,6 +28,7 @@ data class RegistrationState(
     val error: String? = null
 )
 
+@Suppress("SameParameterValue")
 @SuppressLint("MissingPermission")
 class DLMSRegistrationViewModel : ViewModel() {
 
@@ -48,8 +49,12 @@ class DLMSRegistrationViewModel : ViewModel() {
     // DLMS Data Access Handler
     private lateinit var dlmsDataAccess: DLMSDataAccess
 
+    @SuppressLint("StaticFieldLeak")
     private var mContext: Context? = null
-    private var currentMeter: Meter? = null
+    private var Meter: Meter? = null
+
+    private val _currentMeter = MutableStateFlow<Meter?>(null)
+    val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
 
     // DLMS operation variables
     private var mStep = 0
@@ -61,7 +66,7 @@ class DLMSRegistrationViewModel : ViewModel() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun initializeDLMS(context: Context, meter: Meter) {
         mContext = context
-        currentMeter = meter
+        Meter = meter
         dlmsInitializer.initialize(context, meter)
         dlmsDataAccess = DLMSDataAccess(dlmsInitializer)
     }
@@ -106,7 +111,10 @@ class DLMSRegistrationViewModel : ViewModel() {
 
                 if (!ready) {
                     appendLog("ERROR: Services not discovered (timeout) - final mArrived=${dlmsInitializer.mArrived}")
-                    Log.e(TAG, "Timeout: mArrived never became 0, final value=${dlmsInitializer.mArrived}")
+                    Log.e(
+                        TAG,
+                        "Timeout: mArrived never became 0, final value=${dlmsInitializer.mArrived}"
+                    )
                     return@launch
                 }
 
@@ -158,7 +166,7 @@ class DLMSRegistrationViewModel : ViewModel() {
 
                 // Get billing data
                 appendLog("Getting billing data...")
-                if (performGetBillingData()) {
+                if (performGetBillingDataRegistration()) {
                     appendLog("Success to register meter")
                     appendLog("Finish!")
                     _registrationState.value = RegistrationState(isComplete = true)
@@ -195,6 +203,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                         Log.i(TAG, "Open: ${openRequest.size}")
                     }
                 }
+
                 2 -> {
                     val res = IntArray(2)
                     val sessionRequest = dlmsInitializer.dlms?.Session(res, dlmsInitializer.mData)
@@ -209,9 +218,11 @@ class DLMSRegistrationViewModel : ViewModel() {
                         return false
                     }
                 }
+
                 4 -> {
                     val res = IntArray(2)
-                    val challengeRequest = dlmsInitializer.dlms?.Challenge(res, dlmsInitializer.mData)
+                    val challengeRequest =
+                        dlmsInitializer.dlms?.Challenge(res, dlmsInitializer.mData)
                     if (res[0] != 0 && challengeRequest != null) {
                         mTimer = 0
                         dlmsInitializer.mArrived = 0
@@ -223,6 +234,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                         return false
                     }
                 }
+
                 6 -> {
                     val res = IntArray(2)
                     dlmsInitializer.dlms?.Confirm(res, dlmsInitializer.mData)
@@ -234,6 +246,7 @@ class DLMSRegistrationViewModel : ViewModel() {
                         return false
                     }
                 }
+
                 1, 3, 5 -> {
                     mTimer = 0
                     while (dlmsInitializer.mArrived == 0 && mTimer < 300) {
@@ -293,7 +306,7 @@ class DLMSRegistrationViewModel : ViewModel() {
      * Get billing data
      */
     @SuppressLint("DefaultLocale")
-    private suspend fun performGetBillingData(): Boolean {
+    private suspend fun performGetBillingDataRegistration(): Boolean {
         dlmsDataAccess.setDataIndex(0)
         dlmsDataAccess.setSelector(2)
 
@@ -334,16 +347,21 @@ class DLMSRegistrationViewModel : ViewModel() {
 
                 val registerDate = receive[0]
                 val fixedDate = receive[1]
-                val imp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[2]) ?: 0.0)
-                val exp = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[3]) ?: 0.0)
-                val impMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[6]) ?: 0.0)
-                val expMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[7]) ?: 0.0)
-                val minVolt = String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, receive[8]) ?: 0.0)
+                val imp =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[2]) ?: 0.0)
+                val exp =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[3]) ?: 0.0)
+                val impMaxDemand =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[6]) ?: 0.0)
+                val expMaxDemand =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[7]) ?: 0.0)
+                val minVolt =
+                    String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, receive[8]) ?: 0.0)
                 val alert = receive[9]
                 val readDate = ""
 
                 // Get meter info from currentMeter
-                val meter = currentMeter
+                val meter = Meter
                 val uid = meter?.uid ?: "none"
                 val activate = "1"  // Meter is activated after successful registration
                 val serialNo = meter?.serialNumber ?: "none"
@@ -391,6 +409,100 @@ class DLMSRegistrationViewModel : ViewModel() {
         return success
     }
 
+    /**
+     * Get billing data
+     */
+    @SuppressLint("DefaultLocale")
+    private suspend fun performGetBillingData(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(2)
+
+        val mReceive = dlmsDataAccess.getReceive()
+        val billingCount = if (mReceive != null && mReceive.size > 1) {
+            try {
+                mReceive[1].toInt()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse billing count: ${e.message}")
+                1
+            }
+        } else {
+            1
+        }
+
+        dlmsDataAccess.setParameter(
+            String.format("020406%08x06%08x120001120000", billingCount, billingCount)
+        )
+
+        val success = dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
+
+        if (success) {
+            val receive = dlmsDataAccess.getReceive()
+            if (receive != null && receive.size >= 10) {
+                Log.i(TAG, "Billing data retrieved: ${receive.joinToString(",")}")
+
+                // Parse billing data fields according to mReceive structure:
+                // [0] = Read date (first date)
+                // [1] = Fixed date (billing date)
+                // [2] = Import energy
+                // [3] = Export energy
+                // [4] = Absolute energy (not logged)
+                // [5] = Net energy (not logged)
+                // [6] = Import max demand
+                // [7] = Export max demand
+                // [8] = Minimum voltage
+                // [9] = Alert status
+
+                val readDate = receive[0]
+                val fixedDate = receive[1]
+                val imp =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[2]) ?: 0.0)
+                val exp =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[3]) ?: 0.0)
+                val impMaxDemand =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[6]) ?: 0.0)
+                val expMaxDemand =
+                    String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[7]) ?: 0.0)
+                val minVolt =
+                    String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, receive[8]) ?: 0.0)
+                val alert = receive[9]
+
+                // Get meter info from currentMeter
+                val meter = Meter
+
+
+                // Log in the specified order:
+                // UID, Activate, Serial NO., Bluetooth ID, Fixed date, Imp [kWh], Exp [kWh],
+                // ImpMaxDemand [kW], ExpMaxDemand [kW], MinVolt [V], Alert, Read date
+
+                appendLog("Imp [kWh]: $imp")
+                appendLog("Exp [kWh]: $exp")
+                appendLog("ImpMaxDemand [kW]: $impMaxDemand")
+                appendLog("ExpMaxDemand [kW]: $expMaxDemand")
+                appendLog("MinVolt [V]: $minVolt")
+                appendLog("Alert: $alert")
+                appendLog("Read date: $readDate")
+
+                // Export meter data to CSV
+                exportMeterData(
+                    uid = (meter?.uid ?: "none").toString(),
+                    activate = "1",
+                    serialNo = meter?.serialNumber ?: "none",
+                    bluetoothId = meter?.bluetoothId ?: "none",
+                    fixedDate = fixedDate,
+                    imp = imp,
+                    exp = exp,
+                    impMaxDemand = impMaxDemand,
+                    expMaxDemand = expMaxDemand,
+                    minVolt = minVolt,
+                    alert = receive[9],
+                    readDate = readDate
+                )
+            }
+        }
+
+        return success
+    }
+
     private fun exportMeterData(
         uid: String, activate: String, serialNo: String, bluetoothId: String,
         fixedDate: String, imp: String, exp: String, impMaxDemand: String,
@@ -413,7 +525,8 @@ class DLMSRegistrationViewModel : ViewModel() {
             )
 
             // Read all existing lines from the file. If the file doesn't exist, start with an empty list.
-            val lines = if (meterFile.exists()) meterFile.readLines().toMutableList() else mutableListOf()
+            val lines =
+                if (meterFile.exists()) meterFile.readLines().toMutableList() else mutableListOf()
             val newRowString = newRowData.joinToString(",")
 
             if (lines.isEmpty()) {
@@ -445,6 +558,12 @@ class DLMSRegistrationViewModel : ViewModel() {
                     lines.clear()
                     lines.addAll(updatedLines)
                     appendLog("Overwriting existing meter data for UID: $uid")
+
+                    if (Meter?.activate == 0) {
+                        // UPDATE: Update both internal reference and StateFlow
+                        Meter = Meter?.copy(activate = 1)
+                        _currentMeter.value = Meter  // This triggers UI update
+                    }
                 } else {
                     // If no row was updated, it means this is a new entry, so append it.
                     lines.add(newRowString)
@@ -466,6 +585,123 @@ class DLMSRegistrationViewModel : ViewModel() {
     private fun getCurrentYearMonth(): String {
         val sdf = SimpleDateFormat("yyyyMM", Locale.getDefault())
         return sdf.format(Date())
+    }
+
+    /**
+     * Start a DLMS operation
+     */
+    private fun startOperation(operationName: String) {
+        _registrationState.value = _registrationState.value.copy(isRunning = true)
+        appendLog("=== $operationName Started ===")
+    }
+
+    /**
+     * Finish a DLMS operation
+     */
+    private fun finishOperation() {
+        _registrationState.value = _registrationState.value.copy(isRunning = false)
+    }
+
+    /**
+     * Read Data - Performs demand reset and billing data retrieval
+     * Follows the same pattern as startRegistration
+     */
+    fun performReadData(meter: Meter) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Read Data already running")
+            return@launch
+        }
+
+        // Check if DLMS is initialized
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+
+        try {
+            // Check if initializer is ready
+            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+                return@launch
+            }
+
+            startOperation("Read Data")
+
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInitializer.mArrived = -1
+
+            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+
+            // Wait for SERVICES_DISCOVERED
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInitializer.mArrived == 0) {
+                    ready = true
+                    break
+                }
+            }
+
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+
+            appendLog("Connected and ready")
+            delay(500)
+
+            // Establish DLMS session
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+
+            // Step 1: Demand reset
+            appendLog("Calling demand reset...")
+            if (!performDemandReset()) {
+                appendLog("ERROR: Failed to call demand reset")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Success to call demand reset")
+            delay(500)
+
+            // Step 2: Get billing count
+            appendLog("Getting billing count...")
+            if (!performGetBillingCount()) {
+                appendLog("ERROR: Failed to get billing count")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Billing count retrieved")
+            delay(500)
+
+            // Step 3: Get billing data
+            appendLog("Getting billing data...")
+            if (!performGetBillingData()) {
+                appendLog("ERROR: Failed to get billing data")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Success to read data")
+            appendLog("✅ Read Data Complete")
+
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "Read Data error", e)
+        } finally {
+            finishOperation()
+        }
     }
 
     /**

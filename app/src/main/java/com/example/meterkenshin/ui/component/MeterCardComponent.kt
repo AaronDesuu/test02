@@ -114,23 +114,6 @@ fun ModernMeterCard(
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        // Last read date from CSV column 11 (readDate/lastMaintenanceDate)
-                        meter.readDate?.let { lastDate ->
-                            val formatter = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                            Text(
-                                text = "Last read: ${formatter.format(lastDate)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        } ?: run {
-                            Text(
-                                text = "No readings",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
 
                         Text(
                             text = meter.location,
@@ -146,6 +129,23 @@ fun ModernMeterCard(
                             "${String.format("%.1f", it)}kWh"
                         } ?: "0kWh"
 
+                        // Last read date from CSV column 11 (readDate/lastMaintenanceDate)
+                        meter.readDate?.let { lastDate ->
+                            val formatter = SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault())
+                            Text(
+                                text = "Last read: ${formatter.format(lastDate)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } ?: run {
+                            Text(
+                                text = "No readings",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "usage: $usageText",
                             style = MaterialTheme.typography.titleMedium,
@@ -321,9 +321,8 @@ fun getInspectionStatus(meter: Meter, isNearby: Boolean): InspectionStatus {
             InspectionStatus.NOT_INSPECTED
         }
 
-        // If meter has readings, and no alerts
-        meter.impKWh != null && meter.impKWh > 0.0 &&
-                meter.readDate != null -> {
+        // If meter has readings
+        meter.readDate != null -> {
             InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
         }
 

@@ -65,7 +65,6 @@ fun MeterDetailScreen(
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     registrationViewModel: DLMSRegistrationViewModel = viewModel(key = "meter_${meter.uid}"),
-    onReadData: () -> Unit = {},
     onLoadProfile: () -> Unit = {},
     onEventLog: () -> Unit = {},
     onBillingData: () -> Unit = {},
@@ -81,6 +80,12 @@ fun MeterDetailScreen(
     val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
     val registrationState by registrationViewModel.registrationState.collectAsState()
     val dlmsLog by registrationViewModel.dlmsLog.collectAsState()
+
+    // Observe the current meter from the ViewModel
+    val updatedMeter by registrationViewModel.currentMeter.collectAsState()
+
+    // Use updatedMeter if available, otherwise use the passed meter
+    val activeMeter = updatedMeter ?: meter
 
     // FIX: Initialize DLMS on screen load and WAIT for completion
     LaunchedEffect(Unit) {
@@ -144,7 +149,7 @@ fun MeterDetailScreen(
 
             // 2. DLMS function buttons - NOW IN SEPARATE FILE
             DLMSFunctionsCard(
-                meterActivate = meter.activate,
+                meterActivate = activeMeter.activate,  // This will update when CSV is written
                 onRegistration = {
                     if (meter.activate == 0) {
                         registrationViewModel.startRegistration(meter)
@@ -154,8 +159,7 @@ fun MeterDetailScreen(
                 },
                 onReadData = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        registrationViewModel.appendLog("Read Data clicked")
-                        onReadData()
+                        registrationViewModel.performReadData(meter)
                     }
                 },
                 onLoadProfile = {
