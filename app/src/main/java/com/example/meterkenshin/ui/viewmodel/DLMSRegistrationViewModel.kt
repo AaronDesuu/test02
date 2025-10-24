@@ -269,6 +269,22 @@ class DLMSRegistrationViewModel : ViewModel() {
     }
 
     /**
+     * Start a DLMS operation
+     */
+    private fun startOperation(operationName: String) {
+        _registrationState.value = _registrationState.value.copy(isRunning = true)
+        appendLog("=== $operationName Started ===")
+    }
+
+    /**
+     * Finish a DLMS operation
+     */
+    private fun finishOperation() {
+        _registrationState.value = _registrationState.value.copy(isRunning = false)
+    }
+
+
+    /**
      * Set clock on the meter
      */
     private suspend fun performSetClock(): Boolean {
@@ -585,21 +601,6 @@ class DLMSRegistrationViewModel : ViewModel() {
     private fun getCurrentYearMonth(): String {
         val sdf = SimpleDateFormat("yyyyMM", Locale.getDefault())
         return sdf.format(Date())
-    }
-
-    /**
-     * Start a DLMS operation
-     */
-    private fun startOperation(operationName: String) {
-        _registrationState.value = _registrationState.value.copy(isRunning = true)
-        appendLog("=== $operationName Started ===")
-    }
-
-    /**
-     * Finish a DLMS operation
-     */
-    private fun finishOperation() {
-        _registrationState.value = _registrationState.value.copy(isRunning = false)
     }
 
     /**

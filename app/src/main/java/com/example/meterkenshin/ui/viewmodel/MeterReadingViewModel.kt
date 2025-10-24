@@ -587,11 +587,6 @@ class MeterReadingViewModel : ViewModel() {
                                 uid = columns[0].toIntOrNull() ?: 0,
                                 activate = columns[1].toIntOrNull() ?: 0,
                                 serialNumber = columns[2],
-                                location = "Location $lineNumber",
-                                type = MeterType.Type01,
-                                status = if (columns[1].toIntOrNull() == 1) MeterStatus.ACTIVE else MeterStatus.OFFLINE,
-                                installationDate = parseDate(columns[4]) ?: Date(),
-                                readDate = parseDate(columns[11]),
                                 bluetoothId = columns[3].takeIf { it.isNotBlank() },
                                 fixedDate = parseDate(columns[4]),
                                 impKWh = columns[5].toDoubleOrNull(),
@@ -599,8 +594,15 @@ class MeterReadingViewModel : ViewModel() {
                                 impMaxDemandKW = columns[7].toDoubleOrNull(),
                                 expMaxDemandKW = columns[8].toDoubleOrNull(),
                                 minVoltV = columns[9].toDoubleOrNull(),
-                                alert = columns[10].toDoubleOrNull()
-                            )
+                                alert = columns[10].toDoubleOrNull(),
+                                readDate = parseDate(columns[11]),
+
+                                location = "Location $lineNumber",
+                                type = MeterType.Type01,
+                                status = if (columns[1].toIntOrNull() == 1) MeterStatus.ACTIVE else MeterStatus.OFFLINE,
+
+                                installationDate = null,
+                                )
                             meters.add(meter)
                         }
                     } catch (e: Exception) {
@@ -628,8 +630,8 @@ class MeterReadingViewModel : ViewModel() {
     private fun parseDate(dateString: String): Date? {
         if (dateString.isBlank()) return null
         val formats = listOf(
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy/MM/dd",
             "dd/MM/yyyy HH:mm:ss",
             "dd/MM/yyyy"
         )
