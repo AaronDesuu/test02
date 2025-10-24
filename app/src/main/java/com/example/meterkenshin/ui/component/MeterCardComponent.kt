@@ -133,7 +133,7 @@ fun ModernMeterCard(
                         meter.readDate?.let { lastDate ->
                             val formatter = SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault())
                             Text(
-                                text = "Last Read\n ${formatter.format(lastDate)}",
+                                text = "Last Read: ${formatter.format(lastDate)}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -197,7 +197,7 @@ fun ModernMeterCard(
                             Spacer(modifier = Modifier.width(4.dp))
 
                             Text(
-                                text = "${getSignalQuality(rssi)} ($rssi dBm)",
+                                text = "${getSignalQuality(rssi)} $rssi dBm",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = getSignalColor(rssi),
                                 fontWeight = FontWeight.Medium

@@ -65,10 +65,6 @@ fun MeterDetailScreen(
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     registrationViewModel: DLMSRegistrationViewModel = viewModel(key = "meter_${meter.uid}"),
-    onLoadProfile: () -> Unit = {},
-    onEventLog: () -> Unit = {},
-    onBillingData: () -> Unit = {},
-    onSetClock: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -164,26 +160,22 @@ fun MeterDetailScreen(
                 },
                 onLoadProfile = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        registrationViewModel.appendLog("Load Profile clicked")
-                        onLoadProfile()
+                        registrationViewModel.loadProfile(meter)
                     }
                 },
                 onEventLog = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        registrationViewModel.appendLog("Event Log clicked")
-                        onEventLog()
+                        registrationViewModel.eventLog(meter)
                     }
                 },
                 onBillingData = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        registrationViewModel.appendLog("Billing Data clicked")
-                        onBillingData()
+                        registrationViewModel.billingData(meter)
                     }
                 },
                 onSetClock = {
                     if (isDlmsInitialized) {
-                        registrationViewModel.appendLog("Set Clock clicked")
-                        onSetClock()
+                        registrationViewModel.setClock(meter)
                     }
                 },
                 // Disable buttons until initialized

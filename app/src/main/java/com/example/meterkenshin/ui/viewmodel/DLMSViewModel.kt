@@ -49,7 +49,7 @@ class DLMSRegistrationViewModel : ViewModel() {
 
     @SuppressLint("StaticFieldLeak")
     private var mContext: Context? = null
-    private var Meter: Meter? = null
+    private var meter: Meter? = null
 
     private val _currentMeter = MutableStateFlow<Meter?>(null)
     val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
@@ -64,7 +64,7 @@ class DLMSRegistrationViewModel : ViewModel() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun initializeDLMS(context: Context, meter: Meter) {
         mContext = context
-        Meter = meter
+        this@DLMSRegistrationViewModel.meter = meter
         dlmsInitializer.initialize(context, meter)
         dlmsDataAccess = DLMSDataAccess(dlmsInitializer)
         dlmsFunctions = DLMSFunctions(dlmsInitializer, dlmsDataAccess, mContext) { appendLog(it) }
@@ -306,7 +306,6 @@ class DLMSRegistrationViewModel : ViewModel() {
 
     /**
      * Read Data - Performs demand reset and billing data retrieval
-     * Follows the same pattern as registration
      */
     fun readData(meter: Meter) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
@@ -407,6 +406,293 @@ class DLMSRegistrationViewModel : ViewModel() {
         }
     }
 
+    /**
+     * loadProfile
+     */
+    fun loadProfile(meter: Meter) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Read Data already running")
+            return@launch
+        }
+
+        // Check if DLMS is initialized
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+
+        try {
+            // Check if initializer is ready
+            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+                return@launch
+            }
+
+            startOperation("Load Profile")
+
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInitializer.mArrived = -1
+
+            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+
+            // Wait for SERVICES_DISCOVERED
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInitializer.mArrived == 0) {
+                    ready = true
+
+                    break
+                }
+            }
+
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+
+            appendLog("Connected and ready")
+            delay(500)
+
+            // Establish DLMS session
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "Load Profile error", e)
+        } finally {
+            finishOperation()
+        }
+    }
+
+    /**
+     * eventLog
+     */
+    fun eventLog(meter: Meter) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Event Log already running")
+            return@launch
+        }
+
+        // Check if DLMS is initialized
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+
+        try {
+            // Check if initializer is ready
+            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+                return@launch
+            }
+
+            startOperation("Event Log")
+
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInitializer.mArrived = -1
+
+            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+
+            // Wait for SERVICES_DISCOVERED
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInitializer.mArrived == 0) {
+                    ready = true
+
+                    break
+                }
+            }
+
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+
+            appendLog("Connected and ready")
+            delay(500)
+
+            // Establish DLMS session
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "Event Log error", e)
+        } finally {
+            finishOperation()
+        }
+    }
+
+    /**
+     * Billing Data
+     */
+    fun billingData(meter: Meter) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Billing Data already running")
+            return@launch
+        }
+
+        // Check if DLMS is initialized
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+
+        try {
+            // Check if initializer is ready
+            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+                return@launch
+            }
+
+            startOperation("Billing Data")
+
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInitializer.mArrived = -1
+
+            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+
+            // Wait for SERVICES_DISCOVERED
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInitializer.mArrived == 0) {
+                    ready = true
+
+                    break
+                }
+            }
+
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+
+            appendLog("Connected and ready")
+            delay(500)
+
+            // Establish DLMS session
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "Billing Data error", e)
+        } finally {
+            finishOperation()
+        }
+    }
+
+    /**
+     * setClock
+     */
+    fun setClock(meter: Meter) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("set Clock already running")
+            return@launch
+        }
+
+        // Check if DLMS is initialized
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+
+        try {
+            // Check if initializer is ready
+            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+                return@launch
+            }
+
+            startOperation("set Clock")
+
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInitializer.mArrived = -1
+
+            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+
+            // Wait for SERVICES_DISCOVERED
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInitializer.mArrived == 0) {
+                    ready = true
+
+                    break
+                }
+            }
+
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+
+            appendLog("Connected and ready")
+            delay(500)
+
+            // Establish DLMS session
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "set Clock error", e)
+        } finally {
+            finishOperation()
+        }
+    }
 
     override fun onCleared() {
         super.onCleared()
