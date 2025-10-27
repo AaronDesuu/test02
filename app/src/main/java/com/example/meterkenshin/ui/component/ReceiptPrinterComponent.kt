@@ -152,7 +152,7 @@ private fun printReceipt(
     commands.add(String.format("  System Loss                                 %,8.2f\n",
         receiptData.genTransCharges * 0.1f).toByteArray())
     commands.add("                                                ----------------\n".toByteArray())
-    commands.add(String.format("                                       SUB TOTAL        %,6.2f\n\n",
+    commands.add(String.format("                                       SUB TOTAL      %,6.2f\n\n",
         receiptData.genTransCharges).toByteArray())
 
     // DISTRIBUTION CHARGES (FONT_LARGE header)
@@ -169,7 +169,7 @@ private fun printReceipt(
     commands.add(String.format("  Metering Fix Charge                         %,8.2f\n",
         receiptData.distributionCharges * 0.1f).toByteArray())
     commands.add("                                                ----------------\n".toByteArray())
-    commands.add(String.format("                                       SUB TOTAL        %,6.2f\n\n",
+    commands.add(String.format("                                       SUB TOTAL      %,6.2f\n\n",
         receiptData.distributionCharges).toByteArray())
 
     // REINVESTMENT FUND FOR SUSTAINABLE CAPEX (FONT_LARGE header)

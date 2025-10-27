@@ -33,7 +33,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -59,6 +58,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
+import com.example.meterkenshin.data.getDefaultRates
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.component.ReceiptPrintButton
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
@@ -73,12 +73,10 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     printerBluetoothViewModel: PrinterBluetoothViewModel = viewModel(),
-    onNavigateToHome: () -> Unit = {},
     onNavigateToFileUpload: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -361,7 +359,7 @@ fun ReceiptScreen(
                         Spacer(modifier = Modifier.width(8.dp))
 
                         // Show rate data button
-                        rateData?.let { rates ->
+                        rateData?.let {
                             TextButton(
                                 onClick = { showRateDialog = true }
                             ) {
@@ -508,37 +506,32 @@ private fun ReceiptPreview(
             "GEN/TRANS CHARGES",
             calculatedData.genTransCharges,
             rates,
-            calculatedData,
-            0..2
+            calculatedData
         )
         ChargesSection(
             "DISTRIBUTION CHARGES",
             calculatedData.distributionCharges,
             rates,
-            calculatedData,
-            3..5
+            calculatedData
         )
         ChargesSection(
             "REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX",
             calculatedData.sustainableCapex,
             rates,
-            calculatedData,
-            6..7
+            calculatedData
         )
-        ChargesSection("OTHER CHARGES", calculatedData.otherCharges, rates, calculatedData, 8..9)
+        ChargesSection("OTHER CHARGES", calculatedData.otherCharges, rates, calculatedData)
         ChargesSection(
             "UNIVERSAL CHARGES",
             calculatedData.universalCharges,
             rates,
-            calculatedData,
-            10..15
+            calculatedData
         )
         ChargesSection(
             "VALUE ADDED TAX",
             calculatedData.valueAddedTax,
             rates,
-            calculatedData,
-            16..20
+            calculatedData
         )
 
         HorizontalDivider(
@@ -627,8 +620,7 @@ private fun ChargesSection(
     title: String,
     subTotal: Float,
     rates: FloatArray,
-    calculatedData: CalculatedBillingData,
-    rateRange: IntRange
+    calculatedData: CalculatedBillingData
 ) {
     Text(
         text = title,
@@ -1123,17 +1115,6 @@ private fun calculateBillingData(
         valueAddedTax = valueAddedTax,
         totalAmount = totalAmount,
         maxDemand = billingData.maxDemand
-    )
-}
-
-private fun getDefaultRates(): FloatArray {
-    return floatArrayOf(
-        2.5f, 150.0f, 0.1f,     // Gen/Trans charges (0-2)
-        50.0f, 100.0f, 50.0f,   // Distribution charges (3-5)
-        0.05f, 0.03f,           // Sustainable CAPEX (6-7)
-        0.02f, 0.01f,           // Other charges (8-9)
-        0.001f, 0.12f, 0.0025f, 0.04f, 0.1f, 0.25f,  // Universal charges (10-15)
-        0.3f, 0.3f, 0.012f, 0.12f, 0.12f  // VAT (16-20)
     )
 }
 
