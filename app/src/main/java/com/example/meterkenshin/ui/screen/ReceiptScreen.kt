@@ -121,7 +121,7 @@ fun ReceiptScreen(
         try {
             errorMessage = null
             if (isRateCsvUploaded) {
-                val rates = loadRateDataFromFile(context, rateCsvFile.fileName)
+                val rates = rateCsvFile?.let { loadRateDataFromFile(context, it.fileName) }
                 rateData = rates
                 Log.d("Receipt", "Loaded ${rates?.size ?: 0} rate values from uploaded CSV")
             } else {
@@ -1166,14 +1166,14 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
                         isFirstLine = false
 
                         // Check if first line contains headers or data
-                        val firstCell = columnHeaders.firstOrNull()?.trim()
+                        val firstCell = columnHeaders!!.firstOrNull()?.trim()
                         if (firstCell != null) {
                             try {
                                 // If we can parse the first cell as float, treat this line as data
                                 val firstRate = firstCell.toFloat()
                                 rates.add(firstRate)
                                 // Continue parsing rest of the line
-                                columnHeaders.drop(1).forEach { cell ->
+                                columnHeaders!!.drop(1).forEach { cell ->
                                     try {
                                         rates.add(cell.toFloat())
                                     } catch (_: NumberFormatException) {
