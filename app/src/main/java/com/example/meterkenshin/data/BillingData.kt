@@ -1,28 +1,28 @@
-package com.example.meterkenshin.data;
+package com.example.meterkenshin.data
 
-public class BillingData {
-    public String Period;
-    public String Commercial;
-    public String SerialID;
-    public Float Multiplier;
-    public String PeriodTo;
-    public Float PresReading;
-    public String PeriodFrom;
-    public Float PrevReading;
-    public Float MaxDemand;
-    public Float TotalUse;
-    public Float GenTransCharges;
-    public Float DistributionCharges;
-    public Float SustainableCapex;
-    public Float OtherCharges;
-    public Float UniversalCharges;
-    public Float ValueAddedTax;
-    public Float TotalAmount;
-    public Float Discount;
-    public Float Interest;
-    public String DueDate;
-    public String DiscoDate;
-    public String Reader;
-    public String ReadDatetime;
-    public String Version;
+class BillingData {
+    var Period: String? = null
+    var Commercial: String? = null
+    var SerialID: String? = null
+    var Multiplier: Float? = null
+    var PeriodTo: String? = null
+    var PresReading: Float? = null
+    var PeriodFrom: String? = null
+    var PrevReading: Float? = null
+    var MaxDemand: Float? = null
+    var TotalUse: Float? = null
+    var GenTransCharges: Float? = null
+    var DistributionCharges: Float? = null
+    var SustainableCapex: Float? = null
+    var OtherCharges: Float? = null
+    var UniversalCharges: Float? = null
+    var ValueAddedTax: Float? = null
+    var TotalAmount: Float? = null
+    var Discount: Float? = null
+    var Interest: Float? = null
+    var DueDate: String? = null
+    var DiscoDate: String? = null
+    var Reader: String? = null
+    var ReadDatetime: String? = null
+    var Version: String? = null
 }
