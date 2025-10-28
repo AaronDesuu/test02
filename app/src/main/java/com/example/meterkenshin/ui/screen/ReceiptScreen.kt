@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,13 +20,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.TableChart
-import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -50,14 +45,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.meterkenshin.R
+import com.example.meterkenshin.data.BillingData
 import com.example.meterkenshin.data.getDefaultRates
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.component.ReceiptPrintButton
@@ -82,322 +75,236 @@ fun ReceiptScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // Observe upload state from FileUploadViewModel
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
-
     val bluetoothConnectionState by printerBluetoothViewModel.connectionState.collectAsState()
     val isBluetoothEnabled by printerBluetoothViewModel.isBluetoothEnabled.collectAsState()
 
-
     var rateData by remember { mutableStateOf<FloatArray?>(null) }
     var showRateDialog by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // Check if rate.csv is uploaded from the upload state
     val rateCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.RATE }
     val isRateCsvUploaded = rateCsvFile?.isUploaded == true
 
-    // Sample billing data for preview
+    // Sample billing data - using BillingData from data package
     val billingData = remember {
-        BillingData(
-            period = "December 2024",
-            commercial = "LARGE",
-            serialID = "12345678",
-            multiplier = 1.0f,
-            periodFrom = "11/15/2024",
-            periodTo = "12/15/2024",
-            prevReading = 1000.0f,
-            presReading = 1500.0f,
-            maxDemand = 50.0f,
-            reader = "Fuji Taro",
-            version = "v1.00.2"
-        )
+        BillingData().apply {
+            Period = "December 2024"
+            Commercial = "LARGE"
+            SerialID = "12345678"
+            Multiplier = 1.0f
+            PeriodFrom = "11/15/2024"
+            PeriodTo = "12/15/2024"
+            PrevReading = 1000.0f
+            PresReading = 1500.0f
+            MaxDemand = 50.0f
+            Reader = "Fuji Taro"
+            Version = "v1.00.2"
+            Discount = 10.0f
+            Interest = 10.0f
+        }
     }
 
-    // Load rate data when rate.csv is uploaded
     LaunchedEffect(isRateCsvUploaded) {
         try {
-            errorMessage = null
             if (isRateCsvUploaded) {
                 val rates = rateCsvFile?.let { loadRateDataFromFile(context, it.fileName) }
                 rateData = rates
-                Log.d("Receipt", "Loaded ${rates?.size ?: 0} rate values from uploaded CSV")
+                Log.d("Receipt", "Loaded ${rates?.size ?: 0} rates from ${rateCsvFile?.fileName}")
             } else {
-                // Use default rates if no file is uploaded
-                rateData = getDefaultRates()
-                Log.d("Receipt", "Using default rate values")
+                rateData = null
+                Log.d("Receipt", "No rate.csv uploaded, using default rates")
             }
         } catch (e: Exception) {
-            errorMessage = "Error loading rate data: ${e.message}"
-            rateData = getDefaultRates()
-            Log.e("Receipt", "Error loading rate data", e)
+            Log.e("Receipt", "Failed to load rate data", e)
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(colorResource(R.color.background_light))
+            .verticalScroll(scrollState)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(16.dp)
-                .padding(bottom = 32.dp), // Add extra bottom padding here
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        // Upload Rate CSV Card (matching screenshot)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            ),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
-            // Upload Rate CSV Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = colorResource(R.color.surface_light)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.UploadFile,
-                            contentDescription = null,
-                            tint = colorResource(R.color.primary_light),
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.receipt_upload_rates),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        // Rate CSV Status Indicator
-                        RateCsvStatusIndicator(
-                            isUploaded = isRateCsvUploaded,
-                            modifier = Modifier
-                        )
-                    }
-
-                    Text(
-                        text = stringResource(R.string.receipt_upload_description),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = colorResource(R.color.on_surface_variant_light)
-                    )
-
-                    Button(
-                        onClick = {
-                            onNavigateToFileUpload()
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorResource(R.color.primary_light)
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FileUpload,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isRateCsvUploaded) {
-                                stringResource(R.string.receipt_manage_rate_files)
-                            } else {
-                                stringResource(R.string.receipt_upload_rate_files)
-                            }
-                        )
-                    }
-
-                    errorMessage?.let { error ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = colorResource(R.color.error_container_light)
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Error,
-                                    contentDescription = null,
-                                    tint = colorResource(R.color.error_light),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = error,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = colorResource(R.color.on_error_container_light)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Rate Data Preview Section (only show when rate.csv is uploaded)
-            if (isRateCsvUploaded && rateData != null) {
-                Card(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = colorResource(R.color.surface_light)
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.TableChart,
-                                contentDescription = null,
-                                tint = colorResource(R.color.primary_light),
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = stringResource(R.string.receipt_rate_data_preview),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            TextButton(
-                                onClick = { showRateDialog = true }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Visibility,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = stringResource(R.string.receipt_view_all_rates),
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                            }
-                        }
-
-                        Text(
-                            text = stringResource(R.string.receipt_rate_data_description),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = colorResource(R.color.on_surface_variant_light)
-                        )
-
-                        // Rate Data Table Preview
-                        RateDataPreviewTable(rateData = rateData!!)
-                    }
-                }
-            }
-
-            // Receipt Preview Section
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = colorResource(R.color.surface_light)
-                ),
-                shape = RoundedCornerShape(12.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Receipt,
+                            imageVector = Icons.Default.FileUpload,
                             contentDescription = null,
-                            tint = colorResource(R.color.secondary_light),
-                            modifier = Modifier.size(24.dp)
+                            tint = Color(0xFF1976D2),
+                            modifier = Modifier.size(28.dp)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = stringResource(R.string.receipt_preview),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            text = "Upload Rate CSV",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
                         )
+                    }
 
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        ReceiptPrintButton(
-                            receiptData = if (rateData != null) {
-                                // Use calculated data when rate.csv is available
-                                val calculatedData = calculateBillingData(billingData, rateData!!)
-                                createReceiptDataFromBilling(billingData, calculatedData)
-                            } else {
-                                // Use sample data with random numbers when no rate.csv
-                                createSampleReceiptData(
-                                    period = billingData.period,
-                                    serialID = billingData.serialID,
-                                    reader = billingData.reader
-                                )
-                            },
-                            printerBluetoothViewModel = printerBluetoothViewModel,
-                            bluetoothConnectionState = bluetoothConnectionState,
-                            isBluetoothEnabled = isBluetoothEnabled
-                        )
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Show rate data button
-                        rateData?.let {
-                            TextButton(
-                                onClick = { showRateDialog = true }
+                    if (isRateCsvUploaded) {
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color(0xFFE8F5E9)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Visibility,
+                                    imageVector = Icons.Default.CheckCircle,
                                     contentDescription = null,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = Color(0xFF4CAF50),
+                                    modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("View Rates", style = MaterialTheme.typography.bodySmall)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Uploaded",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFF4CAF50),
+                                    fontWeight = FontWeight.Medium
+                                )
                             }
                         }
                     }
+                }
 
-                    // Receipt Preview Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            colorResource(R.color.outline_light)
-                        )
-                    ) {
-                        ReceiptPreview(
-                            billingData = billingData,
-                            rateData = rateData,
-                            modifier = Modifier.padding(16.dp)
-                        )
+                Text(
+                    text = "Upload a CSV file containing billing rate data to preview how the receipt will be calculated with your custom rates.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+
+                Button(
+                    onClick = onNavigateToFileUpload,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1976D2)
+                    ),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 14.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FileUpload,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Manage Rate Files",
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // Receipt Preview Card (matching screenshot)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.White
+            ),
+            shape = RoundedCornerShape(16.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Receipt,
+                        contentDescription = null,
+                        tint = Color.Black,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Receipt Preview",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Print Button with proper integration
+                    ReceiptPrintButton(
+                        receiptData = if (rateData != null) {
+                            val calculatedData = calculateBillingData(billingData, rateData!!)
+                            createReceiptDataFromBilling(billingData, calculatedData)
+                        } else {
+                            createSampleReceiptData(
+                                period = billingData.Period ?: "December 2024",
+                                serialID = billingData.SerialID ?: "12345678",
+                                reader = billingData.Reader ?: "Fuji Taro"
+                            )
+                        },
+                        printerBluetoothViewModel = printerBluetoothViewModel,
+                        bluetoothConnectionState = bluetoothConnectionState,
+                        isBluetoothEnabled = isBluetoothEnabled
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    rateData?.let {
+                        TextButton(
+                            onClick = { showRateDialog = true }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Visibility,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("View Rates", style = MaterialTheme.typography.bodySmall)
+                        }
                     }
+                }
+
+                // Receipt Preview Content
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color.LightGray)
+                ) {
+                    ReceiptPreview(
+                        billingData = billingData,
+                        rateData = rateData,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
             }
         }
     }
 
-    // Rate Data Dialog
     if (showRateDialog && rateData != null) {
         RateDataDialog(
             rateData = rateData!!,
@@ -418,12 +325,12 @@ private fun ReceiptPreview(
 
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         // Header
         Text(
-            text = stringResource(R.string.receipt_sample_receipt),
-            style = MaterialTheme.typography.titleLarge,
+            text = "SAMPLE RECEIPT",
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
@@ -432,143 +339,84 @@ private fun ReceiptPreview(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.receipt_company_address),
+            text = "H.V Dela Costa St Salcedo Village Makati 1227,",
             style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
-
         Text(
-            text = stringResource(R.string.receipt_company_name),
+            text = "Metro Manila Philippines",
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = "Electric Philippines Inc.",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
-
         Text(
-            text = stringResource(R.string.receipt_company_phone),
+            text = "TEL:000-000-0000",
             style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
 
         HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
             color = Color.Black
         )
 
         // Billing Information
-        ReceiptLine(
-            "Period",
-            "${billingData.period}       Rate Type: ${billingData.commercial} COMMERCIAL"
-        )
-        ReceiptLine(
-            "Meter",
-            String.format("%-15s Multiplier: %.1f", billingData.serialID, billingData.multiplier)
-        )
-        ReceiptLine(
-            "Period To",
-            String.format(
-                "%-15s Pres Reading: %8.3f",
-                billingData.periodTo,
-                billingData.presReading
-            )
-        )
-        ReceiptLine(
-            "Period From",
-            String.format(
-                "%-15s Prev Reading: %8.3f",
-                billingData.periodFrom,
-                billingData.prevReading
-            )
-        )
-        ReceiptLine(
-            "Demand KW",
-            String.format(
-                "%.3f                Total KWH Used: %8.3f",
-                billingData.maxDemand,
-                calculatedData.totalUse
-            )
-        )
+        ReceiptLine("Period", "${billingData.Period}       Rate Type: ${billingData.Commercial} COMMERCIAL")
+        ReceiptLine("Meter", "${billingData.SerialID}       Multiplier: ${billingData.Multiplier ?: 1.0f}")
+        ReceiptLine("Period To", "${billingData.PeriodTo}       Pres Reading: ${String.format("%.3f", billingData.PresReading ?: 0f)}")
+        ReceiptLine("Period From", "${billingData.PeriodFrom}       Prev Reading: ${String.format("%.3f", billingData.PrevReading ?: 0f)}")
+        ReceiptLine("Demand KW", "${String.format("%.3f", billingData.MaxDemand ?: 0f)}       Total KWH Used: ${String.format("%.3f", calculatedData.totalUse)}")
 
         HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
             color = Color.Black
         )
 
-        // Charges breakdown using actual rates
-        ChargesSection(
-            "GEN/TRANS CHARGES",
-            calculatedData.genTransCharges,
-            rates,
-            calculatedData
-        )
-        ChargesSection(
-            "DISTRIBUTION CHARGES",
-            calculatedData.distributionCharges,
-            rates,
-            calculatedData
-        )
-        ChargesSection(
-            "REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX",
-            calculatedData.sustainableCapex,
-            rates,
-            calculatedData
-        )
+        // Charges breakdown
+        ChargesSection("GEN/TRANS CHARGES", calculatedData.genTransCharges, rates, calculatedData)
+        ChargesSection("DISTRIBUTION CHARGES", calculatedData.distributionCharges, rates, calculatedData)
+        ChargesSection("REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX", calculatedData.sustainableCapex, rates, calculatedData)
         ChargesSection("OTHER CHARGES", calculatedData.otherCharges, rates, calculatedData)
-        ChargesSection(
-            "UNIVERSAL CHARGES",
-            calculatedData.universalCharges,
-            rates,
-            calculatedData
-        )
-        ChargesSection(
-            "VALUE ADDED TAX",
-            calculatedData.valueAddedTax,
-            rates,
-            calculatedData
-        )
+        ChargesSection("UNIVERSAL CHARGES", calculatedData.universalCharges, rates, calculatedData)
+        ChargesSection("VALUE ADDED TAX", calculatedData.valueAddedTax, rates, calculatedData)
 
         HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
             color = Color.Black
         )
 
         // Total amounts
-        ReceiptLine("CURRENT BILL", String.format("Php %,8.2f", calculatedData.totalAmount))
+        ReceiptLine("CURRENT BILL", String.format("Php %,.2f", calculatedData.totalAmount))
         Text(
-            text = String.format(
-                "TOTAL AMOUNT                       Php %,8.2f",
-                calculatedData.totalAmount
-            ),
+            text = String.format("TOTAL AMOUNT       Php %,.2f", calculatedData.totalAmount),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
         )
 
         HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
+            modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
             color = Color.Black
         )
 
         // Payment terms
-        ReceiptLine("Discount", String.format("%8.2f", billingData.discount))
-        ReceiptLine(
-            "Amount Before Due",
-            String.format("%8.2f", calculatedData.totalAmount - billingData.discount)
-        )
-        ReceiptLine("Interest", String.format("%8.2f", billingData.interest))
-        ReceiptLine(
-            "Amount After Due",
-            String.format("%8.2f", calculatedData.totalAmount + billingData.interest)
-        )
+        ReceiptLine("Discount", String.format("%.2f", billingData.Discount ?: 0f))
+        ReceiptLine("Amount Before Due", String.format("%.2f", calculatedData.totalAmount - (billingData.Discount ?: 0f)))
+        ReceiptLine("Interest", String.format("%.2f", billingData.Interest ?: 0f))
+        ReceiptLine("Amount After Due", String.format("%.2f", calculatedData.totalAmount + (billingData.Interest ?: 0f)))
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -578,13 +426,12 @@ private fun ReceiptPreview(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.receipt_payment_note),
+            text = "Please pay on time to avoid disconnection.",
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace
         )
-
         Text(
-            text = stringResource(R.string.receipt_disclaimer),
+            text = "This is a computer generated receipt.",
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace
         )
@@ -592,7 +439,7 @@ private fun ReceiptPreview(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = stringResource(R.string.receipt_present_statement),
+            text = "PRESENT THIS STATEMENT WHEN PAYING",
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace,
@@ -600,15 +447,15 @@ private fun ReceiptPreview(
             modifier = Modifier.fillMaxWidth()
         )
 
-        ReceiptLine("Reader", "${billingData.reader}                   ${getCurrentDateTime()}")
-        ReceiptLine("Version", billingData.version)
+        ReceiptLine("Reader", "${billingData.Reader}       ${getCurrentDateTime()}")
+        ReceiptLine("Version", billingData.Version ?: "v1.00.2")
     }
 }
 
 @Composable
 private fun ReceiptLine(label: String, value: String) {
     Text(
-        text = String.format("%-12s: %s", label, value),
+        text = "$label : $value",
         style = MaterialTheme.typography.bodySmall,
         fontFamily = FontFamily.Monospace
     )
@@ -629,448 +476,62 @@ private fun ChargesSection(
         fontFamily = FontFamily.Monospace
     )
 
-    // Add specific charge lines based on the section using actual rates
     when (title) {
         "GEN/TRANS CHARGES" -> {
-            ChargeDetailLine(
-                "Generation System Charge",
-                rates[0],
-                calculatedData.totalUse * rates[0],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Transmission Demand Charge",
-                rates[1],
-                calculatedData.maxDemand * rates[1],
-                "/kw"
-            )
-            ChargeDetailLine(
-                "System Loss Charge",
-                rates[2],
-                calculatedData.totalUse * rates[2],
-                "/kwh"
-            )
+            ChargeDetailLine("Generation System Charge", rates[0], calculatedData.totalUse * rates[0], "/kwh")
+            ChargeDetailLine("Transmission Demand Charge", rates[1], calculatedData.maxDemand * rates[1], "/kw")
+            ChargeDetailLine("System Loss Charge", rates[2], calculatedData.totalUse * rates[2], "/kwh")
         }
-
         "DISTRIBUTION CHARGES" -> {
-            ChargeDetailLine(
-                "Distribution Demand Charge",
-                rates[3],
-                calculatedData.maxDemand * rates[3],
-                "/kw"
-            )
+            ChargeDetailLine("Distribution Demand Charge", rates[3], calculatedData.maxDemand * rates[3], "/kw")
             ChargeDetailLine("Supply Fix Charge", rates[4], 1 * rates[4], "/cst")
             ChargeDetailLine("Metering Fix Charge", rates[5], 1 * rates[5], "/cst")
         }
-
         "REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX" -> {
-            ChargeDetailLine(
-                "Reinvestment Fund for CAPEX",
-                rates[6],
-                calculatedData.totalUse * rates[6],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Member's CAPEX Contribution",
-                rates[7],
-                calculatedData.totalUse * rates[7],
-                "/kwh"
-            )
+            ChargeDetailLine("Reinvestment Fund for CAPEX", rates[6], calculatedData.totalUse * rates[6], "/kwh")
+            ChargeDetailLine("Member's CAPEX Contribution", rates[7], calculatedData.totalUse * rates[7], "/kwh")
         }
-
         "OTHER CHARGES" -> {
-            ChargeDetailLine(
-                "Lifeline Discount/Subsidy",
-                rates[8],
-                calculatedData.totalUse * rates[8],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Senior Citizen Subsidy",
-                rates[9],
-                calculatedData.totalUse * rates[9],
-                "/kwh"
-            )
+            ChargeDetailLine("Lifeline Discount/Subsidy", rates[8], calculatedData.totalUse * rates[8], "/kwh")
+            ChargeDetailLine("Senior Citizen Subsidy", rates[9], calculatedData.totalUse * rates[9], "/kwh")
         }
-
         "UNIVERSAL CHARGES" -> {
-            ChargeDetailLine(
-                "Missionary Elec(NPC-SPUG)",
-                rates[10],
-                calculatedData.totalUse * rates[10],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Missionary Elec(RED)",
-                rates[11],
-                calculatedData.totalUse * rates[11],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Environmental Charge",
-                rates[12],
-                calculatedData.totalUse * rates[12],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Feed In Tariff Allowance",
-                rates[13],
-                calculatedData.totalUse * rates[13],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "NPC Stranded Contract",
-                rates[14],
-                calculatedData.totalUse * rates[14],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "NPC Stranded Debts",
-                rates[15],
-                calculatedData.totalUse * rates[15],
-                "/kwh"
-            )
+            ChargeDetailLine("Missionary Elec(NPC-SPUG)", rates[10], calculatedData.totalUse * rates[10], "/kwh")
+            ChargeDetailLine("Missionary Elec(RED)", rates[11], calculatedData.totalUse * rates[11], "/kwh")
+            ChargeDetailLine("Environmental Charge", rates[12], calculatedData.totalUse * rates[12], "/kwh")
+            ChargeDetailLine("Feed In Tariff Allowance", rates[13], calculatedData.totalUse * rates[13], "/kwh")
+            ChargeDetailLine("NPC Stranded Contract", rates[14], calculatedData.totalUse * rates[14], "/kwh")
+            ChargeDetailLine("NPC Stranded Debts", rates[15], calculatedData.totalUse * rates[15], "/kwh")
         }
-
         "VALUE ADDED TAX" -> {
-            ChargeDetailLine(
-                "Generation VAT",
-                rates[16],
-                calculatedData.totalUse * rates[16],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Transmission VAT",
-                rates[17],
-                calculatedData.totalUse * rates[17],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "System Loss VAT",
-                rates[18],
-                calculatedData.totalUse * rates[18],
-                "/kwh"
-            )
-            ChargeDetailLine(
-                "Distribution VAT",
-                rates[19],
-                calculatedData.distributionCharges * rates[19],
-                "%%"
-            )
+            ChargeDetailLine("Generation VAT", rates[16], calculatedData.totalUse * rates[16], "/kwh")
+            ChargeDetailLine("Transmission VAT", rates[17], calculatedData.totalUse * rates[17], "/kwh")
+            ChargeDetailLine("System Loss VAT", rates[18], calculatedData.totalUse * rates[18], "/kwh")
+            ChargeDetailLine("Distribution VAT", rates[19], calculatedData.distributionCharges * rates[19], "%%")
             ChargeDetailLine("Other VAT", rates[20], calculatedData.otherCharges * rates[20], "%%")
         }
     }
 
     Text(
-        text = String.format(
-            "                                       SUB TOTAL        %,8.2f",
-            subTotal
-        ),
+        text = String.format("SUB TOTAL: %,.2f", subTotal),
         style = MaterialTheme.typography.bodySmall,
-        fontFamily = FontFamily.Monospace
+        fontFamily = FontFamily.Monospace,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(start = 8.dp, top = 4.dp)
     )
-    Spacer(modifier = Modifier.height(4.dp))
+    Spacer(modifier = Modifier.height(8.dp))
 }
 
 @SuppressLint("DefaultLocale")
 @Composable
 private fun ChargeDetailLine(name: String, rate: Float, amount: Float, unit: String) {
     Text(
-        text = String.format("  %-30s: %8.4f%s        %,8.2f", name, rate, unit, amount),
+        text = "  $name : ${String.format("%.4f", rate)}$unit        ${String.format("%,.2f", amount)}",
         style = MaterialTheme.typography.bodySmall,
-        fontFamily = FontFamily.Monospace
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier.padding(start = 8.dp)
     )
 }
-
-@Composable
-private fun RateDataPreviewTable(
-    rateData: FloatArray,
-    modifier: Modifier = Modifier
-) {
-    // Rate categories and their descriptions
-    val rateCategories = listOf(
-        RateCategory(
-            "Generation/Transmission", 0..2, listOf(
-                "Generation System Charge",
-                "Transmission Demand Charge",
-                "System Loss Charge"
-            ), listOf("/kwh", "/kw", "/kwh")
-        ),
-
-        RateCategory(
-            "Distribution", 3..5, listOf(
-                "Distribution Demand Charge",
-                "Supply Fix Charge",
-                "Metering Fix Charge"
-            ), listOf("/kw", "/cst", "/cst")
-        ),
-
-        RateCategory(
-            "Sustainable CAPEX", 6..7, listOf(
-                "Reinvestment Fund for CAPEX",
-                "Member's CAPEX Contribution"
-            ), listOf("/kwh", "/kwh")
-        ),
-
-        RateCategory(
-            "Other Charges", 8..9, listOf(
-                "Lifeline Discount/Subsidy",
-                "Senior Citizen Subsidy"
-            ), listOf("/kwh", "/kwh")
-        ),
-
-        RateCategory(
-            "Universal Charges", 10..15, listOf(
-                "Missionary Elec(NPC-SPUG)",
-                "Missionary Elec(RED)",
-                "Environmental Charge",
-                "Feed In Tariff Allowance",
-                "NPC Stranded Contract",
-                "NPC Stranded Debts"
-            ), listOf("/kwh", "/kwh", "/kwh", "/kwh", "/kwh", "/kwh")
-        ),
-
-        RateCategory(
-            "Value Added Tax", 16..20, listOf(
-                "Generation VAT",
-                "Transmission VAT",
-                "System Loss VAT",
-                "Distribution VAT",
-                "Other VAT"
-            ), listOf("/kwh", "/kwh", "/kwh", "%%", "%%")
-        )
-    )
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = colorResource(R.color.preview_card_background)
-        ),
-        shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(
-            1.dp,
-            colorResource(R.color.outline_light)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Charge Type",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(2f)
-                )
-                Text(
-                    text = "Rate",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "Unit",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.weight(0.7f)
-                )
-            }
-
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
-                thickness = 1.dp,
-                color = colorResource(R.color.outline_light)
-            )
-
-            // Rate categories
-            rateCategories.forEach { category ->
-                // Category header
-                Text(
-                    text = category.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = colorResource(R.color.primary_light),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-
-                // Rate items in this category
-                category.range.forEachIndexed { index, rateIndex ->
-                    if (rateIndex < rateData.size) {
-                        RateDataRow(
-                            name = category.items[index],
-                            rate = rateData[rateIndex],
-                            unit = category.units[index],
-                            isIndented = true
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-        }
-    }
-}
-
-@Suppress("SameParameterValue")
-@SuppressLint("DefaultLocale")
-@Composable
-private fun RateDataRow(
-    name: String,
-    rate: Float,
-    unit: String,
-    isIndented: Boolean = false
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = if (isIndented) "  $name" else name,
-            style = MaterialTheme.typography.bodySmall,
-            color = if (isIndented)
-                colorResource(R.color.on_surface_variant_light)
-            else
-                colorResource(R.color.on_surface_light),
-            modifier = Modifier.weight(2f)
-        )
-
-        Text(
-            text = String.format("%.4f", rate),
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
-        )
-
-        Text(
-            text = unit,
-            style = MaterialTheme.typography.bodySmall,
-            color = colorResource(R.color.on_surface_variant_light),
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(0.7f)
-        )
-    }
-}
-
-data class RateCategory(
-    val name: String,
-    val range: IntRange,
-    val items: List<String>,
-    val units: List<String>
-)
-
-@SuppressLint("DefaultLocale")
-@Composable
-private fun RateDataDialog(
-    rateData: FloatArray,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(text = stringResource(R.string.receipt_rate_data_title))
-        },
-        text = {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(rateData.size) { index ->
-                    Text(
-                        text = String.format("Rate[%d]: %.6f", index, rateData[index]),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.ok))
-            }
-        }
-    )
-}
-
-@Composable
-private fun RateCsvStatusIndicator(
-    isUploaded: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val backgroundColor = if (isUploaded) {
-        Color(0xFFE8F5E9) // Light green background
-    } else {
-        colorResource(R.color.warning_container_light)
-    }
-
-    val contentColor = if (isUploaded) {
-        Color(0xFF4CAF50) // Green
-    } else {
-        colorResource(R.color.warning_light)
-    }
-
-    val icon = if (isUploaded) {
-        Icons.Default.CheckCircle
-    } else {
-        Icons.Default.Warning
-    }
-
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = backgroundColor
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColor,
-                modifier = Modifier.size(16.dp)
-            )
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            Text(
-                text = if (isUploaded) {
-                    stringResource(R.string.receipt_rate_csv_status_uploaded)
-                } else {
-                    stringResource(R.string.receipt_rate_csv_status_missing)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = contentColor,
-                fontWeight = FontWeight.Medium
-            )
-        }
-    }
-}
-
-// Data classes and helper functions
-data class BillingData(
-    val period: String,
-    val commercial: String,
-    val serialID: String,
-    val multiplier: Float,
-    val periodFrom: String,
-    val periodTo: String,
-    val prevReading: Float,
-    val presReading: Float,
-    val maxDemand: Float,
-    val reader: String,
-    val version: String,
-    val discount: Float = 10.0f,
-    val interest: Float = 10.0f
-)
 
 data class CalculatedBillingData(
     val totalUse: Float,
@@ -1088,17 +549,15 @@ private fun calculateBillingData(
     billingData: BillingData,
     rates: FloatArray
 ): CalculatedBillingData {
-    val totalUse = billingData.presReading - billingData.prevReading
+    val totalUse = (billingData.PresReading ?: 0f) - (billingData.PrevReading ?: 0f)
+    val maxDemand = billingData.MaxDemand ?: 0f
 
-    // Calculate charges using the exact formula from project01
-    val genTransCharges =
-        totalUse * rates[0] + billingData.maxDemand * rates[1] + totalUse * rates[2]
-    val distributionCharges = billingData.maxDemand * rates[3] + 1 * rates[4] + 1 * rates[5]
+    val genTransCharges = totalUse * rates[0] + maxDemand * rates[1] + totalUse * rates[2]
+    val distributionCharges = maxDemand * rates[3] + 1 * rates[4] + 1 * rates[5]
     val sustainableCapex = totalUse * rates[6] + totalUse * rates[7]
     val otherCharges = totalUse * rates[8] + totalUse * rates[9]
-    val universalCharges =
-        totalUse * rates[10] + sustainableCapex * rates[11] + totalUse * rates[12] +
-                totalUse * rates[13] + totalUse * rates[14] + totalUse * rates[15]
+    val universalCharges = totalUse * rates[10] + totalUse * rates[11] + totalUse * rates[12] +
+            totalUse * rates[13] + totalUse * rates[14] + totalUse * rates[15]
     val valueAddedTax = totalUse * rates[16] + totalUse * rates[17] + totalUse * rates[18] +
             distributionCharges * rates[19] + otherCharges * rates[20]
 
@@ -1114,68 +573,53 @@ private fun calculateBillingData(
         universalCharges = universalCharges,
         valueAddedTax = valueAddedTax,
         totalAmount = totalAmount,
-        maxDemand = billingData.maxDemand
+        maxDemand = maxDemand
     )
 }
 
-// Load rate data from uploaded CSV file based on project01 parsing logic
 private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray? {
     return try {
-        val externalFilesDir = context.getExternalFilesDir(null)
-        val rateFile = File(externalFilesDir, fileName)
-
-        if (!rateFile.exists()) {
-            Log.w("Receipt", "Rate file does not exist: ${rateFile.absolutePath}")
+        val file = File(context.filesDir, fileName)
+        if (!file.exists()) {
+            Log.e("Receipt", "Rate file not found: ${file.absolutePath}")
             return null
         }
 
-        Log.d("Receipt", "Loading rate data from: ${rateFile.absolutePath}")
-
-        // Parse CSV file similar to project01 CSVParser logic
         val rates = mutableListOf<Float>()
-        val reader = BufferedReader(FileReader(rateFile))
+        var columnHeaders: List<String>? = null
 
-        var isFirstLine = true
-        var columnHeaders: List<String>?
+        BufferedReader(FileReader(file)).use { reader ->
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                val trimmedLine = line?.trim() ?: continue
+                if (trimmedLine.isEmpty()) continue
 
-        reader.useLines { lines ->
-            lines.forEach { line ->
-                if (line.isNotBlank() && !line.startsWith("#")) {
-                    if (isFirstLine) {
-                        // First line might be headers
-                        columnHeaders = line.split(",").map { it.trim() }
-                        isFirstLine = false
-
-                        // Check if first line contains headers or data
-                        val firstCell = columnHeaders!!.firstOrNull()?.trim()
-                        if (firstCell != null) {
-                            try {
-                                // If we can parse the first cell as float, treat this line as data
-                                val firstRate = firstCell.toFloat()
-                                rates.add(firstRate)
-                                // Continue parsing rest of the line
-                                columnHeaders!!.drop(1).forEach { cell ->
-                                    try {
-                                        rates.add(cell.toFloat())
-                                    } catch (_: NumberFormatException) {
-                                        Log.w("Receipt", "Skipping non-numeric value: $cell")
-                                    }
-                                }
-                            } catch (_: NumberFormatException) {
-                                // First line is headers, continue to next line
-                                Log.d("Receipt", "Headers detected: $columnHeaders")
-                            }
-                        }
-                    } else {
-                        // Parse data line
-                        val values = line.split(",").map { it.trim() }
-                        values.forEach { cell ->
-                            if (cell.isNotEmpty()) {
+                if (columnHeaders == null) {
+                    columnHeaders = trimmedLine.split(",").map { it.trim() }
+                    val firstCell = columnHeaders!!.firstOrNull()?.trim()
+                    if (firstCell != null) {
+                        try {
+                            val firstRate = firstCell.toFloat()
+                            rates.add(firstRate)
+                            columnHeaders!!.drop(1).forEach { cell ->
                                 try {
                                     rates.add(cell.toFloat())
                                 } catch (_: NumberFormatException) {
                                     Log.w("Receipt", "Skipping non-numeric value: $cell")
                                 }
+                            }
+                        } catch (_: NumberFormatException) {
+                            Log.d("Receipt", "Headers detected: $columnHeaders")
+                        }
+                    }
+                } else {
+                    val values = trimmedLine.split(",").map { it.trim() }
+                    values.forEach { cell ->
+                        if (cell.isNotEmpty()) {
+                            try {
+                                rates.add(cell.toFloat())
+                            } catch (_: NumberFormatException) {
+                                Log.w("Receipt", "Skipping non-numeric value: $cell")
                             }
                         }
                     }
@@ -1183,7 +627,7 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
             }
         }
 
-        Log.d("Receipt", "Parsed ${rates.size} rate values: ${rates.take(5)}...")
+        Log.d("Receipt", "Parsed ${rates.size} rate values")
 
         if (rates.size >= 21) {
             rates.take(21).toFloatArray()
@@ -1200,6 +644,38 @@ private fun loadRateDataFromFile(context: Context, fileName: String): FloatArray
         Log.e("Receipt", "Error loading rate data from file", e)
         null
     }
+}
+
+@SuppressLint("DefaultLocale")
+@Composable
+private fun RateDataDialog(
+    rateData: FloatArray,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Rate Data")
+        },
+        text = {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(rateData.size) { index ->
+                    Text(
+                        text = String.format("Rate[%d]: %.6f", index, rateData[index]),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        }
+    )
 }
 
 private fun getCurrentDate(

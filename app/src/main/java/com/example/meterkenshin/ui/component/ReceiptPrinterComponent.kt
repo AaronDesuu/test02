@@ -83,7 +83,7 @@ fun ReceiptPrintButton(
         Text(
             text = when {
                 !isBluetoothEnabled -> "Enable BT"
-                !isPrinterReady -> "Connect Printer"
+                !isPrinterReady -> "Connect"
                 else -> "Print"
             },
             style = MaterialTheme.typography.bodySmall
@@ -333,21 +333,21 @@ fun createSampleReceiptData(
 
 // Helper function to create receipt data from billing data (for actual meter readings)
 fun createReceiptDataFromBilling(
-    billingData: com.example.meterkenshin.ui.screen.BillingData,
+    billingData: com.example.meterkenshin.data.BillingData,
     calculatedData: com.example.meterkenshin.ui.screen.CalculatedBillingData
 ): ReceiptData {
     return ReceiptData(
-        period = billingData.period,
-        commercial = billingData.commercial,
-        serialID = billingData.serialID,
-        multiplier = billingData.multiplier,
-        periodFrom = billingData.periodFrom,
-        periodTo = billingData.periodTo,
-        prevReading = billingData.prevReading,
-        presReading = billingData.presReading,
-        maxDemand = billingData.maxDemand,
-        reader = billingData.reader,
-        version = billingData.version,
+        period = billingData.Period ?: "",
+        commercial = billingData.Commercial ?: "",
+        serialID = billingData.SerialID ?: "",
+        multiplier = billingData.Multiplier ?: 0f,
+        periodFrom = billingData.PeriodFrom ?: "",
+        periodTo = billingData.PeriodTo ?: "",
+        prevReading = billingData.PrevReading ?: 0f,
+        presReading = billingData.PresReading ?: 0f,
+        maxDemand = billingData.MaxDemand ?: 0f,
+        reader = billingData.Reader ?: "",
+        version = billingData.Version ?: "",
         totalUse = calculatedData.totalUse,
         genTransCharges = calculatedData.genTransCharges,
         distributionCharges = calculatedData.distributionCharges,
