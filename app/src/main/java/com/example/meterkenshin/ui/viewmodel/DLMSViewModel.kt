@@ -79,6 +79,17 @@ class DLMSViewModel : ViewModel() {
         return sessionManager.establishSession()
     }
 
+    private suspend fun closeSession() {
+        appendLog("Releasing DLMS session...")
+
+        if (sessionManager.releaseSession()) {
+            appendLog("✅ DLMS session released successfully")
+        } else {
+            appendLog("⚠ Warning: Session release incomplete")
+        }
+
+        delay(200) // Small delay before Bluetooth disconnect
+    }
     /**
      * Start a DLMS operation
      */
@@ -208,6 +219,8 @@ class DLMSViewModel : ViewModel() {
 
                 delay(500)
 
+                closeSession()
+
                 // Get billing data
                 appendLog("Getting billing data...")
                 if (dlmsFunctions.performGetBillingDataRegistration()) {
@@ -325,6 +338,8 @@ class DLMSViewModel : ViewModel() {
                 finishOperation()
                 return@launch
             }
+            closeSession()
+
             appendLog("Success to read data")
             appendLog("✅ Read Data Complete")
 
@@ -453,6 +468,8 @@ class DLMSViewModel : ViewModel() {
             }
 
             appendLog("Load profile transfer complete: $blockCount blocks, ${allLoadProfileData.size} total entries")
+
+            closeSession()
 
             // Save to CSV
             if (allLoadProfileData.size > 5) {
@@ -675,6 +692,8 @@ class DLMSViewModel : ViewModel() {
 
             appendLog("Event log transfer complete: $blockCount blocks, ${allEventData.size} total entries")
 
+            closeSession()
+
             // Save to CSV if we have data
             if (allEventData.size > 3) {
                 val success = saveEventLogToCSV(meter.serialNumber, allEventData)
@@ -873,6 +892,8 @@ class DLMSViewModel : ViewModel() {
 
             appendLog("Billing data transfer complete: $blockCount blocks, ${allBillingData.size} total entries")
 
+            closeSession()
+
             // Parse and save billing data
             if (allBillingData.size >= 10) {
                 // Remove timestamp if present (first entry)
@@ -1068,20 +1089,17 @@ class DLMSViewModel : ViewModel() {
     fun setClock(meter: Meter) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Set Clock already running")
-            return@launch
         }
 
         // Check if DLMS is initialized
         if (!::dlmsDataAccess.isInitialized) {
             appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
-            return@launch
         }
 
         try {
             // Check if initializer is ready
             if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
                 appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
-                return@launch
             }
 
             startOperation("Set Clock")
@@ -1092,7 +1110,6 @@ class DLMSViewModel : ViewModel() {
             if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                 appendLog("ERROR: Failed to start connection")
                 finishOperation()
-                return@launch
             }
 
             // Wait for SERVICES_DISCOVERED
@@ -1109,7 +1126,6 @@ class DLMSViewModel : ViewModel() {
             if (!ready) {
                 appendLog("ERROR: Services not discovered (timeout)")
                 finishOperation()
-                return@launch
             }
 
             appendLog("Connected and ready")
@@ -1120,7 +1136,6 @@ class DLMSViewModel : ViewModel() {
             if (!establishSession()) {
                 appendLog("ERROR: Failed to establish DLMS session")
                 finishOperation()
-                return@launch
             }
             appendLog("DLMS session established")
             delay(500)
@@ -1131,6 +1146,9 @@ class DLMSViewModel : ViewModel() {
                 if (receive != null && receive.size > 1) {
                     if (receive[1] == "success (0)") {
                         appendLog("Success to set clock")
+
+                        closeSession()
+
                         appendLog("✅ set Clock Complete")
                     } else {
                         appendLog("ERROR: Failed to set clock - ${receive[1]}")
