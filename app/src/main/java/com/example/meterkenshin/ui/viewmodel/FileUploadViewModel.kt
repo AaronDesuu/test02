@@ -27,7 +27,7 @@ class FileUploadViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "FileUploadViewModel"
-        private const val MAX_FILE_SIZE_MB = 10
+        private const val MAX_FILE_SIZE_MB = 512
         private const val MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
         private const val APP_FILES_FOLDER = "app_files"
     }
