@@ -46,7 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
-import com.example.meterkenshin.data.BillingData
+import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.component.ReceiptData
@@ -58,7 +58,7 @@ import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.util.RateDataDialog
 import com.example.meterkenshin.util.calculateBillingData
-import com.example.meterkenshin.util.loadRateDataFromFile
+import com.example.meterkenshin.util.loadRates
 
 @Composable
 fun ReceiptScreen(
@@ -81,7 +81,7 @@ fun ReceiptScreen(
 
     // Sample billing data - using BillingData from data package
     val billingData = remember {
-        BillingData().apply {
+        Billing().apply {
             Period = "December 2024"
             Commercial = "LARGE"
             SerialID = "12345678"
@@ -101,7 +101,7 @@ fun ReceiptScreen(
     LaunchedEffect(isRateCsvUploaded) {
         try {
             if (isRateCsvUploaded) {
-                val rates = rateCsvFile?.let { loadRateDataFromFile(context, it.fileName) }
+                val rates = rateCsvFile?.let { loadRates(context, it.fileName) }
                 rateData = rates
                 Log.d("Receipt", "Loaded ${rates?.size ?: 0} rates from ${rateCsvFile?.fileName}")
             } else {

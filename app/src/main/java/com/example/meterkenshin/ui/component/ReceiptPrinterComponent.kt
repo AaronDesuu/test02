@@ -2,6 +2,7 @@ package com.example.meterkenshin.ui.component
 
 import android.annotation.SuppressLint
 import android.util.Log
+import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.woosim.printer.WoosimCmd
 
@@ -270,7 +271,7 @@ fun createSampleReceiptData(
 
 // Helper function to create receipt data from billing data (for actual meter readings)
 fun createReceiptDataFromBilling(
-    billingData: com.example.meterkenshin.data.BillingData,
+    billingData: Billing,
     calculatedData: com.example.meterkenshin.util.CalculatedBillingData
 ): ReceiptData {
     return ReceiptData(

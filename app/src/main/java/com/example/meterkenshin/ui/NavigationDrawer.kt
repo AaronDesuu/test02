@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Science
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Speed
@@ -30,7 +29,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,9 +55,6 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.model.UserSession
-import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
-import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
-import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -90,12 +85,8 @@ enum class AppScreen(val titleRes: Int) {
 @Composable
 fun AppWithDrawer(
     sessionManager: SessionManager,
-    fileUploadViewModel: FileUploadViewModel,
-    meterReadingViewModel: MeterReadingViewModel,
-    printerBluetoothViewModel: PrinterBluetoothViewModel,
     currentScreen: AppScreen = AppScreen.HOME,
     onNavigateToScreen: (AppScreen) -> Unit = {},
-    onNavigateToTest: () -> Unit = {}, // Add this parameter for test navigation
     onLogout: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
@@ -115,13 +106,12 @@ fun AppWithDrawer(
                     session = session,
                     currentScreen = currentScreen,
                     onNavigationItemClick = onNavigateToScreen,
-                    onTestClick = onNavigateToTest, // Pass the test callback
                     onCloseDrawer = {
                         scope.launch {
                             drawerState.close()
                         }
                     },
-                    onLogout = onLogout
+                    onLogout = onLogout,
                 )
             }
         ) {
@@ -193,7 +183,6 @@ private fun DrawerContentWithTest(
     session: UserSession,
     currentScreen: AppScreen,
     onNavigationItemClick: (AppScreen) -> Unit,
-    onTestClick: () -> Unit, // Custom callback for test navigation
     onCloseDrawer: () -> Unit,
     onLogout: () -> Unit
 ) {
@@ -287,50 +276,6 @@ private fun DrawerContentWithTest(
                     )
                 )
             }
-
-            // OPTION 2: Always show debug section
-            Spacer(modifier = Modifier.height(16.dp))
-
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Debug & Testing",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 28.dp, vertical = 8.dp)
-            )
-
-            NavigationDrawerItem(
-                label = {
-                    Text(
-                        text = "ModernMeterCard Test",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                },
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.Science,
-                        contentDescription = "ModernMeterCard Test",
-                        tint = MaterialTheme.colorScheme.tertiary
-                    )
-                },
-                selected = false,
-                onClick = {
-                    onTestClick()
-                    onCloseDrawer()
-                },
-                modifier = Modifier.padding(horizontal = 12.dp),
-                colors = NavigationDrawerItemDefaults.colors(
-                    unselectedContainerColor = MaterialTheme.colorScheme.surface,
-                    unselectedIconColor = MaterialTheme.colorScheme.tertiary,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            )
 
             Spacer(modifier = Modifier.weight(1f))
 

@@ -7,11 +7,13 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.dlms.DLMSDataAccess
 import com.example.meterkenshin.dlms.DLMSFunctions
 import com.example.meterkenshin.dlms.DLMSInit
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.util.calculateBillingCharges
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,8 +29,8 @@ data class RegistrationState(
     val error: String? = null
 )
 
-@Suppress("SameParameterValue")
-@SuppressLint("MissingPermission")
+@Suppress("KotlinConstantConditions")
+@SuppressLint("SameParameterValue", "KotlinConstantConditions", "DefaultLocale", "MissingPermission")
 class DLMSViewModel : ViewModel() {
 
     companion object {
@@ -176,7 +178,7 @@ class DLMSViewModel : ViewModel() {
     /**
      * Append message to log
      */
-    fun appendLog(message: String) {
+    private fun appendLog(message: String) {
         _dlmsLog.value += "$message\n"
         Log.d(TAG, message)
     }
@@ -294,6 +296,7 @@ class DLMSViewModel : ViewModel() {
                     appendLog("Success to register meter with S/N: ${meter.serialNumber}")
                     appendLog("✅ Registration Complete")
                     _registrationState.value = RegistrationState(isComplete = true)
+
                 } else {
                     appendLog("ERROR: Failed to get billing data")
                 }
@@ -303,6 +306,11 @@ class DLMSViewModel : ViewModel() {
                 _registrationState.value = RegistrationState(
                     error = e.message ?: "Registration failed"
                 )
+            } finally {
+                // ALWAYS close connection, success or failure
+                dlmsInitializer.bluetoothLeService?.close()
+                appendLog("Connection closed")
+                finishOperation()
             }
         }
     }
@@ -405,6 +413,9 @@ class DLMSViewModel : ViewModel() {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Read Data error", e)
         } finally {
+            // ALWAYS close connection, success or failure
+            dlmsInitializer.bluetoothLeService?.close()
+            appendLog("Connection closed")
             finishOperation()
         }
     }
@@ -493,7 +504,7 @@ class DLMSViewModel : ViewModel() {
 
             // Collect data from first block
             var mReceive = dlmsDataAccess.getReceive()
-            if (mReceive != null && mReceive.isNotEmpty()) {
+            if (!mReceive.isNullOrEmpty()) {
                 allLoadProfileData.addAll(mReceive)
                 blockCount++
                 appendLog("Block $blockCount received (${mReceive.size} entries)")
@@ -513,7 +524,7 @@ class DLMSViewModel : ViewModel() {
                 }
 
                 mReceive = dlmsDataAccess.getReceive()
-                if (mReceive != null && mReceive.isNotEmpty()) {
+                if (!mReceive.isNullOrEmpty()) {
                     allLoadProfileData.addAll(mReceive)
                     blockCount++
                     appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allLoadProfileData.size})")
@@ -541,6 +552,9 @@ class DLMSViewModel : ViewModel() {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Load Profile error", e)
         } finally {
+            // ALWAYS close connection, success or failure
+            dlmsInitializer.bluetoothLeService?.close()
+            appendLog("Connection closed")
             finishOperation()
         }
     }
@@ -710,7 +724,7 @@ class DLMSViewModel : ViewModel() {
 
             // Collect data from first block
             var mReceive = dlmsDataAccess.getReceive()
-            if (mReceive != null && mReceive.isNotEmpty()) {
+            if (!mReceive.isNullOrEmpty()) {
                 allEventData.addAll(mReceive)
                 blockCount++
                 appendLog("Block $blockCount received (${mReceive.size} entries)")
@@ -731,7 +745,7 @@ class DLMSViewModel : ViewModel() {
                 }
 
                 mReceive = dlmsDataAccess.getReceive()
-                if (mReceive != null && mReceive.isNotEmpty()) {
+                if (!mReceive.isNullOrEmpty()) {
                     allEventData.addAll(mReceive)
                     blockCount++
                     appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allEventData.size})")
@@ -760,6 +774,9 @@ class DLMSViewModel : ViewModel() {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Event Log error", e)
         } finally {
+            // ALWAYS close connection, success or failure
+            dlmsInitializer.bluetoothLeService?.close()
+            appendLog("Connection closed")
             finishOperation()
         }
     }
@@ -907,7 +924,7 @@ class DLMSViewModel : ViewModel() {
 
             // Collect data from first block
             var mReceive = dlmsDataAccess.getReceive()
-            if (mReceive != null && mReceive.isNotEmpty()) {
+            if (!mReceive.isNullOrEmpty()) {
                 allBillingData.addAll(mReceive)
                 blockCount++
                 appendLog("Block $blockCount received (${mReceive.size} entries)")
@@ -926,7 +943,7 @@ class DLMSViewModel : ViewModel() {
                 }
 
                 mReceive = dlmsDataAccess.getReceive()
-                if (mReceive != null && mReceive.isNotEmpty()) {
+                if (!mReceive.isNullOrEmpty()) {
                     allBillingData.addAll(mReceive)
                     blockCount++
                     appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allBillingData.size})")
@@ -984,6 +1001,9 @@ class DLMSViewModel : ViewModel() {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Billing Data error", e)
         } finally {
+            // ALWAYS close connection, success or failure
+            dlmsInitializer.bluetoothLeService?.close()
+            appendLog("Connection closed")
             finishOperation()
         }
     }
@@ -1035,52 +1055,10 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
-     * Calculate billing charges using project01 formula
-     * @param nowReading Current import reading [kWh]
-     * @param prevReading Previous import reading [kWh]
-     * @param maxDemand Maximum demand [kW]
-     * @param rates Array of 21 rate values
-     * @return Map with all calculated charges
-     */
-    private fun calculateBillingCharges(
-        nowReading: Float,
-        prevReading: Float,
-        maxDemand: Float,
-        rates: FloatArray
-    ): Map<String, Float> {
-        val totalUse = nowReading - prevReading
-
-        val genTransCharges = totalUse * rates[0] + maxDemand * rates[1] + totalUse * rates[2]
-        val distributionCharges = maxDemand * rates[3] + 1f * rates[4] + 1f * rates[5]
-        val sustainableCapex = totalUse * rates[6] + totalUse * rates[7]
-        val otherCharges = totalUse * rates[8] + totalUse * rates[9]
-        val universalCharges = totalUse * rates[10] + sustainableCapex * rates[11] +
-                totalUse * rates[12] + totalUse * rates[13] +
-                totalUse * rates[14] + totalUse * rates[15]
-        val valueAddedTax = totalUse * rates[16] + totalUse * rates[17] + totalUse * rates[18] +
-                distributionCharges * rates[19] + otherCharges * rates[20]
-
-        val totalAmount = genTransCharges + distributionCharges + sustainableCapex +
-                otherCharges + universalCharges + valueAddedTax
-
-        return mapOf(
-            "totalUse" to totalUse,
-            "genTransCharges" to genTransCharges,
-            "distributionCharges" to distributionCharges,
-            "sustainableCapex" to sustainableCapex,
-            "otherCharges" to otherCharges,
-            "universalCharges" to universalCharges,
-            "valueAddedTax" to valueAddedTax,
-            "totalAmount" to totalAmount
-        )
-    }
-
-    /**
      * Save complete billing data to CSV file
-     * CSV format: Clock,Imp[kWh],Exp[kWh],Abs[kWh],Net[kWh],ImpMaxDemand[W],ExpMaxDemand[W],MinVolt[V],Alert1,Alert2,
+     * CSV format: Clock,Imp,Exp,Abs,Net,ImpMaxDemand,ExpMaxDemand,MinVolt,Alert1,Alert2,
      *             TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount
      */
-    @SuppressLint("SimpleDateFormat")
     private fun saveBillingToCSV(meter: Meter, records: List<BillingRecord>, rates: FloatArray): Boolean {
         return try {
             // Get timestamp from first record for filename
@@ -1154,21 +1132,6 @@ class DLMSViewModel : ViewModel() {
         }
     }
 
-    /**
-     * Data class for billing record
-     */
-    data class BillingRecord(
-        val clock: String,      // Date/time
-        val imp: Float,         // Import energy [kWh]
-        val exp: Float,         // Export energy [kWh]
-        val abs: Float,         // Absolute energy [kWh]
-        val net: Float,         // Net energy [kWh]
-        val maxImp: Float,      // Max import demand [W]
-        val maxExp: Float,      // Max export demand [W]
-        val minVolt: Float,     // Minimum voltage [V]
-        val alert1: String,     // Alert status 1
-        val alert2: String      // Alert status 2
-    )
     /**
      * Set Clock on the meter
      */
@@ -1253,6 +1216,9 @@ class DLMSViewModel : ViewModel() {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Set Clock error", e)
         } finally {
+            // ALWAYS close connection, success or failure
+            dlmsInitializer.bluetoothLeService?.close()
+            appendLog("Connection closed")
             finishOperation()
         }
     }

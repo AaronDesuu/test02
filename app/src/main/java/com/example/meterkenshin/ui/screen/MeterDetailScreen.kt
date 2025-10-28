@@ -1,34 +1,19 @@
 package com.example.meterkenshin.ui.screen
 
 import android.annotation.SuppressLint
-import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cable
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -37,33 +22,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Meter
-import java.text.SimpleDateFormat
-import java.util.Locale
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.meterkenshin.data.MeterSpecifications
-import com.example.meterkenshin.model.RequiredFile
 import com.example.meterkenshin.ui.component.DLMSFunctionsCard
 import com.example.meterkenshin.ui.component.DLMSLogCard
+import com.example.meterkenshin.ui.component.MeterSpecificationsCard
+import com.example.meterkenshin.ui.component.MeterStatusCard
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
-import java.io.File
+import com.example.meterkenshin.util.loadMeterRates
 
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
  */
 @SuppressLint("MissingPermission")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterDetailScreen(
     meter: Meter,
@@ -175,7 +151,7 @@ fun MeterDetailScreen(
                 },
                 onBillingData = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        val rates = loadRatesFromUploadedCSV(context, fileUploadViewModel)
+                        val rates = loadMeterRates(context, fileUploadViewModel)
                         registrationViewModel.billingData(meter, rates)
                     }
                 },
@@ -203,377 +179,3 @@ fun MeterDetailScreen(
         }
     }
 }
-
-/**
- * Meter specifications card with enhanced CSV data support using MeterModel
- * Now uses MeterSpecifications data class for easy management
- */
-@SuppressLint("DefaultLocale")
-@Composable
-private fun MeterSpecificationsCard(
-    meter: Meter,
-    modifier: Modifier = Modifier
-) {
-    // Get the appropriate specifications for this meter
-    val specs = MeterSpecifications.getSpecificationForMeter(meter.type.name)
-
-    // Date formatter for last reading
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.meter_info),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            // Basic meter info
-
-            SpecificationRow(
-                label = "Meter Type",
-                value = meter.type.displayName.ifBlank { "-" }
-            )
-            // Bluetooth ID
-            SpecificationRow(
-                label = "Bluetooth ID",
-                value = meter.bluetoothId ?: "-"
-            )
-
-            // Enhanced data from CSV
-            if (meter.impKWh != null || meter.expKWh != null ||
-                meter.impMaxDemandKW != null || meter.expMaxDemandKW != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Energy Readings",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-
-                SpecificationRow(
-                    label = "Import Energy (kWh)",
-                    value = meter.impKWh?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Export Energy (kWh)",
-                    value = meter.expKWh?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Import Max Demand (kW)",
-                    value = meter.impMaxDemandKW?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Export Max Demand (kW)",
-                    value = meter.expMaxDemandKW?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Last Reading Date",
-                    value = meter.readDate?.let { dateFormat.format(it) } ?: "-"
-                )
-            }
-            SpecificationRow(
-                label = "Phase Wire",
-                value = specs.phaseWire
-            )
-            SpecificationRow(
-                label = "Protocol",
-                value = specs.protocol
-            )
-            SpecificationRow(
-                label = "Communication",
-                value = specs.communication
-            )
-            SpecificationRow(
-                label = "V/A Rating",
-                value = specs.voltageAmperageRating
-            )
-            SpecificationRow(
-                label = "Frequency",
-                value = specs.frequency
-            )
-            SpecificationRow(
-                label = "Pulse Constant",
-                value = specs.pulseConstant
-            )
-            SpecificationRow(
-                label = "BLE Version",
-                value = specs.bleVersion
-            )
-        }
-    }
-}
-
-/**
- * Updated MeterStatusCard with BLE connection and RSSI info
- */
-@Composable
-private fun MeterStatusCard(
-    meter: Meter,
-    rssi: Int = -200,
-    isNearby: Boolean = false,
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
-) {
-    // Connection status based on RSSI
-    val connectionStatus = when {
-        !isNearby -> stringResource(R.string.ble_status_disconnected)
-        rssi >= -70 -> stringResource(R.string.ble_status_connected)
-        rssi >= -85 -> "${stringResource(R.string.ble_status_connected)} (Fair)"
-        else -> "${stringResource(R.string.ble_status_connected)} (Poor)"
-    }
-
-    val signalColor = when {
-        !isNearby -> Color.Gray
-        rssi >= -70 -> Color(0xFF4CAF50) // Green - Excellent
-        rssi >= -85 -> Color(0xFFFFC107) // Yellow - Fair
-        else -> Color(0xFFF44336) // Red - Poor
-    }
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.secondaryContainer
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Cable,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.meter_stats),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-
-            // Serial Number
-            SpecificationRow(
-                label = stringResource(R.string.serial_id).replace(": %1\$s", ""),
-                value = meter.serialNumber.ifBlank { "-" }
-            )
-
-            // Serial Number
-            SpecificationRow(
-                label = stringResource(R.string.uid).replace(": %1\$s", ""),
-                value = meter.uid.toString().ifBlank { "-" }
-            )
-
-            // BLE Connection Status
-            SpecificationRow(
-                label = stringResource(R.string.status_connected),
-                value = connectionStatus,
-                valueColor = signalColor
-            )
-
-            // Signal Strength (only show when nearby)
-            if (isNearby && rssi > -200) {
-                SpecificationRow(
-                    label = stringResource(R.string.signal_strength).replace(": %1\$s dBm", ""),
-                    value = "$rssi dBm",
-                    valueColor = signalColor
-                )
-            }
-
-
-
-            // Location
-            SpecificationRow(
-                label = "Location",
-                value = meter.location.ifBlank { "-" }
-            )
-
-            // Last Communication (placeholder - can be updated with actual data)
-            SpecificationRow(
-                label = "Last Communication",
-                value = if (isNearby) "Just now" else "-"
-            )
-        }
-    }
-}
-
-/**
- * Modern specification row component with null-safe display
- */
-@Composable
-private fun SpecificationRow(
-    label: String,
-    value: String,
-    isHighlighted: Boolean = false,
-    isSensitive: Boolean = false,
-    valueColor: Color? = null,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
-
-        Text(
-            text = if (isSensitive && value != "-") "••••••••••••••••" else value,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Medium,
-            color = valueColor ?: if (isHighlighted) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-/**
- * Load rates from uploaded rate.csv file
- */
-private fun loadRatesFromUploadedCSV(
-    context: Context,
-    fileUploadViewModel: FileUploadViewModel
-): FloatArray {
-    val uploadState = fileUploadViewModel.uploadState.value
-    val rateCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.RATE }
-
-    // Check if rate.csv is uploaded
-    if (rateCsvFile?.isUploaded == true) {
-        try {
-            // Get the uploaded file from external files directory
-            val externalFilesDir = context.getExternalFilesDir(null)
-            if (externalFilesDir != null) {
-                val rateFile = File(externalFilesDir, rateCsvFile.fileName)
-
-                if (rateFile.exists()) {
-                    Log.d("MeterDetail", "Loading rates from: ${rateFile.absolutePath}")
-
-                    // Parse CSV file
-                    val rates = mutableListOf<Float>()
-                    val reader = java.io.BufferedReader(java.io.FileReader(rateFile))
-
-                    var isFirstLine = true
-                    reader.useLines { lines ->
-                        lines.forEach { line ->
-                            if (line.isNotBlank() && !line.startsWith("#")) {
-                                if (isFirstLine) {
-                                    // First line might be headers, try to parse it
-                                    val firstCell = line.split(",").firstOrNull()?.trim()
-                                    if (firstCell != null) {
-                                        try {
-                                            // If we can parse as float, it's data not headers
-                                            rates.add(firstCell.toFloat())
-                                            // Parse rest of first line
-                                            line.split(",").drop(1).forEach { cell ->
-                                                try {
-                                                    rates.add(cell.trim().toFloat())
-                                                } catch (_: NumberFormatException) {
-                                                    // Skip non-numeric values
-                                                }
-                                            }
-                                        } catch (_: NumberFormatException) {
-                                            // First line is headers, skip to next line
-                                            Log.d("MeterDetail", "Headers detected, skipping")
-                                        }
-                                    }
-                                    isFirstLine = false
-                                } else {
-                                    // Parse data line
-                                    line.split(",").forEach { cell ->
-                                        val trimmed = cell.trim()
-                                        if (trimmed.isNotEmpty()) {
-                                            try {
-                                                rates.add(trimmed.toFloat())
-                                            } catch (_: NumberFormatException) {
-                                                // Skip non-numeric values
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Log.d("MeterDetail", "Parsed ${rates.size} rate values from CSV")
-
-                    if (rates.size >= 21) {
-                        return rates.take(21).toFloatArray()
-                    } else {
-                        Log.w("MeterDetail", "Insufficient rates in CSV (${rates.size}), using defaults")
-                        return getDefaultRates()
-                    }
-                } else {
-                    Log.w("MeterDetail", "Rate file not found: ${rateFile.absolutePath}")
-                    return getDefaultRates()
-                }
-            } else {
-                Log.e("MeterDetail", "External files directory not available")
-                return getDefaultRates()
-            }
-        } catch (e: Exception) {
-            Log.e("MeterDetail", "Error loading rates from CSV: ${e.message}", e)
-            return getDefaultRates()
-        }
-    } else {
-        Log.i("MeterDetail", "rate.csv not uploaded, using default rates")
-        return getDefaultRates()
-    }
-}
-
-/**
- * Default rates matching project01
- */
-private fun getDefaultRates(): FloatArray {
-    return floatArrayOf(
-        2.5f, 150.0f, 0.1f,           // Gen/Trans charges (0-2)
-        50.0f, 100.0f, 50.0f,         // Distribution charges (3-5)
-        0.05f, 0.03f,                 // Sustainable CAPEX (6-7)
-        0.02f, 0.01f,                 // Other charges (8-9)
-        0.001f, 0.12f, 0.0025f,       // Universal charges (10-15)
-        0.04f, 0.1f, 0.25f,
-        0.3f, 0.3f, 0.012f,           // VAT (16-20)
-        0.12f, 0.12f
-    )
-}
-

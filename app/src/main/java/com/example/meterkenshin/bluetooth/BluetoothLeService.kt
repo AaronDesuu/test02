@@ -22,6 +22,7 @@ import java.util.UUID
  * Service for managing connection and data communication with a GATT server hosted on a
  * given Bluetooth LE device.
  */
+@Suppress("DEPRECATION", "OVERRIDE_DEPRECATION", "SameParameterValue")
 class BluetoothLeService : Service() {
     private var mBluetoothManager: BluetoothManager? = null
     private var mBluetoothAdapter: BluetoothAdapter? = null
@@ -31,10 +32,10 @@ class BluetoothLeService : Service() {
     private var mService: BluetoothGattService? = null
     private var mCharacteristic: BluetoothGattCharacteristic? = null
 
-    private val uuid_service: UUID = UUID.fromString("b973f2e0-b19e-11e2-9e96-0800200c9a66")
-    private val uuid_read: UUID = UUID.fromString("d973f2e1-b19e-11e2-9e96-0800200c9a66")
-    private val uuid_write: UUID = UUID.fromString("e973f2e2-b19e-11e2-9e96-0800200c9a66")
-    private val uuid_config: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
+    private val uuidService: UUID = UUID.fromString("b973f2e0-b19e-11e2-9e96-0800200c9a66")
+    private val uuidRead: UUID = UUID.fromString("d973f2e1-b19e-11e2-9e96-0800200c9a66")
+    private val uuidWrite: UUID = UUID.fromString("e973f2e2-b19e-11e2-9e96-0800200c9a66")
+    private val uuidConfig: UUID = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb")
 
     // Implements callback methods for GATT events that the app cares about.  For example,
     // connection change and services discovered.
@@ -66,9 +67,9 @@ class BluetoothLeService : Service() {
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
                 mConnectionState = STATE_DISCOVERED
-                mService = mBluetoothGatt!!.getService(uuid_service)
-                mCharacteristic = mService!!.getCharacteristic(uuid_read)
-                val descriptor = mCharacteristic!!.getDescriptor(uuid_config)
+                mService = mBluetoothGatt!!.getService(uuidService)
+                mCharacteristic = mService!!.getCharacteristic(uuidRead)
+                val descriptor = mCharacteristic!!.getDescriptor(uuidConfig)
                 //              mBluetoothGatt.requestConnectionPriority(CONNECTION_PRIORITY_HIGH);
                 mBluetoothGatt!!.setCharacteristicNotification(mCharacteristic, true)
                 descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
@@ -94,7 +95,7 @@ class BluetoothLeService : Service() {
             status: Int
         ) {
             super.onCharacteristicRead(gatt, characteristic, status)
-            Log.w(TAG, "onCharacteristicRead: " + status)
+            Log.w(TAG, "onCharacteristicRead: $status")
         }
 
         override fun onCharacteristicChanged(
@@ -110,15 +111,11 @@ class BluetoothLeService : Service() {
     fun write(`in`: ByteArray): Boolean {
         if (mConnectionState == STATE_DISCOVERED) {
             Log.i(TAG, String.format("write:%d", `in`.size))
-            if (`in` != null) {
-                val Characteristic =
-                    mBluetoothGatt!!.getService(uuid_service).getCharacteristic(uuid_write)
-                Characteristic.setValue(`in`)
-                mBluetoothGatt!!.writeCharacteristic(Characteristic)
-                return true
-            } else {
-                return false
-            }
+            val characteristic =
+                mBluetoothGatt!!.getService(uuidService).getCharacteristic(uuidWrite)
+            characteristic.setValue(`in`)
+            mBluetoothGatt!!.writeCharacteristic(characteristic)
+            return true
         } else {
             Log.i(TAG, "Dose not ready to write")
             return false
@@ -136,10 +133,10 @@ class BluetoothLeService : Service() {
     ) {
         val intent = Intent(action)
 
-        if (uuid_read == characteristic.getUuid()) {
+        if (uuidRead == characteristic.uuid) {
             // For all other profiles, writes the data formatted in HEX.
-            val data = characteristic.getValue()
-            if (data != null && data.size > 0) {
+            val data = characteristic.value
+            if (data != null && data.isNotEmpty()) {
                 intent.putExtra(EXTRA_DATA, data)
             }
         }
@@ -153,13 +150,6 @@ class BluetoothLeService : Service() {
 
     override fun onBind(intent: Intent?): IBinder {
         return mBinder
-    }
-
-    override fun onUnbind(intent: Intent?): Boolean {
-        // After using a given device, you should make sure that BluetoothGatt.close() is called
-        // such that resources are cleaned up properly.  In this particular example, close() is
-        // invoked when the UI is disconnected from the Service.
-        return super.onUnbind(intent)
     }
 
     private val mBinder: IBinder = LocalBinder()
@@ -179,7 +169,7 @@ class BluetoothLeService : Service() {
                 return false
             }
         }
-        mBluetoothAdapter = mBluetoothManager!!.getAdapter()
+        mBluetoothAdapter = mBluetoothManager!!.adapter
         if (mBluetoothAdapter == null) {
             Log.e(TAG, "Unable to obtain a BluetoothAdapter.")
             return false

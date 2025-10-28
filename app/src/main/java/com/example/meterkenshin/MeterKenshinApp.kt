@@ -15,12 +15,11 @@ import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.ui.component.AppScreen
-import com.example.meterkenshin.ui.component.AppWithDrawer
+import com.example.meterkenshin.ui.AppScreen
+import com.example.meterkenshin.ui.AppWithDrawer
 import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
-import com.example.meterkenshin.ui.screen.MeterCardTestScreen
 import com.example.meterkenshin.ui.screen.SettingsScreen
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -97,9 +96,6 @@ fun MeterKenshinApp(
     // Wrap everything with AppWithDrawer
     AppWithDrawer(
         sessionManager = sessionManager,
-        fileUploadViewModel = fileUploadViewModel,
-        meterReadingViewModel = meterReadingViewModel,
-        printerBluetoothViewModel = printerBluetoothViewModel,
         currentScreen = currentAppScreen,
         onNavigateToScreen = { screen ->
             when (screen) {
@@ -110,9 +106,6 @@ fun MeterKenshinApp(
                 AppScreen.SETTINGS -> currentScreen = "settings"
                 else -> {}
             }
-        },
-        onNavigateToTest = {
-            currentScreen = "meter_card_test"
         },
         onLogout = {
             // ✅ NEW: Stop BLE scanning on logout
@@ -217,10 +210,6 @@ fun MeterKenshinApp(
                 SettingsScreen(
                     sessionManager = sessionManager
                 )
-            }
-
-            currentScreen == "meter_card_test" -> {
-                MeterCardTestScreen()
             }
         }
     }

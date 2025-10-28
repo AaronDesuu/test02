@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.meterkenshin.data.BillingData
+import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.data.getDefaultRates
 import com.example.meterkenshin.util.CalculatedBillingData
 import com.example.meterkenshin.util.calculateBillingData
@@ -27,7 +27,7 @@ import com.example.meterkenshin.util.getCurrentDateTime
 @SuppressLint("DefaultLocale")
 @Composable
 fun ReceiptPreview(
-    billingData: BillingData,
+    billingData: Billing,
     rateData: FloatArray?,
     modifier: Modifier = Modifier
 ) {

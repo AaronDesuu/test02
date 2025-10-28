@@ -1,6 +1,6 @@
-package com.example.meterkenshin.data
+package com.example.meterkenshin.model
 
-class BillingData {
+class Billing {
     var Period: String? = null
     var Commercial: String? = null
     var SerialID: String? = null
@@ -26,3 +26,19 @@ class BillingData {
     var ReadDatetime: String? = null
     var Version: String? = null
 }
+
+/**
+ * Data class for billing record
+ */
+data class BillingRecord(
+    val clock: String,      // Date/time
+    val imp: Float,         // Import energy [kWh]
+    val exp: Float,         // Export energy [kWh]
+    val abs: Float,         // Absolute energy [kWh]
+    val net: Float,         // Net energy [kWh]
+    val maxImp: Float,      // Max import demand [W]
+    val maxExp: Float,      // Max export demand [W]
+    val minVolt: Float,     // Minimum voltage [V]
+    val alert1: String,     // Alert status 1
+    val alert2: String      // Alert status 2
+)
