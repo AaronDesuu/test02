@@ -368,6 +368,9 @@ class DLMSViewModel : ViewModel() {
     /**
      * Load Profile - Retrieves ALL load profile data using block transfer
      */
+    /**
+     * Load Profile - Retrieves ALL load profile data using block transfer
+     */
     fun loadProfile(meter: Meter) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Load Profile already running")
@@ -426,50 +429,21 @@ class DLMSViewModel : ViewModel() {
             appendLog("DLMS session established")
             delay(500)
 
-            // Get ALL load profile data using block transfer
+            // ===== UNIFIED BLOCK TRANSFER =====
             appendLog("Getting load profile data (may take multiple requests)...")
-            val allLoadProfileData = ArrayList<String>()
-            var blockCount = 0
 
-            // First request - starts block transfer
-            if (!performGetLoadProfile()) {
+            val allLoadProfileData = dlmsDataAccess.performBlockTransfer(
+                operationName = "Load Profile",
+                initialRequest = { performGetLoadProfile() },
+                blockRequest = { performGetLoadProfileBlock() },
+                logCallback = { appendLog(it) }
+            )
+
+            if (allLoadProfileData == null) {
                 appendLog("ERROR: Failed to get load profile data")
                 finishOperation()
                 return@launch
             }
-
-            // Collect data from first block
-            var mReceive = dlmsDataAccess.getReceive()
-            if (!mReceive.isNullOrEmpty()) {
-                allLoadProfileData.addAll(mReceive)
-                blockCount++
-                appendLog("Block $blockCount received (${mReceive.size} entries)")
-            }
-
-            // Continue requesting blocks until complete
-            // ret[0] = 2 means continue, ret[0] = 0 means done
-            var continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
-
-            while (continueTransfer && blockCount < 200) {
-                delay(200) // Small delay between requests
-
-                // Request next block
-                if (!performGetLoadProfileBlock()) {
-                    appendLog("ERROR: Failed to get load profile block")
-                    break
-                }
-
-                mReceive = dlmsDataAccess.getReceive()
-                if (!mReceive.isNullOrEmpty()) {
-                    allLoadProfileData.addAll(mReceive)
-                    blockCount++
-                    appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allLoadProfileData.size})")
-                }
-
-                continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
-            }
-
-            appendLog("Load profile transfer complete: $blockCount blocks, ${allLoadProfileData.size} total entries")
 
             closeSession()
 
@@ -521,7 +495,6 @@ class DLMSViewModel : ViewModel() {
      * Example entry:
      * 2025/05/09 13:30:00,128,23299,183,0
      */
-    @SuppressLint("SimpleDateFormat")
     private fun saveLoadProfileToCSV(meter: Meter, data: ArrayList<String>): Boolean {
         return try {
             // Get timestamp from first entry for filename
@@ -644,11 +617,7 @@ class DLMSViewModel : ViewModel() {
             delay(500)
 
             // ===== BLOCK TRANSFER LOOP PATTERN =====
-            // This is the key difference - we need to loop to get ALL records
 
-            // Accumulate all event data across blocks
-            val allEventData = ArrayList<String>()
-            var blockCount = 0
 
             // First request - starts block transfer
             appendLog("Requesting event records...")
@@ -660,39 +629,15 @@ class DLMSViewModel : ViewModel() {
                 return@launch
             }
 
-            // Collect data from first block
-            var mReceive = dlmsDataAccess.getReceive()
-            if (!mReceive.isNullOrEmpty()) {
-                allEventData.addAll(mReceive)
-                blockCount++
-                appendLog("Block $blockCount received (${mReceive.size} entries)")
+            val allEventData = dlmsDataAccess.performBlockTransfer(
+                "Event Log",
+                { dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false) },
+                { dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false) },
+                { appendLog(it) }
+            ) ?: run {
+                finishOperation()
+                return@launch
             }
-
-            // Continue requesting blocks until complete
-            // dlmsDataAccess tracks whether more blocks are available via shouldContinueBlockTransfer()
-            // This is based on res[0] = 2 (continue) or res[0] = 0 (done)
-            var continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
-
-            while (continueTransfer && blockCount < 200) { // Safety limit of 200 blocks
-                delay(200) // Small delay between block requests
-
-                // Request next block (DLMS internally tracks mBlockNo)
-                if (!dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false)) {
-                    appendLog("ERROR: Failed to get event log block")
-                    break
-                }
-
-                mReceive = dlmsDataAccess.getReceive()
-                if (!mReceive.isNullOrEmpty()) {
-                    allEventData.addAll(mReceive)
-                    blockCount++
-                    appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allEventData.size})")
-                }
-
-                continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
-            }
-
-            appendLog("Event log transfer complete: $blockCount blocks, ${allEventData.size} total entries")
 
             closeSession()
 
@@ -798,12 +743,14 @@ class DLMSViewModel : ViewModel() {
             return@launch
         }
 
+        // Check if DLMS is initialized
         if (!::dlmsDataAccess.isInitialized) {
             appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
             return@launch
         }
 
         try {
+            // Check if initializer is ready
             if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
                 appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                 return@launch
@@ -850,49 +797,21 @@ class DLMSViewModel : ViewModel() {
             appendLog("DLMS session established")
             delay(500)
 
-            // ===== BLOCK TRANSFER LOOP FOR BILLING DATA =====
+            // ===== UNIFIED BLOCK TRANSFER =====
             appendLog("Getting billing data (may take multiple requests)...")
-            val allBillingData = ArrayList<String>()
-            var blockCount = 0
 
-            // First request - starts block transfer
-            if (!performGetBillingData()) {
+            val allBillingData = dlmsDataAccess.performBlockTransfer(
+                operationName = "Billing Data",
+                initialRequest = { performGetBillingData() },
+                blockRequest = { performGetBillingDataBlock() },
+                logCallback = { appendLog(it) }
+            )
+
+            if (allBillingData == null) {
                 appendLog("ERROR: Failed to get billing data")
                 finishOperation()
                 return@launch
             }
-
-            // Collect data from first block
-            var mReceive = dlmsDataAccess.getReceive()
-            if (!mReceive.isNullOrEmpty()) {
-                allBillingData.addAll(mReceive)
-                blockCount++
-                appendLog("Block $blockCount received (${mReceive.size} entries)")
-            }
-
-            // Continue requesting blocks until complete
-            var continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
-
-            while (continueTransfer && blockCount < 200) {
-                delay(200) // Small delay between requests
-
-                // Request next block
-                if (!performGetBillingDataBlock()) {
-                    appendLog("ERROR: Failed to get billing data block")
-                    break
-                }
-
-                mReceive = dlmsDataAccess.getReceive()
-                if (!mReceive.isNullOrEmpty()) {
-                    allBillingData.addAll(mReceive)
-                    blockCount++
-                    appendLog("Block $blockCount received (${mReceive.size} entries, total: ${allBillingData.size})")
-                }
-
-                continueTransfer = dlmsDataAccess.shouldContinueBlockTransfer()
-            }
-
-            appendLog("Billing data transfer complete: $blockCount blocks, ${allBillingData.size} total entries")
 
             closeSession()
 

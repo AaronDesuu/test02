@@ -161,4 +161,56 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
         mParameter = StringBuilder()
         mReceive = null
     }
+
+    /**
+     * Perform block transfer - handles initial request and all continuation blocks
+     * Returns all collected data or null on failure
+     */
+    suspend fun performBlockTransfer(
+        operationName: String,
+        initialRequest: suspend () -> Boolean,
+        blockRequest: suspend () -> Boolean,
+        logCallback: (String) -> Unit
+    ): ArrayList<String>? {
+        val allData = ArrayList<String>()
+        var blockCount = 0
+
+        // First request
+        if (!initialRequest()) {
+            logCallback("ERROR: Failed initial $operationName request")
+            return null
+        }
+
+        // Collect first block
+        var mReceive = getReceive()
+        if (!mReceive.isNullOrEmpty()) {
+            allData.addAll(mReceive)
+            blockCount++
+            logCallback("Block $blockCount received (${mReceive.size} entries)")
+        }
+
+        // Continue block transfer
+        var continueTransfer = shouldContinueBlockTransfer()
+
+        while (continueTransfer && blockCount < 200) {
+            delay(200)
+
+            if (!blockRequest()) {
+                logCallback("ERROR: Failed to get $operationName block")
+                break
+            }
+
+            mReceive = getReceive()
+            if (!mReceive.isNullOrEmpty()) {
+                allData.addAll(mReceive)
+                blockCount++
+                logCallback("Block $blockCount received (${mReceive.size} entries, total: ${allData.size})")
+            }
+
+            continueTransfer = shouldContinueBlockTransfer()
+        }
+
+        logCallback("$operationName transfer complete: $blockCount blocks, ${allData.size} total entries")
+        return allData
+    }
 }
