@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.FileUploadState
 import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.util.getCurrentYearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,9 +19,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.text.format
 
 class FileUploadViewModel : ViewModel() {
@@ -301,11 +299,6 @@ class FileUploadViewModel : ViewModel() {
             }
         }
 
-    }
-
-    private fun getCurrentYearMonth(): String {
-        val sdf = SimpleDateFormat("yyyyMM", Locale.getDefault())
-        return sdf.format(Date())
     }
 
     /**

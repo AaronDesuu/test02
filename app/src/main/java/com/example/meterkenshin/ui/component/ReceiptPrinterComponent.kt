@@ -2,23 +2,6 @@ package com.example.meterkenshin.ui.component
 
 import android.annotation.SuppressLint
 import android.util.Log
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Print
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.unit.dp
-import com.example.meterkenshin.R
-import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.woosim.printer.WoosimCmd
 
@@ -45,55 +28,9 @@ data class ReceiptData(
     val totalAmount: Float
 )
 
-@Composable
-fun ReceiptPrintButton(
-    modifier: Modifier = Modifier,
-    receiptData: ReceiptData,
-    printerBluetoothViewModel: PrinterBluetoothViewModel,
-    bluetoothConnectionState: BluetoothPrinterManager.ConnectionState?,
-    isBluetoothEnabled: Boolean,
-    onNavigateToHome: () -> Unit = {},
-) {
-    val isPrinterReady = bluetoothConnectionState == BluetoothPrinterManager.ConnectionState.CONNECTED
-    val canPrint = isPrinterReady && isBluetoothEnabled
-
-    Button(
-        onClick = {
-            if (canPrint) {
-                printReceipt(receiptData, printerBluetoothViewModel)
-            } else if (!isPrinterReady) {
-                // Navigate to home when "Connect Printer" is clicked
-                onNavigateToHome()
-            }
-        },
-        enabled = canPrint,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (canPrint) colorResource(R.color.print_button_background)
-            else colorResource(R.color.print_button_disabled),
-            contentColor = colorResource(R.color.print_button_text)
-        ),
-        modifier = modifier.height(36.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Default.Print,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = when {
-                !isBluetoothEnabled -> "Enable BT"
-                !isPrinterReady -> "Connect"
-                else -> "Print"
-            },
-            style = MaterialTheme.typography.bodySmall
-        )
-    }
-}
-
 // Print function that handles the actual printing with WoosimLib
 @SuppressLint("DefaultLocale")
-private fun printReceipt(
+fun printReceipt(
     receiptData: ReceiptData,
     printerBluetoothViewModel: PrinterBluetoothViewModel
 ) {
@@ -334,7 +271,7 @@ fun createSampleReceiptData(
 // Helper function to create receipt data from billing data (for actual meter readings)
 fun createReceiptDataFromBilling(
     billingData: com.example.meterkenshin.data.BillingData,
-    calculatedData: com.example.meterkenshin.ui.screen.CalculatedBillingData
+    calculatedData: com.example.meterkenshin.util.CalculatedBillingData
 ): ReceiptData {
     return ReceiptData(
         period = billingData.Period ?: "",

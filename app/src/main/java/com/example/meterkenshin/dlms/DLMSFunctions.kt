@@ -4,10 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.util.getCurrentYearMonth
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /**
  * DLMS Functions - Extracted from DLMSViewModel
@@ -311,13 +309,5 @@ class DLMSFunctions(
             logCallback("ERROR: Failed to export meter data: ${e.message}")
             Log.e(TAG, "Export error", e)
         }
-    }
-
-    /**
-     * Get current year-month for filename
-     */
-    private fun getCurrentYearMonth(): String {
-        val sdf = SimpleDateFormat("yyyyMM", Locale.getDefault())
-        return sdf.format(Date())
     }
 }
