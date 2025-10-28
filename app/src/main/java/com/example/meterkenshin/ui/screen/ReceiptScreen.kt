@@ -272,8 +272,8 @@ fun ReceiptScreen(
                     // Print Button with proper integration
                     ReceiptPrintButton(
                         receiptData = if (rateData != null) {
-                            val calculatedData = calculateBillingData(billingData, rateData!!)
-                            createReceiptDataFromBilling(billingData, calculatedData)
+                            calculateBillingData(billingData, rateData!!)  // Populates billing fields
+                            createReceiptDataFromBilling(billingData)  // No calculatedData needed
                         } else {
                             createSampleReceiptData(
                                 period = billingData.Period ?: "December 2024",

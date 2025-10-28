@@ -12,8 +12,10 @@ import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.dlms.DLMSDataAccess
 import com.example.meterkenshin.dlms.DLMSFunctions
 import com.example.meterkenshin.dlms.DLMSInit
+import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.util.calculateBillingCharges
+import com.example.meterkenshin.model.Billing
+import com.example.meterkenshin.util.calculateBillingData
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,7 +47,8 @@ class DLMSViewModel : ViewModel() {
     val dlmsLog: StateFlow<String> = _dlmsLog.asStateFlow()
 
     // DLMS Initializer handles all Bluetooth/service setup
-    private val dlmsInitializer = DLMSInit { appendLog(it) }
+    private val dlmsInit = DLMSInit { appendLog(it) }
+    private lateinit var sessionManager: DLMSSessionManager
 
     // DLMS Data Access Handler
     private lateinit var dlmsDataAccess: DLMSDataAccess
@@ -58,10 +61,6 @@ class DLMSViewModel : ViewModel() {
     private val _currentMeter = MutableStateFlow<Meter?>(null)
     val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
 
-    // DLMS operation variables
-    private var mStep = 0
-    private var mTimer = 0
-
     /**
      * Initialize DLMS - delegates to DLMSInit
      */
@@ -69,95 +68,15 @@ class DLMSViewModel : ViewModel() {
     suspend fun initializeDLMS(context: Context, meter: Meter) {
         mContext = context
         this@DLMSViewModel.meter = meter
-        dlmsInitializer.initialize(context, meter)
-        dlmsDataAccess = DLMSDataAccess(dlmsInitializer)
-        dlmsFunctions = DLMSFunctions(dlmsInitializer, dlmsDataAccess, mContext) { appendLog(it) }
+        dlmsInit.initialize(context, meter)
+        dlmsDataAccess = DLMSDataAccess(dlmsInit)
+        dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, mContext) { appendLog(it) }
         dlmsFunctions.setMeter(meter)
+        sessionManager = DLMSSessionManager(dlmsInit)
     }
 
-    /**
-     * Establish DLMS session (Open -> Session -> Challenge -> Confirm)
-     */
     private suspend fun establishSession(): Boolean {
-        mStep = 0
-        var sessionEstablished = false
-        var timeout = 0
-
-        while (!sessionEstablished && timeout < 100) {
-            when (mStep) {
-                0 -> {
-                    val openRequest = dlmsInitializer.dlms?.Open()
-                    if (openRequest != null) {
-                        mTimer = 0
-                        dlmsInitializer.mArrived = 0
-                        dlmsInitializer.bluetoothLeService?.write(openRequest)
-                        mStep++
-                        Log.i(TAG, "Open: ${openRequest.size}")
-                    }
-                }
-
-                2 -> {
-                    val res = IntArray(2)
-                    val sessionRequest = dlmsInitializer.dlms?.Session(res, dlmsInitializer.mData)
-                    if (res[0] != 0 && sessionRequest != null) {
-                        mTimer = 0
-                        dlmsInitializer.mArrived = 0
-                        dlmsInitializer.bluetoothLeService?.write(sessionRequest)
-                        mStep++
-                        Log.i(TAG, "Session: ${sessionRequest.size}")
-                    } else {
-                        Log.e(TAG, "Failed to connect HDLC")
-                        return false
-                    }
-                }
-
-                4 -> {
-                    val res = IntArray(2)
-                    val challengeRequest =
-                        dlmsInitializer.dlms?.Challenge(res, dlmsInitializer.mData)
-                    if (res[0] != 0 && challengeRequest != null) {
-                        mTimer = 0
-                        dlmsInitializer.mArrived = 0
-                        dlmsInitializer.bluetoothLeService?.write(challengeRequest)
-                        mStep++
-                        Log.i(TAG, "Challenge: ${challengeRequest.size}")
-                    } else {
-                        Log.e(TAG, "Failed challenge")
-                        return false
-                    }
-                }
-
-                6 -> {
-                    val res = IntArray(2)
-                    dlmsInitializer.dlms?.Confirm(res, dlmsInitializer.mData)
-                    if (res[0] != 0) {
-                        sessionEstablished = true
-                        Log.i(TAG, "Session established!")
-                    } else {
-                        Log.e(TAG, "Failed confirm")
-                        return false
-                    }
-                }
-
-                1, 3, 5 -> {
-                    mTimer = 0
-                    while (dlmsInitializer.mArrived == 0 && mTimer < 300) {
-                        delay(10)
-                        mTimer++
-                    }
-                    if (dlmsInitializer.mArrived == 0) {
-                        Log.e(TAG, "Timeout at step $mStep")
-                        return false
-                    } else {
-                        mStep++
-                    }
-                }
-            }
-            timeout++
-            delay(10)
-        }
-
-        return sessionEstablished
+        return sessionManager.establishSession()
     }
 
     /**
@@ -194,7 +113,7 @@ class DLMSViewModel : ViewModel() {
      * Cleanup - delegates to DLMSInit
      */
     fun cleanup(context: Context) {
-        dlmsInitializer.cleanup(context)
+        dlmsInit.cleanup(context)
     }
 
     /**
@@ -204,8 +123,8 @@ class DLMSViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 // Check if initializer is ready
-                if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
-                    appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+                if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                    appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                     return@launch
                 }
 
@@ -213,10 +132,10 @@ class DLMSViewModel : ViewModel() {
                 _dlmsLog.value = ""
 
                 appendLog("Connecting to ${meter.bluetoothId}...")
-                dlmsInitializer.mArrived = -1  // Reset to waiting state
-                Log.d(TAG, "Initial mArrived set to: ${dlmsInitializer.mArrived}")
+                dlmsInit.mArrived = -1  // Reset to waiting state
+                Log.d(TAG, "Initial mArrived set to: ${dlmsInit.mArrived}")
 
-                if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                     appendLog("ERROR: Failed to start connection")
                     return@launch
                 }
@@ -226,8 +145,8 @@ class DLMSViewModel : ViewModel() {
                 var ready = false
                 for (i in 0..100) {
                     delay(100)
-                    Log.v(TAG, "Wait loop $i: mArrived=${dlmsInitializer.mArrived}")
-                    if (dlmsInitializer.mArrived == 0) {
+                    Log.v(TAG, "Wait loop $i: mArrived=${dlmsInit.mArrived}")
+                    if (dlmsInit.mArrived == 0) {
                         ready = true
                         Log.i(TAG, "Service discovered! mArrived=${0} at iteration $i")
                         break
@@ -235,10 +154,10 @@ class DLMSViewModel : ViewModel() {
                 }
 
                 if (!ready) {
-                    appendLog("ERROR: Services not discovered (timeout) - final mArrived=${dlmsInitializer.mArrived}")
+                    appendLog("ERROR: Services not discovered (timeout) - final mArrived=${dlmsInit.mArrived}")
                     Log.e(
                         TAG,
-                        "Timeout: mArrived never became 0, final value=${dlmsInitializer.mArrived}"
+                        "Timeout: mArrived never became 0, final value=${dlmsInit.mArrived}"
                     )
                     return@launch
                 }
@@ -308,7 +227,7 @@ class DLMSViewModel : ViewModel() {
                 )
             } finally {
                 // ALWAYS close connection, success or failure
-                dlmsInitializer.bluetoothLeService?.close()
+                dlmsInit.bluetoothLeService?.close()
                 appendLog("Connection closed")
                 finishOperation()
             }
@@ -332,17 +251,17 @@ class DLMSViewModel : ViewModel() {
 
         try {
             // Check if initializer is ready
-            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
-                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                 return@launch
             }
 
             startOperation("Read Data")
 
             appendLog("Connecting to ${meter.bluetoothId}...")
-            dlmsInitializer.mArrived = -1
+            dlmsInit.mArrived = -1
 
-            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                 appendLog("ERROR: Failed to start connection")
                 finishOperation()
                 return@launch
@@ -353,7 +272,7 @@ class DLMSViewModel : ViewModel() {
             var ready = false
             for (i in 0..100) {
                 delay(100)
-                if (dlmsInitializer.mArrived == 0) {
+                if (dlmsInit.mArrived == 0) {
                     ready = true
 
                     break
@@ -414,7 +333,7 @@ class DLMSViewModel : ViewModel() {
             Log.e(TAG, "Read Data error", e)
         } finally {
             // ALWAYS close connection, success or failure
-            dlmsInitializer.bluetoothLeService?.close()
+            dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
         }
@@ -444,17 +363,17 @@ class DLMSViewModel : ViewModel() {
         }
 
         try {
-            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
-                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                 return@launch
             }
 
             startOperation("Load Profile")
 
             appendLog("Connecting to ${meter.bluetoothId}...")
-            dlmsInitializer.mArrived = -1
+            dlmsInit.mArrived = -1
 
-            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                 appendLog("ERROR: Failed to start connection")
                 finishOperation()
                 return@launch
@@ -465,7 +384,7 @@ class DLMSViewModel : ViewModel() {
             var ready = false
             for (i in 0..100) {
                 delay(100)
-                if (dlmsInitializer.mArrived == 0) {
+                if (dlmsInit.mArrived == 0) {
                     ready = true
                     break
                 }
@@ -553,7 +472,7 @@ class DLMSViewModel : ViewModel() {
             Log.e(TAG, "Load Profile error", e)
         } finally {
             // ALWAYS close connection, success or failure
-            dlmsInitializer.bluetoothLeService?.close()
+            dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
         }
@@ -659,17 +578,17 @@ class DLMSViewModel : ViewModel() {
 
         try {
             // Check if initializer is ready
-            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
-                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                 return@launch
             }
 
             startOperation("Event Log")
 
             appendLog("Connecting to ${meter.bluetoothId}...")
-            dlmsInitializer.mArrived = -1
+            dlmsInit.mArrived = -1
 
-            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                 appendLog("ERROR: Failed to start connection")
                 finishOperation()
                 return@launch
@@ -680,7 +599,7 @@ class DLMSViewModel : ViewModel() {
             var ready = false
             for (i in 0..100) {
                 delay(100)
-                if (dlmsInitializer.mArrived == 0) {
+                if (dlmsInit.mArrived == 0) {
                     ready = true
                     break
                 }
@@ -775,7 +694,7 @@ class DLMSViewModel : ViewModel() {
             Log.e(TAG, "Event Log error", e)
         } finally {
             // ALWAYS close connection, success or failure
-            dlmsInitializer.bluetoothLeService?.close()
+            dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
         }
@@ -864,17 +783,17 @@ class DLMSViewModel : ViewModel() {
         }
 
         try {
-            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
-                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                 return@launch
             }
 
             startOperation("Billing Data")
 
             appendLog("Connecting to ${meter.bluetoothId}...")
-            dlmsInitializer.mArrived = -1
+            dlmsInit.mArrived = -1
 
-            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                 appendLog("ERROR: Failed to start connection")
                 finishOperation()
                 return@launch
@@ -885,7 +804,7 @@ class DLMSViewModel : ViewModel() {
             var ready = false
             for (i in 0..100) {
                 delay(100)
-                if (dlmsInitializer.mArrived == 0) {
+                if (dlmsInit.mArrived == 0) {
                     ready = true
                     break
                 }
@@ -971,17 +890,20 @@ class DLMSViewModel : ViewModel() {
                         val prevRecord = records[i - 1]
                         val currentRecord = records[i]
 
-                        val charges = calculateBillingCharges(
-                            currentRecord.imp,
-                            prevRecord.imp,
-                            currentRecord.maxImp / 1000f, // Convert W to kW
-                            rates
-                        )
+                        // Create Billing object
+                        val billing = Billing().apply {
+                            PresReading = currentRecord.imp
+                            PrevReading = prevRecord.imp
+                            MaxDemand = currentRecord.maxImp / 1000f  // Convert W to kW
+                        }
+
+                        // Calculate and populate billing fields
+                        calculateBillingData(billing, rates)
 
                         appendLog("Period: ${currentRecord.clock}")
-                        appendLog("  Total Use: %.3f kWh".format(charges["totalUse"]))
-                        appendLog("  Gen/Trans: %.2f".format(charges["genTransCharges"]))
-                        appendLog("  Total Amount: %.2f".format(charges["totalAmount"]))
+                        appendLog("  Total Use: %.3f kWh".format(billing.TotalUse))
+                        appendLog("  Gen/Trans: %.2f".format(billing.GenTransCharges))
+                        appendLog("  Total Amount: %.2f".format(billing.TotalAmount))
                     }
                 }
 
@@ -1002,7 +924,7 @@ class DLMSViewModel : ViewModel() {
             Log.e(TAG, "Billing Data error", e)
         } finally {
             // ALWAYS close connection, success or failure
-            dlmsInitializer.bluetoothLeService?.close()
+            dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
         }
@@ -1084,6 +1006,7 @@ class DLMSViewModel : ViewModel() {
             csvContent.append("TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount\n")
 
             // Write data rows with calculated charges
+            // UPDATED: Uses Billing object instead of Map
             records.forEachIndexed { index, record ->
                 // Base billing data
                 csvContent.append("${record.clock},")
@@ -1100,20 +1023,26 @@ class DLMSViewModel : ViewModel() {
                 // Calculate and append charges (skip first record, no previous reading)
                 if (index > 0) {
                     val prevRecord = records[index - 1]
-                    val charges = calculateBillingCharges(
-                        record.imp,
-                        prevRecord.imp,
-                        record.maxImp / 1000f,
-                        rates
-                    )
-                    csvContent.append("${String.format("%.3f", charges["totalUse"])},")
-                    csvContent.append("${String.format("%.2f", charges["genTransCharges"])},")
-                    csvContent.append("${String.format("%.2f", charges["distributionCharges"])},")
-                    csvContent.append("${String.format("%.2f", charges["sustainableCapex"])},")
-                    csvContent.append("${String.format("%.2f", charges["otherCharges"])},")
-                    csvContent.append("${String.format("%.2f", charges["universalCharges"])},")
-                    csvContent.append("${String.format("%.2f", charges["valueAddedTax"])},")
-                    csvContent.append("${String.format("%.2f", charges["totalAmount"])}\n")
+
+                    // Create Billing object and calculate
+                    val billing = Billing().apply {
+                        PresReading = record.imp
+                        PrevReading = prevRecord.imp
+                        MaxDemand = record.maxImp / 1000f
+                    }
+
+                    // Calculate charges - populates billing fields directly
+                    calculateBillingData(billing, rates)
+
+                    // Write calculated values from Billing object
+                    csvContent.append("${String.format("%.3f", billing.TotalUse ?: 0f)},")
+                    csvContent.append("${String.format("%.2f", billing.GenTransCharges ?: 0f)},")
+                    csvContent.append("${String.format("%.2f", billing.DistributionCharges ?: 0f)},")
+                    csvContent.append("${String.format("%.2f", billing.SustainableCapex ?: 0f)},")
+                    csvContent.append("${String.format("%.2f", billing.OtherCharges ?: 0f)},")
+                    csvContent.append("${String.format("%.2f", billing.UniversalCharges ?: 0f)},")
+                    csvContent.append("${String.format("%.2f", billing.ValueAddedTax ?: 0f)},")
+                    csvContent.append("${String.format("%.2f", billing.TotalAmount ?: 0f)}\n")
                 } else {
                     csvContent.append("0.000,0.00,0.00,0.00,0.00,0.00,0.00,0.00\n")
                 }
@@ -1132,6 +1061,7 @@ class DLMSViewModel : ViewModel() {
         }
     }
 
+
     /**
      * Set Clock on the meter
      */
@@ -1149,17 +1079,17 @@ class DLMSViewModel : ViewModel() {
 
         try {
             // Check if initializer is ready
-            if (!dlmsInitializer.isReady() || meter.bluetoothId.isNullOrEmpty()) {
-                appendLog("ERROR: Not ready (bound: ${dlmsInitializer.isServiceBound}, active: ${dlmsInitializer.isServiceActive})")
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                 return@launch
             }
 
             startOperation("Set Clock")
 
             appendLog("Connecting to ${meter.bluetoothId}...")
-            dlmsInitializer.mArrived = -1
+            dlmsInit.mArrived = -1
 
-            if (dlmsInitializer.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
                 appendLog("ERROR: Failed to start connection")
                 finishOperation()
                 return@launch
@@ -1170,7 +1100,7 @@ class DLMSViewModel : ViewModel() {
             var ready = false
             for (i in 0..100) {
                 delay(100)
-                if (dlmsInitializer.mArrived == 0) {
+                if (dlmsInit.mArrived == 0) {
                     ready = true
                     break
                 }
@@ -1217,7 +1147,7 @@ class DLMSViewModel : ViewModel() {
             Log.e(TAG, "Set Clock error", e)
         } finally {
             // ALWAYS close connection, success or failure
-            dlmsInitializer.bluetoothLeService?.close()
+            dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
         }

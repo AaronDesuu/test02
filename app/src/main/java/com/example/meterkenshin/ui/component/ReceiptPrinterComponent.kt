@@ -269,10 +269,8 @@ fun createSampleReceiptData(
     )
 }
 
-// Helper function to create receipt data from billing data (for actual meter readings)
 fun createReceiptDataFromBilling(
-    billingData: Billing,
-    calculatedData: com.example.meterkenshin.util.CalculatedBillingData
+    billingData: Billing
 ): ReceiptData {
     return ReceiptData(
         period = billingData.Period ?: "",
@@ -286,13 +284,13 @@ fun createReceiptDataFromBilling(
         maxDemand = billingData.MaxDemand ?: 0f,
         reader = billingData.Reader ?: "",
         version = billingData.Version ?: "",
-        totalUse = calculatedData.totalUse,
-        genTransCharges = calculatedData.genTransCharges,
-        distributionCharges = calculatedData.distributionCharges,
-        sustainableCapex = calculatedData.sustainableCapex,
-        otherCharges = calculatedData.otherCharges,
-        universalCharges = calculatedData.universalCharges,
-        valueAddedTax = calculatedData.valueAddedTax,
-        totalAmount = calculatedData.totalAmount
+        totalUse = billingData.TotalUse ?: 0f,
+        genTransCharges = billingData.GenTransCharges ?: 0f,
+        distributionCharges = billingData.DistributionCharges ?: 0f,
+        sustainableCapex = billingData.SustainableCapex ?: 0f,
+        otherCharges = billingData.OtherCharges ?: 0f,
+        universalCharges = billingData.UniversalCharges ?: 0f,
+        valueAddedTax = billingData.ValueAddedTax ?: 0f,
+        totalAmount = billingData.TotalAmount ?: 0f
     )
 }

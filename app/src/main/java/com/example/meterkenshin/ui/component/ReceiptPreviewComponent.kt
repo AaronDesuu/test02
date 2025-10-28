@@ -19,7 +19,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.data.getDefaultRates
-import com.example.meterkenshin.util.CalculatedBillingData
 import com.example.meterkenshin.util.calculateBillingData
 import com.example.meterkenshin.util.getCurrentDate
 import com.example.meterkenshin.util.getCurrentDateTime
@@ -32,7 +31,9 @@ fun ReceiptPreview(
     modifier: Modifier = Modifier
 ) {
     val rates = rateData ?: getDefaultRates()
-    val calculatedData = calculateBillingData(billingData, rates)
+
+    // Calculate and populate billing data fields directly
+    calculateBillingData(billingData, rates)
 
     Column(
         modifier = modifier,
@@ -86,7 +87,7 @@ fun ReceiptPreview(
         ReceiptLine("Meter", "${billingData.SerialID}       Multiplier: ${billingData.Multiplier ?: 1.0f}")
         ReceiptLine("Period To", "${billingData.PeriodTo}       Pres Reading: ${String.format("%.3f", billingData.PresReading ?: 0f)}")
         ReceiptLine("Period From", "${billingData.PeriodFrom}       Prev Reading: ${String.format("%.3f", billingData.PrevReading ?: 0f)}")
-        ReceiptLine("Demand KW", "${String.format("%.3f", billingData.MaxDemand ?: 0f)}       Total KWH Used: ${String.format("%.3f", calculatedData.totalUse)}")
+        ReceiptLine("Demand KW", "${String.format("%.3f", billingData.MaxDemand ?: 0f)}       Total KWH Used: ${String.format("%.3f", billingData.TotalUse ?: 0f)}")
 
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 12.dp),
@@ -94,13 +95,13 @@ fun ReceiptPreview(
             color = Color.Black
         )
 
-        // Charges breakdown
-        ChargesSection("GEN/TRANS CHARGES", calculatedData.genTransCharges, rates, calculatedData)
-        ChargesSection("DISTRIBUTION CHARGES", calculatedData.distributionCharges, rates, calculatedData)
-        ChargesSection("REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX", calculatedData.sustainableCapex, rates, calculatedData)
-        ChargesSection("OTHER CHARGES", calculatedData.otherCharges, rates, calculatedData)
-        ChargesSection("UNIVERSAL CHARGES", calculatedData.universalCharges, rates, calculatedData)
-        ChargesSection("VALUE ADDED TAX", calculatedData.valueAddedTax, rates, calculatedData)
+        // Charges breakdown - now using Billing fields directly
+        ChargesSection("GEN/TRANS CHARGES", billingData.GenTransCharges ?: 0f, rates, billingData)
+        ChargesSection("DISTRIBUTION CHARGES", billingData.DistributionCharges ?: 0f, rates, billingData)
+        ChargesSection("REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX", billingData.SustainableCapex ?: 0f, rates, billingData)
+        ChargesSection("OTHER CHARGES", billingData.OtherCharges ?: 0f, rates, billingData)
+        ChargesSection("UNIVERSAL CHARGES", billingData.UniversalCharges ?: 0f, rates, billingData)
+        ChargesSection("VALUE ADDED TAX", billingData.ValueAddedTax ?: 0f, rates, billingData)
 
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 12.dp),
@@ -109,9 +110,9 @@ fun ReceiptPreview(
         )
 
         // Total amounts
-        ReceiptLine("CURRENT BILL", String.format("Php %,.2f", calculatedData.totalAmount))
+        ReceiptLine("CURRENT BILL", String.format("Php %,.2f", billingData.TotalAmount ?: 0f))
         Text(
-            text = String.format("TOTAL AMOUNT       Php %,.2f", calculatedData.totalAmount),
+            text = String.format("TOTAL AMOUNT       Php %,.2f", billingData.TotalAmount ?: 0f),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Monospace
@@ -125,9 +126,9 @@ fun ReceiptPreview(
 
         // Payment terms
         ReceiptLine("Discount", String.format("%.2f", billingData.Discount ?: 0f))
-        ReceiptLine("Amount Before Due", String.format("%.2f", calculatedData.totalAmount - (billingData.Discount ?: 0f)))
+        ReceiptLine("Amount Before Due", String.format("%.2f", (billingData.TotalAmount ?: 0f) - (billingData.Discount ?: 0f)))
         ReceiptLine("Interest", String.format("%.2f", billingData.Interest ?: 0f))
-        ReceiptLine("Amount After Due", String.format("%.2f", calculatedData.totalAmount + (billingData.Interest ?: 0f)))
+        ReceiptLine("Amount After Due", String.format("%.2f", (billingData.TotalAmount ?: 0f) + (billingData.Interest ?: 0f)))
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -178,8 +179,13 @@ private fun ChargesSection(
     title: String,
     subTotal: Float,
     rates: FloatArray,
-    calculatedData: CalculatedBillingData
+    billingData: Billing  // Changed from CalculatedBillingData
 ) {
+    val totalUse = billingData.TotalUse ?: 0f
+    val maxDemand = billingData.MaxDemand ?: 0f
+    val distributionCharges = billingData.DistributionCharges ?: 0f
+    val otherCharges = billingData.OtherCharges ?: 0f
+
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
@@ -189,37 +195,37 @@ private fun ChargesSection(
 
     when (title) {
         "GEN/TRANS CHARGES" -> {
-            ChargeDetailLine("Generation System Charge", rates[0], calculatedData.totalUse * rates[0], "/kwh")
-            ChargeDetailLine("Transmission Demand Charge", rates[1], calculatedData.maxDemand * rates[1], "/kw")
-            ChargeDetailLine("System Loss Charge", rates[2], calculatedData.totalUse * rates[2], "/kwh")
+            ChargeDetailLine("Generation System Charge", rates[0], totalUse * rates[0], "/kwh")
+            ChargeDetailLine("Transmission Demand Charge", rates[1], maxDemand * rates[1], "/kw")
+            ChargeDetailLine("System Loss Charge", rates[2], totalUse * rates[2], "/kwh")
         }
         "DISTRIBUTION CHARGES" -> {
-            ChargeDetailLine("Distribution Demand Charge", rates[3], calculatedData.maxDemand * rates[3], "/kw")
+            ChargeDetailLine("Distribution Demand Charge", rates[3], maxDemand * rates[3], "/kw")
             ChargeDetailLine("Supply Fix Charge", rates[4], 1 * rates[4], "/cst")
             ChargeDetailLine("Metering Fix Charge", rates[5], 1 * rates[5], "/cst")
         }
         "REINVESTMENT FUND FOR\nSUSTAINABLE CAPEX" -> {
-            ChargeDetailLine("Reinvestment Fund for CAPEX", rates[6], calculatedData.totalUse * rates[6], "/kwh")
-            ChargeDetailLine("Member's CAPEX Contribution", rates[7], calculatedData.totalUse * rates[7], "/kwh")
+            ChargeDetailLine("Reinvestment Fund for CAPEX", rates[6], totalUse * rates[6], "/kwh")
+            ChargeDetailLine("Member's CAPEX Contribution", rates[7], totalUse * rates[7], "/kwh")
         }
         "OTHER CHARGES" -> {
-            ChargeDetailLine("Lifeline Discount/Subsidy", rates[8], calculatedData.totalUse * rates[8], "/kwh")
-            ChargeDetailLine("Senior Citizen Subsidy", rates[9], calculatedData.totalUse * rates[9], "/kwh")
+            ChargeDetailLine("Lifeline Discount/Subsidy", rates[8], totalUse * rates[8], "/kwh")
+            ChargeDetailLine("Senior Citizen Subsidy", rates[9], totalUse * rates[9], "/kwh")
         }
         "UNIVERSAL CHARGES" -> {
-            ChargeDetailLine("Missionary Elec(NPC-SPUG)", rates[10], calculatedData.totalUse * rates[10], "/kwh")
-            ChargeDetailLine("Missionary Elec(RED)", rates[11], calculatedData.totalUse * rates[11], "/kwh")
-            ChargeDetailLine("Environmental Charge", rates[12], calculatedData.totalUse * rates[12], "/kwh")
-            ChargeDetailLine("Feed In Tariff Allowance", rates[13], calculatedData.totalUse * rates[13], "/kwh")
-            ChargeDetailLine("NPC Stranded Contract", rates[14], calculatedData.totalUse * rates[14], "/kwh")
-            ChargeDetailLine("NPC Stranded Debts", rates[15], calculatedData.totalUse * rates[15], "/kwh")
+            ChargeDetailLine("Missionary Elec(NPC-SPUG)", rates[10], totalUse * rates[10], "/kwh")
+            ChargeDetailLine("Missionary Elec(RED)", rates[11], totalUse * rates[11], "/kwh")
+            ChargeDetailLine("Environmental Charge", rates[12], totalUse * rates[12], "/kwh")
+            ChargeDetailLine("Feed In Tariff Allowance", rates[13], totalUse * rates[13], "/kwh")
+            ChargeDetailLine("NPC Stranded Contract", rates[14], totalUse * rates[14], "/kwh")
+            ChargeDetailLine("NPC Stranded Debts", rates[15], totalUse * rates[15], "/kwh")
         }
         "VALUE ADDED TAX" -> {
-            ChargeDetailLine("Generation VAT", rates[16], calculatedData.totalUse * rates[16], "/kwh")
-            ChargeDetailLine("Transmission VAT", rates[17], calculatedData.totalUse * rates[17], "/kwh")
-            ChargeDetailLine("System Loss VAT", rates[18], calculatedData.totalUse * rates[18], "/kwh")
-            ChargeDetailLine("Distribution VAT", rates[19], calculatedData.distributionCharges * rates[19], "%%")
-            ChargeDetailLine("Other VAT", rates[20], calculatedData.otherCharges * rates[20], "%%")
+            ChargeDetailLine("Generation VAT", rates[16], totalUse * rates[16], "/kwh")
+            ChargeDetailLine("Transmission VAT", rates[17], totalUse * rates[17], "/kwh")
+            ChargeDetailLine("System Loss VAT", rates[18], totalUse * rates[18], "/kwh")
+            ChargeDetailLine("Distribution VAT", rates[19], distributionCharges * rates[19], "%%")
+            ChargeDetailLine("Other VAT", rates[20], otherCharges * rates[20], "%%")
         }
     }
 
