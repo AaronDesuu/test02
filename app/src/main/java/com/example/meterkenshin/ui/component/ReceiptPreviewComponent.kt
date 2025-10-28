@@ -84,7 +84,7 @@ fun ReceiptPreview(
 
         // Billing Information
         ReceiptLine("Period", "${billingData.Period}       Rate Type: ${billingData.Commercial} COMMERCIAL")
-        ReceiptLine("Meter", "${billingData.SerialID}       Multiplier: ${billingData.Multiplier ?: 1.0f}")
+        ReceiptLine("Meter", "${billingData.SerialNumber}       Multiplier: ${billingData.Multiplier ?: 1.0f}")
         ReceiptLine("Period To", "${billingData.PeriodTo}       Pres Reading: ${String.format("%.3f", billingData.PresReading ?: 0f)}")
         ReceiptLine("Period From", "${billingData.PeriodFrom}       Prev Reading: ${String.format("%.3f", billingData.PrevReading ?: 0f)}")
         ReceiptLine("Demand KW", "${String.format("%.3f", billingData.MaxDemand ?: 0f)}       Total KWH Used: ${String.format("%.3f", billingData.TotalUse ?: 0f)}")

@@ -10,7 +10,7 @@ import com.woosim.printer.WoosimCmd
 data class ReceiptData(
     val period: String,
     val commercial: String,
-    val serialID: String,
+    val serialNumber: String,
     val multiplier: Float,
     val periodFrom: String,
     val periodTo: String,
@@ -68,7 +68,7 @@ fun printReceipt(
     commands.add(String.format("Period     :%s       Rate Type     : %s COMMERCIAL\n",
         receiptData.period, receiptData.commercial).toByteArray())
     commands.add(String.format("Meter      :%s       Multiplier    :%.1f\n",
-        receiptData.serialID, receiptData.multiplier).toByteArray())
+        receiptData.serialNumber, receiptData.multiplier).toByteArray())
     commands.add(String.format("Period To  :%s                Pres Reading  : %6.3f\n",
         receiptData.periodTo, receiptData.presReading).toByteArray())
     commands.add(String.format("Period From:%s                Prev Reading  : %6.3f\n",
@@ -216,7 +216,7 @@ fun printReceipt(
 // Helper function to create sample receipt data with random numbers
 fun createSampleReceiptData(
     period: String = "December 2024",
-    serialID: String = "12345678",
+    serialNumber: String = "12345678",
     reader: String = "Fuji Taro"
 ): ReceiptData {
     val prevReading = (800..1200).random().toFloat()
@@ -249,7 +249,7 @@ fun createSampleReceiptData(
     return ReceiptData(
         period = period,
         commercial = "Type A",
-        serialID = serialID,
+        serialNumber = serialNumber,
         multiplier = 1.0f,
         periodFrom = "11/01/2024",
         periodTo = "12/01/2024",
@@ -275,7 +275,7 @@ fun createReceiptDataFromBilling(
     return ReceiptData(
         period = billingData.Period ?: "",
         commercial = billingData.Commercial ?: "",
-        serialID = billingData.SerialID ?: "",
+        serialNumber = billingData.SerialNumber ?: "",
         multiplier = billingData.Multiplier ?: 0f,
         periodFrom = billingData.PeriodFrom ?: "",
         periodTo = billingData.PeriodTo ?: "",

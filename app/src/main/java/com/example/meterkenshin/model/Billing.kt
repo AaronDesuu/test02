@@ -3,7 +3,7 @@ package com.example.meterkenshin.model
 class Billing {
     var Period: String? = null
     var Commercial: String? = null
-    var SerialID: String? = null
+    var SerialNumber: String? = null
     var Multiplier: Float? = null
     var PeriodTo: String? = null
     var PresReading: Float? = null

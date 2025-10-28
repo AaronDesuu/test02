@@ -175,7 +175,7 @@ public class DLMS {
             {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x09, (byte) 0x02, (byte) 0xff},/* 4: Date*/
             {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x2a, (byte) 0x00, (byte) 0x00, (byte) 0xff},/* 5: COSEM logical device name */
             {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x60, (byte) 0x01, (byte) 0x00, (byte) 0xff},/* 6: Approval NO(PEA NO.).*/
-            {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x60, (byte) 0x01, (byte) 0x01, (byte) 0xff},/* 7: SerialID*/
+            {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x60, (byte) 0x01, (byte) 0x01, (byte) 0xff},/* 7: SerialNumber*/
             {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x60, (byte) 0x01, (byte) 0x02, (byte) 0xff},/* 8: Contract NO.*/
             {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x60, (byte) 0x01, (byte) 0x09, (byte) 0xff},/* 9: Bluetooth mac address*/
             {(byte) 1, (byte) 0x00, (byte) 0x00, (byte) 0x60, (byte) 0x0a, (byte) 0x01, (byte) 0xff},/* 10: Profile status */

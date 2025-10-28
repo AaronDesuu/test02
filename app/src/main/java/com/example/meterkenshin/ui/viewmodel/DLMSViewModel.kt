@@ -530,8 +530,8 @@ class DLMSViewModel : ViewModel() {
                 .replace(":", "")
                 .replace(" ", "_")
 
-            val serialId = meter.serialNumber
-            val filename = "${serialId}_LP_${timestamp}.csv"
+            val serialNumber = meter.serialNumber
+            val filename = "${serialNumber}_LP_${timestamp}.csv"
 
             val externalDir = mContext?.getExternalFilesDir(null)
             if (externalDir == null) {
@@ -726,9 +726,9 @@ class DLMSViewModel : ViewModel() {
      * Format: Clock,Event,Volt V
      * Based on project01's SecondFragment implementation
      */
-    private fun saveEventLogToCSV(serialId: String?, data: ArrayList<String>): Boolean {
+    private fun saveEventLogToCSV(serialNumber: String?, data: ArrayList<String>): Boolean {
         return try {
-            if (serialId.isNullOrEmpty()) {
+            if (serialNumber.isNullOrEmpty()) {
                 Log.e(TAG, "Serial ID is null or empty")
                 return false
             }
@@ -747,7 +747,7 @@ class DLMSViewModel : ViewModel() {
                 .replace(" ", "_")
 
             // Create filename: {SerialID}_EV_{timestamp}.csv
-            val filename = "${serialId}_EV_${timestamp}.csv"
+            val filename = "${serialNumber}_EV_${timestamp}.csv"
             val file = File(externalDir, filename)
 
             // Create CSV content
@@ -1010,8 +1010,8 @@ class DLMSViewModel : ViewModel() {
                 ?.replace(":", "")
                 ?.replace(" ", "_") ?: "unknown"
 
-            val serialId = meter.serialNumber
-            val filename = "${serialId}_BL_${timestamp}.csv"
+            val serialNumber = meter.serialNumber
+            val filename = "${serialNumber}_BL_${timestamp}.csv"
 
             val externalDir = mContext?.getExternalFilesDir(null)
             if (externalDir == null) {

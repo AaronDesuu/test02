@@ -84,7 +84,7 @@ fun ReceiptScreen(
         Billing().apply {
             Period = "December 2024"
             Commercial = "LARGE"
-            SerialID = "12345678"
+            SerialNumber = "12345678"
             Multiplier = 1.0f
             PeriodFrom = "11/15/2024"
             PeriodTo = "12/15/2024"
@@ -277,7 +277,7 @@ fun ReceiptScreen(
                         } else {
                             createSampleReceiptData(
                                 period = billingData.Period ?: "December 2024",
-                                serialID = billingData.SerialID ?: "12345678",
+                                serialNumber = billingData.SerialNumber ?: "12345678",
                                 reader = billingData.Reader ?: "Fuji Taro"
                             )
                         },
