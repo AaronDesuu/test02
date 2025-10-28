@@ -219,13 +219,15 @@ class DLMSViewModel : ViewModel() {
 
                 delay(500)
 
-                closeSession()
 
                 // Get billing data
                 appendLog("Getting billing data...")
                 if (dlmsFunctions.performGetBillingDataRegistration()) {
 
                     appendLog("Success to register meter with S/N: ${meter.serialNumber}")
+
+                    closeSession()
+
                     appendLog("✅ Registration Complete")
                     _registrationState.value = RegistrationState(isComplete = true)
 
@@ -1003,8 +1005,7 @@ class DLMSViewModel : ViewModel() {
      */
     private fun saveBillingToCSV(meter: Meter, records: List<BillingRecord>, rates: FloatArray): Boolean {
         return try {
-            // Get timestamp from first record for filename
-            val timestamp = records.firstOrNull()?.clock
+            val timestamp = records.lastOrNull()?.clock
                 ?.replace("/", "")
                 ?.replace(":", "")
                 ?.replace(" ", "_") ?: "unknown"
