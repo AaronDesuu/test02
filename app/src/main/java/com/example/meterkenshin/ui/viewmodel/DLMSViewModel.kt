@@ -987,11 +987,10 @@ class DLMSViewModel : ViewModel() {
                     maxImp = data[i + 5].toFloatOrNull() ?: 0f,
                     maxExp = data[i + 6].toFloatOrNull() ?: 0f,
                     minVolt = data[i + 7].toFloatOrNull() ?: 0f,
-                    alert1 = data[i + 8],
-                    alert2 = data[i + 9]
+                    alert = data[i + 8]
                 )
             )
-            i += 10
+            i += 10  // Still advance by 10 to skip alert2 in raw data
         }
 
         return records
@@ -1023,11 +1022,10 @@ class DLMSViewModel : ViewModel() {
 
             // Create CSV content
             val csvContent = StringBuilder()
-            csvContent.append("Clock,Imp[kWh],Exp[kWh],Abs[kWh],Net[kWh],ImpMaxDemand[W],ExpMaxDemand[W],MinVolt[V],Alert1,Alert2,")
-            csvContent.append("TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount\n")
+            // Single line header to match project01
+            csvContent.append("Clock,Imp[kWh],Exp[kWh],Abs[kWh],Net[kWh],ImpMaxDemand[W],ExpMaxDemand[W],MinVolt[V],Alert,TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount\n")
 
             // Write data rows with calculated charges
-            // UPDATED: Uses Billing object instead of Map
             records.forEachIndexed { index, record ->
                 // Base billing data
                 csvContent.append("${record.clock},")
@@ -1038,8 +1036,7 @@ class DLMSViewModel : ViewModel() {
                 csvContent.append("${record.maxImp},")
                 csvContent.append("${record.maxExp},")
                 csvContent.append("${record.minVolt},")
-                csvContent.append("${record.alert1},")
-                csvContent.append("${record.alert2},")
+                csvContent.append("${record.alert},")
 
                 // Calculate and append charges (skip first record, no previous reading)
                 if (index > 0) {
@@ -1063,9 +1060,9 @@ class DLMSViewModel : ViewModel() {
                     csvContent.append("${String.format("%.2f", billing.OtherCharges ?: 0f)},")
                     csvContent.append("${String.format("%.2f", billing.UniversalCharges ?: 0f)},")
                     csvContent.append("${String.format("%.2f", billing.ValueAddedTax ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.TotalAmount ?: 0f)}\n")
+                    csvContent.append("${String.format("%.2f", billing.TotalAmount ?: 0f)}\n")  // \n at the END
                 } else {
-                    csvContent.append("0.000,0.00,0.00,0.00,0.00,0.00,0.00,0.00\n")
+                    csvContent.append("0.000,0.00,0.00,0.00,0.00,0.00,0.00,0.00\n")  // \n at the END
                 }
             }
 

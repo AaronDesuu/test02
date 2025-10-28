@@ -39,6 +39,5 @@ data class BillingRecord(
     val maxImp: Float,      // Max import demand [W]
     val maxExp: Float,      // Max export demand [W]
     val minVolt: Float,     // Minimum voltage [V]
-    val alert1: String,     // Alert status 1
-    val alert2: String      // Alert status 2
+    val alert: String,     // Alert status
 )
