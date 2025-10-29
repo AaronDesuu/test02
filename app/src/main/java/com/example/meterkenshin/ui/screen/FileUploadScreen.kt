@@ -55,8 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
-import com.example.meterkenshin.model.FileUploadState
-import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.data.FileUploadState
+import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import java.text.SimpleDateFormat
 import java.util.Date

@@ -8,8 +8,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.R
-import com.example.meterkenshin.model.FileUploadState
-import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.data.FileUploadState
+import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.utils.getCurrentYearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

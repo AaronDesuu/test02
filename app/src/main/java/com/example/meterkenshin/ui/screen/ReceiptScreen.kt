@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Billing
-import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.component.ReceiptData
 import com.example.meterkenshin.ui.component.ReceiptPreview

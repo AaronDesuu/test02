@@ -13,7 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.data.getDefaultRates
-import com.example.meterkenshin.model.RequiredFile
+import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import java.io.BufferedReader
 import java.io.File

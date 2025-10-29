@@ -1,4 +1,4 @@
-package com.example.meterkenshin.model
+package com.example.meterkenshin.data
 
 import android.annotation.SuppressLint
 import android.net.Uri

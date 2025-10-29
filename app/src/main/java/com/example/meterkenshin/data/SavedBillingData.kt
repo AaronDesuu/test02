@@ -1,4 +1,6 @@
-package com.example.meterkenshin.model
+package com.example.meterkenshin.data
+
+import com.example.meterkenshin.model.Billing
 
 @Suppress("ArrayInDataClass")
 data class SavedBillingData(

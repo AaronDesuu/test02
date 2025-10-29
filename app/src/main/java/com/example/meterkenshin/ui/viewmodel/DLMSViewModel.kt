@@ -8,7 +8,6 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,9 +24,10 @@ import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.dlms.ReadDataPrinting
-import com.example.meterkenshin.model.RegistrationState
-import com.example.meterkenshin.model.SavedBillingData
+import com.example.meterkenshin.data.RegistrationState
+import com.example.meterkenshin.data.SavedBillingData
 import com.example.meterkenshin.utils.calculateBillingData
+import com.example.meterkenshin.data.BillingDataRepository
 
 @SuppressLint("SameParameterValue", "KotlinConstantConditions", "DefaultLocale", "MissingPermission")
 class DLMSViewModel : ViewModel() {
@@ -46,6 +46,7 @@ class DLMSViewModel : ViewModel() {
     private val _savedBillingData = MutableStateFlow<SavedBillingData?>(null)
     val savedBillingData: StateFlow<SavedBillingData?> = _savedBillingData.asStateFlow()
 
+    private var billingRepository: BillingDataRepository? = null
 
     private val readDataPrinting = ReadDataPrinting(viewModelScope) { appendLog(it) }
 
@@ -93,72 +94,6 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
-     * Initialize and load saved billing data from SharedPreferences
-     * Call this in initializeDLMS()
-     */
-    @SuppressLint("UseKtx")
-    private fun loadSavedBillingData() {
-        try {
-            val prefs = mContext?.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
-            val json = prefs?.getString("saved_billing_data", null)
-
-            if (json != null) {
-                val gson = Gson()
-                val type = object : TypeToken<SavedBillingData>() {}.type
-                val data = gson.fromJson<SavedBillingData>(json, type)
-
-                // Only load if still valid
-                if (data.isValid()) {
-                    _savedBillingData.value = data
-                    appendLog("Loaded billing data (${data.daysRemaining()} days remaining)")
-                } else {
-                    // Clear expired data
-                    prefs.edit().remove("saved_billing_data").apply()
-                    appendLog("Cleared expired billing data")
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading saved billing data: ${e.message}")
-        }
-    }
-
-    /**
-     * Save billing data to SharedPreferences with timestamp
-     */
-    @SuppressLint("UseKtx")
-    private fun persistBillingData(billing: Billing, rates: FloatArray) {
-        try {
-            val savedData = SavedBillingData(
-                billing = billing,
-                timestamp = System.currentTimeMillis(),
-                rates = rates
-            )
-
-            val gson = Gson()
-            val json = gson.toJson(savedData)
-
-            val prefs = mContext?.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
-            prefs?.edit()?.putString("saved_billing_data", json)?.apply()
-
-            _savedBillingData.value = savedData
-            appendLog("Billing data saved for 30 days")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error persisting billing data: ${e.message}")
-        }
-    }
-
-    /**
-     * Clear saved billing data manually
-     */
-    @SuppressLint("UseKtx")
-    fun clearSavedBillingData() {
-        val prefs = mContext?.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
-        prefs?.edit()?.remove("saved_billing_data")?.apply()
-        _savedBillingData.value = null
-        appendLog("Cleared saved billing data")
-    }
-
-    /**
      * Initialize DLMS - delegates to DLMSInit
      */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -170,6 +105,7 @@ class DLMSViewModel : ViewModel() {
         dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, mContext) { appendLog(it) }
         dlmsFunctions.setMeter(meter)
         sessionManager = DLMSSessionManager(dlmsInit)
+        billingRepository = BillingDataRepository(context)
         // Load saved billing data if available
         loadSavedBillingData()
     }
@@ -189,6 +125,37 @@ class DLMSViewModel : ViewModel() {
 
         delay(200) // Small delay before Bluetooth disconnect
     }
+
+    /**
+     * Initialize and load saved billing data from SharedPreferences
+     * Call this in initializeDLMS()
+     */
+    private fun loadSavedBillingData() {
+        val data = billingRepository?.loadBillingData()
+        if (data != null) {
+            _savedBillingData.value = data
+            appendLog("Loaded billing data (${data.daysRemaining()} days remaining)")
+        }
+    }
+
+    /**
+     * Save billing data to SharedPreferences with timestamp
+     */
+    private fun persistBillingData(billing: Billing, rates: FloatArray) {
+        val savedData = billingRepository?.saveBillingData(billing, rates)
+        _savedBillingData.value = savedData
+        appendLog("Billing data saved for 30 days")
+    }
+
+    /**
+     * Clear saved billing data manually
+     */
+    fun clearSavedBillingData() {
+        billingRepository?.clear()
+        _savedBillingData.value = null
+        appendLog("Cleared saved billing data")
+    }
+
     /**
      * Start a DLMS operation
      */

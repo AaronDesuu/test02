@@ -1,4 +1,4 @@
-package com.example.meterkenshin.model
+package com.example.meterkenshin.data
 
 
 data class RegistrationState(
