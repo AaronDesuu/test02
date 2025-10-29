@@ -27,6 +27,7 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
 import com.example.meterkenshin.utils.calculateBillingData
 import com.example.meterkenshin.ui.component.printReceipt as sendReceiptToPrinter
+import com.example.meterkenshin.utils.PrinterStatusHelper
 
 data class RegistrationState(
     val isRunning: Boolean = false,
@@ -112,53 +113,9 @@ class DLMSViewModel : ViewModel() {
         this.printerViewModel = viewModel
     }
 
-
-    /**
-     * NEW: Confirm print - checks printer status first, then prints receipt
-     * Shows error dialog if printer has issues
-     */
-    fun confirmPrint() {
-        viewModelScope.launch {
-            val printer = printerViewModel
-            if (printer == null) {
-                appendLog("ERROR: Printer not configured")
-                dismissPrintDialog()
-                _showSaveDialog.value = true
-                return@launch
-            }
-
-            // Check printer status before printing
-            appendLog("Checking printer status...")
-
-            // Request fresh status
-            val statusRequested = printer.checkPrinterStatusNow()
-            if (statusRequested) {
-                delay(500) // Wait for status response
-            }
-
-            // Verify printer status
-            val (isReady, errorMessage) = printer.getPrinterStatusSummary()
-
-            if (!isReady && errorMessage != null) {
-                // Printer has an issue - show error dialog
-                appendLog("⚠️ Printer error: $errorMessage")
-                _printerErrorMessage.value = errorMessage
-                _showPrinterErrorDialog.value = true
-                return@launch
-            }
-
-            // Printer is ready - proceed with printing
-            appendLog("✓ Printer status OK")
-            printPendingReceipt()
-            dismissPrintDialog()
-            // Show save dialog after print
-            _showSaveDialog.value = true
-        }
-    }
-
     /**
      * Print receipt with billing data
-     * FIXED: Correctly uses sendReceiptToPrinter from ReceiptPrinterComponent
+     * UPDATED: Now uses PrinterStatusHelper for universal printer checking
      */
     fun printReceipt(billing: Billing, rates: FloatArray? = null) {
         viewModelScope.launch {
@@ -169,21 +126,36 @@ class DLMSViewModel : ViewModel() {
                     return@launch
                 }
 
-                appendLog("Preparing receipt for printing...")
+                appendLog("Checking printer status...")
 
-                // Calculate billing if rates provided
-                if (rates != null) {
-                    calculateBillingData(billing, rates)
-                }
+                // Use PrinterStatusHelper for comprehensive status checking
+                PrinterStatusHelper.checkPrinterReadyAndExecute(
+                    printerViewModel = printer,
+                    onNotConnected = {
+                        appendLog("ERROR: Printer not connected")
+                    },
+                    onNotReady = { reason ->
+                        appendLog("ERROR: Printer not ready - $reason")
+                    },
+                    onReady = {
+                        // Printer is ready, proceed with printing
+                        appendLog("Printer ready, preparing receipt...")
 
-                // Create receipt data
-                val receiptData = createReceiptDataFromBilling(billing)
+                        // Calculate billing if rates provided
+                        if (rates != null) {
+                            calculateBillingData(billing, rates)
+                        }
 
-                // Send to printer using the renamed import function
-                appendLog("Sending receipt to printer...")
-                sendReceiptToPrinter(receiptData, printer)
+                        // Create receipt data
+                        val receiptData = createReceiptDataFromBilling(billing)
 
-                appendLog("✅ Receipt sent to printer successfully")
+                        // Send to printer
+                        appendLog("Sending receipt to printer...")
+                        sendReceiptToPrinter(receiptData, printer)
+
+                        appendLog("✅ Receipt sent to printer successfully")
+                    }
+                )
             } catch (e: Exception) {
                 appendLog("ERROR: Failed to print receipt - ${e.message}")
                 Log.e(TAG, "Print receipt error", e)
@@ -194,6 +166,7 @@ class DLMSViewModel : ViewModel() {
     /**
      * NEW: Print pending receipt (from read data)
      * Called when user confirms print dialog
+     * UPDATED: Now uses PrinterStatusHelper
      */
     fun printPendingReceipt() {
         val billing = _pendingBillingData.value
@@ -203,6 +176,41 @@ class DLMSViewModel : ViewModel() {
             printReceipt(billing, rates)
         } else {
             appendLog("No pending billing data to print")
+        }
+    }
+
+    /**
+     * NEW: Confirm print - checks printer then prints receipt and shows save dialog next
+     * UPDATED: Now checks printer status before printing
+     */
+    fun confirmPrint() {
+        viewModelScope.launch {
+            val printer = printerViewModel
+            if (printer == null) {
+                appendLog("ERROR: Printer not configured")
+                skipPrint() // Skip to save dialog if no printer
+                return@launch
+            }
+
+            // Check printer status before attempting to print
+            PrinterStatusHelper.checkPrinterReadyAndExecute(
+                printerViewModel = printer,
+                onNotConnected = {
+                    appendLog("ERROR: Printer not connected - skipping print")
+                    skipPrint() // Skip to save dialog
+                },
+                onNotReady = { reason ->
+                    appendLog("ERROR: Printer not ready - $reason")
+                    skipPrint() // Skip to save dialog
+                },
+                onReady = {
+                    // Printer ready, print the receipt
+                    printPendingReceipt()
+                    dismissPrintDialog()
+                    // Show save dialog after print
+                    _showSaveDialog.value = true
+                }
+            )
         }
     }
 
