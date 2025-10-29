@@ -31,6 +31,8 @@ import com.example.meterkenshin.ui.component.DLMSFunctionsCard
 import com.example.meterkenshin.ui.component.DLMSLogCard
 import com.example.meterkenshin.ui.component.MeterSpecificationsCard
 import com.example.meterkenshin.ui.component.MeterStatusCard
+import com.example.meterkenshin.ui.component.SaveJSONDialog
+import com.example.meterkenshin.ui.component.SavedBillingDataCard
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -53,10 +55,15 @@ fun MeterDetailScreen(
     // Track DLMS initialization state
     var isDlmsInitialized by remember { mutableStateOf(false) }
 
+    // Track dialog state
+    var showSaveJSONDialog by remember { mutableStateOf(false) }
+
     // Collect states
     val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
     val registrationState by registrationViewModel.registrationState.collectAsState()
     val dlmsLog by registrationViewModel.dlmsLog.collectAsState()
+    val pendingBillingData by registrationViewModel.pendingBillingData.collectAsState()
+    val savedBillingData by registrationViewModel.savedBillingData.collectAsState()
 
     // Observe the current meter from the ViewModel
     val updatedMeter by registrationViewModel.currentMeter.collectAsState()
@@ -92,6 +99,13 @@ fun MeterDetailScreen(
             Log.i("MeterDetailScreen", "BLE scanning paused")
         } catch (e: Exception) {
             Log.e("MeterDetailScreen", "Error pausing BLE scan", e)
+        }
+    }
+
+    // Show dialog when billing data is ready
+    LaunchedEffect(pendingBillingData) {
+        if (pendingBillingData != null) {
+            showSaveJSONDialog = true
         }
     }
 
@@ -136,7 +150,8 @@ fun MeterDetailScreen(
                 },
                 onReadData = {
                     if (isDlmsInitialized && meter.activate == 1) {
-                        registrationViewModel.readData(meter)
+                        val rates = loadMeterRates(context, fileUploadViewModel)
+                        registrationViewModel.readData(meter, rates)
                     }
                 },
                 onLoadProfile = {
@@ -171,11 +186,42 @@ fun MeterDetailScreen(
                 isProcessing = registrationState.isRunning
             )
 
+
+            // Saved Billing Data Card (NEW - shows if data available)
+            savedBillingData?.let { saved ->
+                if (saved.isValid()) {
+                    SavedBillingDataCard(
+                        billing = saved.billing,
+                        daysRemaining = saved.daysRemaining(),
+                        onSaveJSON = {
+                            registrationViewModel.saveStoredBillingToJSON()
+                        },
+                        onClearData = {
+                            registrationViewModel.clearSavedBillingData()
+                        }
+                    )
+                }
+            }
+
             // 4. Meter specifications card
             MeterSpecificationsCard(meter = meter)
 
             Spacer(modifier = Modifier.height(16.dp))
             Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        }
+
+        // Show JSON save dialog when readData completes (immediate)
+        if (showSaveJSONDialog && pendingBillingData != null) {
+            SaveJSONDialog(
+                onConfirm = {
+                    registrationViewModel.saveReadDataToJSON()
+                    showSaveJSONDialog = false
+                },
+                onDismiss = {
+                    registrationViewModel.clearPendingBillingData()
+                    showSaveJSONDialog = false
+                }
+            )
         }
     }
 }

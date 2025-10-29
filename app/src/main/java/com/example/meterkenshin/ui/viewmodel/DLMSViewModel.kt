@@ -18,6 +18,8 @@ import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.util.calculateBillingData
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +34,26 @@ data class RegistrationState(
     val error: String? = null
 )
 
+@Suppress("ArrayInDataClass")
+data class SavedBillingData(
+    val billing: Billing,
+    val timestamp: Long,
+    val rates: FloatArray
+) {
+    // Check if data is still valid (within 30 days)
+    fun isValid(): Boolean {
+        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
+        return (System.currentTimeMillis() - timestamp) < thirtyDaysInMillis
+    }
+
+    fun daysRemaining(): Int {
+        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
+        val elapsed = System.currentTimeMillis() - timestamp
+        val remaining = thirtyDaysInMillis - elapsed
+        return (remaining / (24 * 60 * 60 * 1000)).toInt()
+    }
+}
+
 @SuppressLint("SameParameterValue", "KotlinConstantConditions", "DefaultLocale", "MissingPermission")
 class DLMSViewModel : ViewModel() {
 
@@ -45,6 +67,13 @@ class DLMSViewModel : ViewModel() {
 
     private val _dlmsLog = MutableStateFlow("")
     val dlmsLog: StateFlow<String> = _dlmsLog.asStateFlow()
+
+    private val _savedBillingData = MutableStateFlow<SavedBillingData?>(null)
+    val savedBillingData: StateFlow<SavedBillingData?> = _savedBillingData.asStateFlow()
+
+    private val _pendingBillingData = MutableStateFlow<Billing?>(null)
+    val pendingBillingData: StateFlow<Billing?> = _pendingBillingData.asStateFlow()
+
 
     // DLMS Initializer handles all Bluetooth/service setup
     private val dlmsInit = DLMSInit { appendLog(it) }
@@ -62,6 +91,72 @@ class DLMSViewModel : ViewModel() {
     val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
 
     /**
+     * Initialize and load saved billing data from SharedPreferences
+     * Call this in initializeDLMS()
+     */
+    @SuppressLint("UseKtx")
+    private fun loadSavedBillingData() {
+        try {
+            val prefs = mContext?.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
+            val json = prefs?.getString("saved_billing_data", null)
+
+            if (json != null) {
+                val gson = Gson()
+                val type = object : TypeToken<SavedBillingData>() {}.type
+                val data = gson.fromJson<SavedBillingData>(json, type)
+
+                // Only load if still valid
+                if (data.isValid()) {
+                    _savedBillingData.value = data
+                    appendLog("Loaded billing data (${data.daysRemaining()} days remaining)")
+                } else {
+                    // Clear expired data
+                    prefs.edit().remove("saved_billing_data").apply()
+                    appendLog("Cleared expired billing data")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading saved billing data: ${e.message}")
+        }
+    }
+
+    /**
+     * Save billing data to SharedPreferences with timestamp
+     */
+    @SuppressLint("UseKtx")
+    private fun persistBillingData(billing: Billing, rates: FloatArray) {
+        try {
+            val savedData = SavedBillingData(
+                billing = billing,
+                timestamp = System.currentTimeMillis(),
+                rates = rates
+            )
+
+            val gson = Gson()
+            val json = gson.toJson(savedData)
+
+            val prefs = mContext?.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
+            prefs?.edit()?.putString("saved_billing_data", json)?.apply()
+
+            _savedBillingData.value = savedData
+            appendLog("Billing data saved for 30 days")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error persisting billing data: ${e.message}")
+        }
+    }
+
+    /**
+     * Clear saved billing data manually
+     */
+    @SuppressLint("UseKtx")
+    fun clearSavedBillingData() {
+        val prefs = mContext?.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
+        prefs?.edit()?.remove("saved_billing_data")?.apply()
+        _savedBillingData.value = null
+        appendLog("Cleared saved billing data")
+    }
+
+    /**
      * Initialize DLMS - delegates to DLMSInit
      */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -73,6 +168,8 @@ class DLMSViewModel : ViewModel() {
         dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, mContext) { appendLog(it) }
         dlmsFunctions.setMeter(meter)
         sessionManager = DLMSSessionManager(dlmsInit)
+        // Load saved billing data if available
+        loadSavedBillingData()
     }
 
     private suspend fun establishSession(): Boolean {
@@ -251,9 +348,6 @@ class DLMSViewModel : ViewModel() {
 
     /**
      * Read Data - Performs demand reset and billing data retrieval
-     */
-    /**
-     * Read Data - Performs demand reset and billing data retrieval
      * Exports JSON with single billing period
      */
     fun readData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
@@ -269,12 +363,11 @@ class DLMSViewModel : ViewModel() {
 
         try {
             if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
-                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
+                appendLog("ERROR: Not ready")
                 return@launch
             }
 
             startOperation("Read Data")
-
             appendLog("Connecting to ${meter.bluetoothId}...")
             dlmsInit.mArrived = -1
 
@@ -342,9 +435,7 @@ class DLMSViewModel : ViewModel() {
                 return@launch
             }
 
-            // Get the billing data result
             val billingData = dlmsFunctions.getLastBillingDataResult()
-
             closeSession()
 
             if (billingData != null && billingData.size >= 10) {
@@ -365,14 +456,12 @@ class DLMSViewModel : ViewModel() {
 
                 appendLog("Current reading: ${currentRecord.imp} kWh")
 
-                // TODO: Load previous reading from storage (SharedPreferences or CSV)
-                // For now, we'll create a simple example
                 val previousReading = loadPreviousReading(meter.serialNumber)
 
                 if (previousReading != null) {
                     // Create Billing object with current and previous data
                     val billing = Billing().apply {
-                        Period = DLMSJSONWriter.dateTimeToMonth(billingData[1]) // Fixed date
+                        Period = DLMSJSONWriter.dateTimeToMonth(billingData[1])
                         Commercial = "LARGE"
                         SerialNumber = meter.serialNumber
                         Multiplier = 1.0f
@@ -396,30 +485,25 @@ class DLMSViewModel : ViewModel() {
                     appendLog("Total Use: %.3f kWh".format(billing.TotalUse))
                     appendLog("Total Amount: %.2f".format(billing.TotalAmount))
 
-                    // Save to JSON
-                    val jsonSuccess = DLMSJSONWriter.saveSingleBillingToJSON(
-                        context = mContext,
-                        serialNumber = meter.serialNumber,
-                        billing = billing
-                    )
+                    // Save billing data for 30 days (replaces pending data approach)
+                    persistBillingData(billing, rates)
 
-                    if (jsonSuccess) {
-                        appendLog("Success to save billing data to JSON")
-                    }
+                    // Also set as pending to show immediate dialog
+                    _pendingBillingData.value = billing
 
                     // Save current as previous for next time
                     savePreviousReading(meter.serialNumber, billing)
+
+                    appendLog("✅ Read Data Complete - Data saved for 30 days")
                 } else {
                     appendLog("No previous reading available - saving current as baseline")
-                    // Save current reading as baseline for next comparison
                     val baseline = Billing().apply {
                         PeriodTo = currentRecord.clock
                         PresReading = currentRecord.imp
                     }
                     savePreviousReading(meter.serialNumber, baseline)
+                    appendLog("✅ Read Data Complete - Baseline saved")
                 }
-
-                appendLog("✅ Read Data Complete")
             } else {
                 appendLog("ERROR: Insufficient billing data received")
             }
@@ -435,6 +519,69 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
+     * Save billing data to JSON from saved data
+     * Can be called anytime within 30 days
+     */
+    fun saveStoredBillingToJSON() {
+        val savedData = _savedBillingData.value
+        if (savedData != null && savedData.isValid()) {
+            viewModelScope.launch {
+                appendLog("Saving stored billing data to JSON...")
+                val success = DLMSJSONWriter.saveSingleBillingToJSON(
+                    context = mContext,
+                    serialNumber = savedData.billing.SerialNumber,
+                    billing = savedData.billing
+                )
+
+                if (success) {
+                    appendLog("✅ Success to save billing data to JSON")
+                    appendLog("Data was ${30 - savedData.daysRemaining()} days old")
+                } else {
+                    appendLog("❌ Failed to save billing data to JSON")
+                }
+            }
+        } else {
+            appendLog("No valid billing data available to save")
+        }
+    }
+
+    /**
+     * Save pending billing data to JSON (for immediate dialog)
+     * Called after user confirms via dialog
+     */
+    fun saveReadDataToJSON() {
+        val billing = _pendingBillingData.value
+        if (billing != null) {
+            viewModelScope.launch {
+                appendLog("Saving billing data to JSON...")
+                val success = DLMSJSONWriter.saveSingleBillingToJSON(
+                    context = mContext,
+                    serialNumber = billing.SerialNumber,
+                    billing = billing
+                )
+
+                if (success) {
+                    appendLog("✅ Success to save billing data to JSON")
+                } else {
+                    appendLog("❌ Failed to save billing data to JSON")
+                }
+
+                // Clear pending data after save
+                _pendingBillingData.value = null
+            }
+        } else {
+            appendLog("No pending billing data to save")
+        }
+    }
+
+    /**
+     * Clear pending billing data without saving (for dialog dismiss)
+     */
+    fun clearPendingBillingData() {
+        _pendingBillingData.value = null
+    }
+
+    /**
      * Load previous reading from SharedPreferences
      */
     private fun loadPreviousReading(serialNumber: String?): Billing? {
@@ -442,7 +589,7 @@ class DLMSViewModel : ViewModel() {
         val json = prefs?.getString("prev_${serialNumber}", null) ?: return null
 
         return try {
-            com.google.gson.Gson().fromJson(json, Billing::class.java)
+            Gson().fromJson(json, Billing::class.java)
         } catch (e: Exception) {
             Log.e(TAG, "Error loading previous reading: ${e.message}")
             null
@@ -455,7 +602,7 @@ class DLMSViewModel : ViewModel() {
     @SuppressLint("UseKtx")
     private fun savePreviousReading(serialNumber: String?, billing: Billing) {
         val prefs = mContext?.getSharedPreferences("MeterReadings", Context.MODE_PRIVATE)
-        val json = com.google.gson.Gson().toJson(billing)
+        val json = Gson().toJson(billing)
         prefs?.edit()?.putString("prev_${serialNumber}", json)?.apply()
     }
 

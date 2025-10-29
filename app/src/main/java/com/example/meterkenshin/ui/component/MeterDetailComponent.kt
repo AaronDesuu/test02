@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cable
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -192,32 +191,13 @@ fun MeterStatusCard(
         Column(
             modifier = Modifier.padding(20.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Cable,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = stringResource(R.string.meter_stats),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
-
             // Serial Number
             SpecificationRow(
                 label = stringResource(R.string.serial_id).replace(": %1\$s", ""),
                 value = meter.serialNumber.ifBlank { "-" }
             )
 
-            // Serial Number
+            // UID
             SpecificationRow(
                 label = stringResource(R.string.uid).replace(": %1\$s", ""),
                 value = meter.uid.toString().ifBlank { "-" }
@@ -225,7 +205,7 @@ fun MeterStatusCard(
 
             // BLE Connection Status
             SpecificationRow(
-                label = stringResource(R.string.status_connected),
+                label = stringResource(R.string.status),
                 value = connectionStatus,
                 valueColor = signalColor
             )

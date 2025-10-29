@@ -711,5 +711,6 @@
     <string name="settings_title">Settings</string>
     <string name="test">test</string>
     <string name="uid">Meter UID: %1$s</string>
+    <string name="status">status</string>
 
 </resources>
