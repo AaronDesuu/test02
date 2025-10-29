@@ -13,6 +13,7 @@ import com.example.meterkenshin.dlms.DLMSCSVWriter
 import com.example.meterkenshin.dlms.DLMSDataAccess
 import com.example.meterkenshin.dlms.DLMSFunctions
 import com.example.meterkenshin.dlms.DLMSInit
+import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.Meter
@@ -251,20 +252,22 @@ class DLMSViewModel : ViewModel() {
     /**
      * Read Data - Performs demand reset and billing data retrieval
      */
-    fun readData(meter: Meter) = viewModelScope.launch {
+    /**
+     * Read Data - Performs demand reset and billing data retrieval
+     * Exports JSON with single billing period
+     */
+    fun readData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Read Data already running")
             return@launch
         }
 
-        // Check if DLMS is initialized
         if (!::dlmsDataAccess.isInitialized) {
             appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
             return@launch
         }
 
         try {
-            // Check if initializer is ready
             if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
                 appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
                 return@launch
@@ -288,7 +291,6 @@ class DLMSViewModel : ViewModel() {
                 delay(100)
                 if (dlmsInit.mArrived == 0) {
                     ready = true
-
                     break
                 }
             }
@@ -332,27 +334,129 @@ class DLMSViewModel : ViewModel() {
             appendLog("Billing count retrieved")
             delay(500)
 
-            // Step 3: Get billing data
+            // Step 3: Get billing data (SINGLE READING)
             appendLog("Getting billing data...")
             if (!dlmsFunctions.performGetSingleBillingData()) {
                 appendLog("ERROR: Failed to get billing data")
                 finishOperation()
                 return@launch
             }
+
+            // Get the billing data result
+            val billingData = dlmsFunctions.getLastBillingDataResult()
+
             closeSession()
 
-            appendLog("Success to read data")
-            appendLog("✅ Read Data Complete")
+            if (billingData != null && billingData.size >= 10) {
+                appendLog("Success to read data")
+
+                // Parse current reading
+                val currentRecord = BillingRecord(
+                    clock = billingData[0],
+                    imp = billingData[1].toFloatOrNull() ?: 0f,
+                    exp = billingData[2].toFloatOrNull() ?: 0f,
+                    abs = billingData[3].toFloatOrNull() ?: 0f,
+                    net = billingData[4].toFloatOrNull() ?: 0f,
+                    maxImp = billingData[5].toFloatOrNull() ?: 0f,
+                    maxExp = billingData[6].toFloatOrNull() ?: 0f,
+                    minVolt = billingData[7].toFloatOrNull() ?: 0f,
+                    alert = billingData.getOrNull(8) ?: ""
+                )
+
+                appendLog("Current reading: ${currentRecord.imp} kWh")
+
+                // TODO: Load previous reading from storage (SharedPreferences or CSV)
+                // For now, we'll create a simple example
+                val previousReading = loadPreviousReading(meter.serialNumber)
+
+                if (previousReading != null) {
+                    // Create Billing object with current and previous data
+                    val billing = Billing().apply {
+                        Period = DLMSJSONWriter.dateTimeToMonth(billingData[1]) // Fixed date
+                        Commercial = "LARGE"
+                        SerialNumber = meter.serialNumber
+                        Multiplier = 1.0f
+                        PeriodFrom = previousReading.PeriodTo
+                        PeriodTo = currentRecord.clock
+                        PrevReading = previousReading.PresReading
+                        PresReading = currentRecord.imp
+                        MaxDemand = currentRecord.maxImp / 1000f
+                        DueDate = DLMSJSONWriter.formattedMonthDay(1, 0)
+                        DiscoDate = DLMSJSONWriter.formattedMonthDay(1, 1)
+                        Discount = 10.0f
+                        Interest = 10.0f
+                        Reader = "Fuji Taro"
+                        ReadDatetime = DLMSJSONWriter.getNowDate()
+                        Version = "v1.00.2"
+                    }
+
+                    // Calculate charges
+                    calculateBillingData(billing, rates)
+
+                    appendLog("Total Use: %.3f kWh".format(billing.TotalUse))
+                    appendLog("Total Amount: %.2f".format(billing.TotalAmount))
+
+                    // Save to JSON
+                    val jsonSuccess = DLMSJSONWriter.saveSingleBillingToJSON(
+                        context = mContext,
+                        serialNumber = meter.serialNumber,
+                        billing = billing
+                    )
+
+                    if (jsonSuccess) {
+                        appendLog("Success to save billing data to JSON")
+                    }
+
+                    // Save current as previous for next time
+                    savePreviousReading(meter.serialNumber, billing)
+                } else {
+                    appendLog("No previous reading available - saving current as baseline")
+                    // Save current reading as baseline for next comparison
+                    val baseline = Billing().apply {
+                        PeriodTo = currentRecord.clock
+                        PresReading = currentRecord.imp
+                    }
+                    savePreviousReading(meter.serialNumber, baseline)
+                }
+
+                appendLog("✅ Read Data Complete")
+            } else {
+                appendLog("ERROR: Insufficient billing data received")
+            }
 
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Read Data error", e)
         } finally {
-            // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
         }
+    }
+
+    /**
+     * Load previous reading from SharedPreferences
+     */
+    private fun loadPreviousReading(serialNumber: String?): Billing? {
+        val prefs = mContext?.getSharedPreferences("MeterReadings", Context.MODE_PRIVATE)
+        val json = prefs?.getString("prev_${serialNumber}", null) ?: return null
+
+        return try {
+            com.google.gson.Gson().fromJson(json, Billing::class.java)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading previous reading: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Save current reading as previous for next comparison
+     */
+    @SuppressLint("UseKtx")
+    private fun savePreviousReading(serialNumber: String?, billing: Billing) {
+        val prefs = mContext?.getSharedPreferences("MeterReadings", Context.MODE_PRIVATE)
+        val json = com.google.gson.Gson().toJson(billing)
+        prefs?.edit()?.putString("prev_${serialNumber}", json)?.apply()
     }
 
     /**

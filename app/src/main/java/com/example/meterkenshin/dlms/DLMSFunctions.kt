@@ -229,6 +229,13 @@ class DLMSFunctions(
     }
 
     /**
+     * Get the last billing data result from performGetSingleBillingData
+     */
+    fun getLastBillingDataResult(): ArrayList<String>? {
+        return dlmsDataAccess.getReceive()
+    }
+
+    /**
      * Perform initial billing data request
      */
     suspend fun performGetBillingData(): Boolean {
