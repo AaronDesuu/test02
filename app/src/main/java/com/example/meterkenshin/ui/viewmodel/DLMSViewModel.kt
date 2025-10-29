@@ -9,19 +9,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.dlms.DLMS
+import com.example.meterkenshin.dlms.DLMSCSVWriter
 import com.example.meterkenshin.dlms.DLMSDataAccess
 import com.example.meterkenshin.dlms.DLMSFunctions
 import com.example.meterkenshin.dlms.DLMSInit
 import com.example.meterkenshin.dlms.DLMSSessionManager
-import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.Billing
+import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.util.calculateBillingData
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.io.File
 
 data class RegistrationState(
     val isRunning: Boolean = false,
@@ -31,7 +31,6 @@ data class RegistrationState(
     val error: String? = null
 )
 
-@Suppress("KotlinConstantConditions")
 @SuppressLint("SameParameterValue", "KotlinConstantConditions", "DefaultLocale", "MissingPermission")
 class DLMSViewModel : ViewModel() {
 
@@ -335,7 +334,7 @@ class DLMSViewModel : ViewModel() {
 
             // Step 3: Get billing data
             appendLog("Getting billing data...")
-            if (!dlmsFunctions.performGetBillingData()) {
+            if (!dlmsFunctions.performGetSingleBillingData()) {
                 appendLog("ERROR: Failed to get billing data")
                 finishOperation()
                 return@launch
@@ -434,8 +433,8 @@ class DLMSViewModel : ViewModel() {
 
             val allLoadProfileData = dlmsDataAccess.performBlockTransfer(
                 operationName = "Load Profile",
-                initialRequest = { performGetLoadProfile() },
-                blockRequest = { performGetLoadProfileBlock() },
+                initialRequest = { dlmsFunctions.performGetLoadProfile() },
+                blockRequest = { dlmsFunctions.performGetLoadProfileBlock() },
                 logCallback = { appendLog(it) }
             )
 
@@ -449,15 +448,18 @@ class DLMSViewModel : ViewModel() {
 
             // Save to CSV
             if (allLoadProfileData.size > 5) {
-                val success = saveLoadProfileToCSV(meter, allLoadProfileData)
+                val success = DLMSCSVWriter.saveToCSV(
+                    context = mContext,
+                    type = DLMSCSVWriter.CSVType.LOAD_PROFILE,
+                    serialNumber = meter.serialNumber,
+                    data = allLoadProfileData
+                )
                 if (success) {
                     appendLog("Success to get and save ${allLoadProfileData.size} load profile records to file")
                     appendLog("✅ Load Profile Complete")
                 } else {
                     appendLog("ERROR: Failed to save load profile to CSV")
                 }
-            } else {
-                appendLog("ERROR: Insufficient load profile data (received ${allLoadProfileData.size} entries)")
             }
 
         } catch (e: Exception) {
@@ -468,88 +470,6 @@ class DLMSViewModel : ViewModel() {
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
-        }
-    }
-
-    /**
-     * Perform initial load profile request
-     */
-    private suspend fun performGetLoadProfile(): Boolean {
-        dlmsDataAccess.setDataIndex(0)
-        dlmsDataAccess.setSelector(0)
-        dlmsDataAccess.setParameter("")
-        return dlmsDataAccess.accessData(0, DLMS.IST_LOAD_PROFILE, 2, false)
-    }
-
-    /**
-     * Perform load profile block continuation request
-     * Used when ret[0] = 2 (continue block transfer)
-     */
-    private suspend fun performGetLoadProfileBlock(): Boolean {
-        // Block continuation uses same parameters but DLMS tracks mBlockNo internally
-        return dlmsDataAccess.accessData(0, DLMS.IST_LOAD_PROFILE, 2, false)
-    }
-
-    /**
-     * Save complete load profile data to CSV file
-     * Example entry:
-     * 2025/05/09 13:30:00,128,23299,183,0
-     */
-    private fun saveLoadProfileToCSV(meter: Meter, data: ArrayList<String>): Boolean {
-        return try {
-            // Get timestamp from first entry for filename
-            val timestamp = data[0]
-                .replace("/", "")
-                .replace(":", "")
-                .replace(" ", "_")
-
-            val serialNumber = meter.serialNumber
-            val filename = "${serialNumber}_LP_${timestamp}.csv"
-
-            val externalDir = mContext?.getExternalFilesDir(null)
-            if (externalDir == null) {
-                Log.e(TAG, "External storage not available")
-                return false
-            }
-
-            val file = File(externalDir, filename)
-
-            // Create CSV content
-            val csvContent = StringBuilder()
-            csvContent.append("Clock,Status,AveVolt[V],BlockImp[kW],BlockExp[kW]\n")
-
-            // Remove timestamp from data (already used for filename)
-            val profileData = ArrayList(data)
-            profileData.removeAt(0)
-
-            // Write data rows
-            // Each entry: Clock, Status, AveVolt, BlockImp, BlockExp
-            var i = 0
-            var rowCount = 0
-            while (i < profileData.size) {
-                if (i + 4 < profileData.size) {
-                    csvContent.append("${profileData[i]},")      // Clock (datetime)
-                    csvContent.append("${profileData[i+1]},")    // Status (bit flags)
-                    csvContent.append("${profileData[i+2]},")    // AveVolt[V]
-                    csvContent.append("${profileData[i+3]},")    // BlockImp[kW]
-                    csvContent.append("${profileData[i+4]}\n")   // BlockExp[kW]
-                    i += 5
-                    rowCount++
-                } else {
-                    break
-                }
-            }
-
-            // Write to file
-            file.writeText(csvContent.toString())
-
-            Log.i(TAG, "Load profile saved to: ${file.absolutePath}")
-            appendLog("File saved: $filename ($rowCount rows)")
-
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving load profile CSV: ${e.message}", e)
-            false
         }
     }
 
@@ -630,29 +550,30 @@ class DLMSViewModel : ViewModel() {
             }
 
             val allEventData = dlmsDataAccess.performBlockTransfer(
-                "Event Log",
-                { dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false) },
-                { dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false) },
-                { appendLog(it) }
-            ) ?: run {
-                finishOperation()
-                return@launch
-            }
+                operationName = "Event Log",
+                initialRequest = { dlmsFunctions.performGetEventLog() },
+                blockRequest = { dlmsFunctions.performGetEventLogBlock() },
+                logCallback = { appendLog(it) }
+            )
 
             closeSession()
 
-            // Save to CSV if we have data
-            if (allEventData.size > 3) {
-                val success = saveEventLogToCSV(meter.serialNumber, allEventData)
-
-                if (success) {
-                    appendLog("Success to get and save ${allEventData.size} event records to file")
-                    appendLog("✅ Load Profile Complete")
-                } else {
-                    appendLog("ERROR: Failed to save event log to CSV")
+            // Save to CSV
+            if (allEventData != null) {
+                if (allEventData.size > 3) {
+                    val success = DLMSCSVWriter.saveToCSV(
+                        context = mContext,
+                        type = DLMSCSVWriter.CSVType.EVENT_LOG,
+                        serialNumber = meter.serialNumber,
+                        data = allEventData
+                    )
+                    if (success) {
+                        appendLog("Success to get and save ${allEventData.size} event records to file")
+                        appendLog("✅ Event Log Complete")
+                    } else {
+                        appendLog("ERROR: Failed to save event log to CSV")
+                    }
                 }
-            } else {
-                appendLog("ERROR: Insufficient event data (received ${allEventData.size} entries)")
             }
 
         } catch (e: Exception) {
@@ -663,74 +584,6 @@ class DLMSViewModel : ViewModel() {
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
-        }
-    }
-
-    /**
-     * Save complete event log data to CSV file
-     * Format: Clock,Event,Volt V
-     * Based on project01's SecondFragment implementation
-     */
-    private fun saveEventLogToCSV(serialNumber: String?, data: ArrayList<String>): Boolean {
-        return try {
-            if (serialNumber.isNullOrEmpty()) {
-                Log.e(TAG, "Serial ID is null or empty")
-                return false
-            }
-
-            val externalDir = mContext?.getExternalFilesDir(null)
-            if (externalDir == null) {
-                Log.e(TAG, "External storage not available")
-                return false
-            }
-
-            // Extract timestamp from first entry and format filename
-            // Example timestamp: "2024/10/24 15:30:45"
-            var timestamp = data[0]
-            timestamp = timestamp.replace("/", "")
-                .replace(":", "")
-                .replace(" ", "_")
-
-            // Create filename: {SerialID}_EV_{timestamp}.csv
-            val filename = "${serialNumber}_EV_${timestamp}.csv"
-            val file = File(externalDir, filename)
-
-            // Create CSV content
-            val csvContent = StringBuilder()
-            // Header matches project01: "Clock,Event,Volt[V]"
-            csvContent.append("Clock,Event,Volt[V]\n")
-
-            // Remove timestamp from data (already used for filename)
-            val eventData = ArrayList(data)
-            eventData.removeAt(0)
-
-            // Write data rows
-            var i = 0
-            var rowCount = 0
-            while (i < eventData.size) {
-                if (i + 2 < eventData.size) {
-                    val clock = eventData[i]      // Clock (datetime)
-                    val event = eventData[i + 1]  // Event code
-                    val volt = eventData[i + 2]   // Voltage
-
-                    csvContent.append("$clock,$event,$volt\n")
-                    i += 3
-                    rowCount++
-                } else {
-                    break
-                }
-            }
-
-            // Write to file
-            file.writeText(csvContent.toString())
-
-            Log.i(TAG, "Event log saved to: ${file.absolutePath}")
-            appendLog("File saved: $filename ($rowCount events)")
-
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving event log CSV: ${e.message}", e)
-            false
         }
     }
 
@@ -802,8 +655,8 @@ class DLMSViewModel : ViewModel() {
 
             val allBillingData = dlmsDataAccess.performBlockTransfer(
                 operationName = "Billing Data",
-                initialRequest = { performGetBillingData() },
-                blockRequest = { performGetBillingDataBlock() },
+                initialRequest = { dlmsFunctions.performGetBillingData() },
+                blockRequest = { dlmsFunctions.performGetBillingDataBlock() },
                 logCallback = { appendLog(it) }
             )
 
@@ -818,7 +671,7 @@ class DLMSViewModel : ViewModel() {
             // Parse and save billing data
             if (allBillingData.size >= 10) {
                 // Remove timestamp if present (first entry)
-                if (allBillingData.isNotEmpty() && allBillingData[0].contains("/")) {
+                if (allBillingData[0].contains("/")) {
                     allBillingData.removeAt(0)
                 }
 
@@ -849,8 +702,19 @@ class DLMSViewModel : ViewModel() {
                     }
                 }
 
-                // Save to CSV
-                val success = saveBillingToCSV(meter, records, rates)
+                // Save to CSV - pass the original data with timestamp for filename
+                val dataWithTimestamp = ArrayList<String>()
+                dataWithTimestamp.add(records.firstOrNull()?.clock ?: "")
+                dataWithTimestamp.addAll(allBillingData)
+
+                val success = DLMSCSVWriter.saveToCSV(
+                    context = mContext,
+                    type = DLMSCSVWriter.CSVType.BILLING,
+                    serialNumber = meter.serialNumber,
+                    data = dataWithTimestamp,
+                    additionalData = Pair(records, rates)
+                )
+
                 if (success) {
                     appendLog("Success to get and save ${records.size} billing records to file")
                     appendLog("✅ Billing Data Complete")
@@ -870,23 +734,6 @@ class DLMSViewModel : ViewModel() {
             appendLog("Connection closed")
             finishOperation()
         }
-    }
-
-    /**
-     * Perform initial billing data request
-     */
-    private suspend fun performGetBillingData(): Boolean {
-        dlmsDataAccess.setDataIndex(0)
-        dlmsDataAccess.setSelector(0)
-        dlmsDataAccess.setParameter("")
-        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
-    }
-
-    /**
-     * Perform billing data block continuation request
-     */
-    private suspend fun performGetBillingDataBlock(): Boolean {
-        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
     }
 
     /**
@@ -915,88 +762,6 @@ class DLMSViewModel : ViewModel() {
         }
 
         return records
-    }
-
-    /**
-     * Save complete billing data to CSV file
-     * CSV format: Clock,Imp,Exp,Abs,Net,ImpMaxDemand,ExpMaxDemand,MinVolt,Alert1,Alert2,
-     *             TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount
-     */
-    private fun saveBillingToCSV(meter: Meter, records: List<BillingRecord>, rates: FloatArray): Boolean {
-        return try {
-            val timestamp = records.lastOrNull()?.clock
-                ?.replace("/", "")
-                ?.replace(":", "")
-                ?.replace(" ", "_") ?: "unknown"
-
-            val serialNumber = meter.serialNumber
-            val filename = "${serialNumber}_BL_${timestamp}.csv"
-
-            val externalDir = mContext?.getExternalFilesDir(null)
-            if (externalDir == null) {
-                Log.e(TAG, "External storage not available")
-                return false
-            }
-
-            val file = File(externalDir, filename)
-
-            // Create CSV content
-            val csvContent = StringBuilder()
-            // Single line header to match project01
-            csvContent.append("Clock,Imp[kWh],Exp[kWh],Abs[kWh],Net[kWh],ImpMaxDemand[W],ExpMaxDemand[W],MinVolt[V],Alert,TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount\n")
-
-            // Write data rows with calculated charges
-            records.forEachIndexed { index, record ->
-                // Base billing data
-                csvContent.append("${record.clock},")
-                csvContent.append("${record.imp},")
-                csvContent.append("${record.exp},")
-                csvContent.append("${record.abs},")
-                csvContent.append("${record.net},")
-                csvContent.append("${record.maxImp},")
-                csvContent.append("${record.maxExp},")
-                csvContent.append("${record.minVolt},")
-                csvContent.append("${record.alert},")
-
-                // Calculate and append charges (skip first record, no previous reading)
-                if (index > 0) {
-                    val prevRecord = records[index - 1]
-
-                    // Create Billing object and calculate
-                    val billing = Billing().apply {
-                        PresReading = record.imp
-                        PrevReading = prevRecord.imp
-                        MaxDemand = record.maxImp / 1000f
-                    }
-
-                    // Calculate charges - populates billing fields directly
-                    calculateBillingData(billing, rates)
-
-                    // Write calculated values from Billing object
-                    csvContent.append("${String.format("%.3f", billing.TotalUse ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.GenTransCharges ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.DistributionCharges ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.SustainableCapex ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.OtherCharges ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.UniversalCharges ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.ValueAddedTax ?: 0f)},")
-                    csvContent.append("${String.format("%.2f", billing.TotalAmount ?: 0f)}\n")  // \n at the END
-                } else {
-                    csvContent.append("0.000,0.00,0.00,0.00,0.00,0.00,0.00,0.00\n")  // \n at the END
-                }
-            }
-
-            // Write to file
-            file.writeText(csvContent.toString())
-
-            Log.i(TAG, "Billing data saved to: ${file.absolutePath}")
-            appendLog("File saved: $filename (${records.size} records)")
-
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Error saving billing CSV: ${e.message}", e)
-            false
-        }
     }
 
 

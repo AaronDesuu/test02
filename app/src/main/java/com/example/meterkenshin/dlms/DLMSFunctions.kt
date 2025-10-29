@@ -158,7 +158,7 @@ class DLMSFunctions(
      * Get billing data (standard read)
      */
     @SuppressLint("DefaultLocale")
-    suspend fun performGetBillingData(): Boolean {
+    suspend fun performGetSingleBillingData(): Boolean {
         dlmsDataAccess.setDataIndex(0)
         dlmsDataAccess.setSelector(2)
 
@@ -226,6 +226,57 @@ class DLMSFunctions(
         }
 
         return success
+    }
+
+    /**
+     * Perform initial billing data request
+     */
+    suspend fun performGetBillingData(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setParameter("")
+        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
+    }
+
+    /**
+     * Perform billing data block continuation request
+     */
+    suspend fun performGetBillingDataBlock(): Boolean {
+        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
+    }
+
+    /**
+     * Perform initial load profile request
+     */
+    suspend fun performGetLoadProfile(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setParameter("")
+        return dlmsDataAccess.accessData(0, DLMS.IST_LOAD_PROFILE, 2, false)
+    }
+
+    /**
+     * Perform load profile block continuation request
+     */
+    suspend fun performGetLoadProfileBlock(): Boolean {
+        return dlmsDataAccess.accessData(0, DLMS.IST_LOAD_PROFILE, 2, false)
+    }
+
+    /**
+     * Perform initial event log request
+     */
+    suspend fun performGetEventLog(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setParameter("")
+        return dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false)
+    }
+
+    /**
+     * Perform event log block continuation request
+     */
+    suspend fun performGetEventLogBlock(): Boolean {
+        return dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false)
     }
 
     /**
