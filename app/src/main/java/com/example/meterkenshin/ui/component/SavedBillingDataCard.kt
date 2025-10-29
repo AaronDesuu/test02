@@ -9,12 +9,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.model.Billing
 
 /**
- * SavedBillingDataCard - Shows saved billing data with option to export JSON
+ * SavedBillingDataCard - Shows saved billing data with options to print, export JSON, or clear
  * Displays data that's available for up to 30 days after readData
  */
 @SuppressLint("DefaultLocale")
@@ -22,6 +23,7 @@ import com.example.meterkenshin.model.Billing
 fun SavedBillingDataCard(
     billing: Billing?,
     daysRemaining: Int,
+    onPrintReceipt: () -> Unit,  // NEW: Print receipt callback
     onSaveJSON: () -> Unit,
     onClearData: () -> Unit,
     modifier: Modifier = Modifier
@@ -93,12 +95,29 @@ fun SavedBillingDataCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action buttons
+            // Action buttons - NOW WITH 3 BUTTONS
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Save JSON button
+                // Print Receipt button (NEW - on the left)
+                Button(
+                    onClick = onPrintReceipt,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1976D2)
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Print,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(1.dp))
+                    Text("Print")
+                }
+
+                // Export JSON button (in the middle)
                 Button(
                     onClick = onSaveJSON,
                     modifier = Modifier.weight(1f),
@@ -111,11 +130,11 @@ fun SavedBillingDataCard(
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export JSON")
+                    Spacer(modifier = Modifier.width(1.dp))
+                    Text("Export")
                 }
 
-                // Clear data button
+                // Clear data button (on the right)
                 OutlinedButton(
                     onClick = onClearData,
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -127,7 +146,7 @@ fun SavedBillingDataCard(
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(1.dp))
                     Text("Clear")
                 }
             }

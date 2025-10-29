@@ -28,8 +28,7 @@ import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.MeterSpecifications
 import com.example.meterkenshin.model.Meter
-import java.text.SimpleDateFormat
-import java.util.Locale
+
 
 /**
  * Meter specifications card with enhanced CSV data support using MeterModel

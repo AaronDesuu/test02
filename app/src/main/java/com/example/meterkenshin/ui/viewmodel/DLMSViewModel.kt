@@ -7,6 +7,13 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.dlms.DLMSCSVWriter
@@ -17,14 +24,9 @@ import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
 import com.example.meterkenshin.util.calculateBillingData
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import com.example.meterkenshin.ui.component.printReceipt as sendReceiptToPrinter
 
 data class RegistrationState(
     val isRunning: Boolean = false,
@@ -74,6 +76,13 @@ class DLMSViewModel : ViewModel() {
     private val _pendingBillingData = MutableStateFlow<Billing?>(null)
     val pendingBillingData: StateFlow<Billing?> = _pendingBillingData.asStateFlow()
 
+    private val _showPrintDialog = MutableStateFlow(false)
+    val showPrintDialog: StateFlow<Boolean> = _showPrintDialog.asStateFlow()
+
+    private var printerViewModel: PrinterBluetoothViewModel? = null
+
+    private val _showSaveDialog = MutableStateFlow(false)
+    val showSaveDialog: StateFlow<Boolean> = _showSaveDialog.asStateFlow()
 
     // DLMS Initializer handles all Bluetooth/service setup
     private val dlmsInit = DLMSInit { appendLog(it) }
@@ -89,6 +98,125 @@ class DLMSViewModel : ViewModel() {
 
     private val _currentMeter = MutableStateFlow<Meter?>(null)
     val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
+
+    /**
+     * Set printer view model reference
+     */
+    fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
+        this.printerViewModel = viewModel
+    }
+
+    /**
+     * Print receipt with billing data
+     * FIXED: Correctly uses sendReceiptToPrinter from ReceiptPrinterComponent
+     */
+    fun printReceipt(billing: Billing, rates: FloatArray? = null) {
+        viewModelScope.launch {
+            try {
+                val printer = printerViewModel
+                if (printer == null) {
+                    appendLog("ERROR: Printer not configured")
+                    return@launch
+                }
+
+                appendLog("Preparing receipt for printing...")
+
+                // Calculate billing if rates provided
+                if (rates != null) {
+                    calculateBillingData(billing, rates)
+                }
+
+                // Create receipt data
+                val receiptData = createReceiptDataFromBilling(billing)
+
+                // Send to printer using the renamed import function
+                appendLog("Sending receipt to printer...")
+                sendReceiptToPrinter(receiptData, printer)
+
+                appendLog("✅ Receipt sent to printer successfully")
+            } catch (e: Exception) {
+                appendLog("ERROR: Failed to print receipt - ${e.message}")
+                Log.e(TAG, "Print receipt error", e)
+            }
+        }
+    }
+
+    /**
+     * NEW: Print pending receipt (from read data)
+     * Called when user confirms print dialog
+     */
+    fun printPendingReceipt() {
+        val billing = _pendingBillingData.value
+        if (billing != null) {
+            val savedData = _savedBillingData.value
+            val rates = savedData?.rates
+            printReceipt(billing, rates)
+        } else {
+            appendLog("No pending billing data to print")
+        }
+    }
+
+    /**
+     * NEW: Show print dialog after read data completes
+     */
+    private fun showPrintDialog() {
+        _showPrintDialog.value = true
+    }
+
+    /**
+     * NEW: Hide print dialog
+     */
+    fun dismissPrintDialog() {
+        _showPrintDialog.value = false
+    }
+
+    /**
+     * NEW: Confirm print - prints receipt and shows save dialog next
+     */
+    fun confirmPrint() {
+        printPendingReceipt()
+        dismissPrintDialog()
+        // Show save dialog after print
+        _showSaveDialog.value = true
+    }
+
+    /**
+     * NEW: Skip print - goes directly to save dialog
+     */
+    fun skipPrint() {
+        dismissPrintDialog()
+        // Show save dialog
+        _showSaveDialog.value = true
+    }
+    /**
+     * NEW: Show save dialog
+     */
+    fun showSaveDialog() {
+        _showSaveDialog.value = true
+    }
+
+    /**
+     * NEW: Dismiss save dialog
+     */
+    fun dismissSaveDialog() {
+        _showSaveDialog.value = false
+    }
+
+    /**
+     * NEW: Confirm save - saves to JSON and clears pending data
+     */
+    fun confirmSave() {
+        saveReadDataToJSON()
+        dismissSaveDialog()
+    }
+
+    /**
+     * NEW: Skip save - clears pending data without saving
+     */
+    fun skipSave() {
+        clearPendingBillingData()
+        dismissSaveDialog()
+    }
 
     /**
      * Initialize and load saved billing data from SharedPreferences
@@ -495,6 +623,9 @@ class DLMSViewModel : ViewModel() {
                     savePreviousReading(meter.serialNumber, billing)
 
                     appendLog("✅ Read Data Complete - Data saved for 30 days")
+
+                    // NEW: Show print dialog first
+                    showPrintDialog()
                 } else {
                     appendLog("No previous reading available - saving current as baseline")
                     val baseline = Billing().apply {

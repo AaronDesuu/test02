@@ -31,11 +31,13 @@ import com.example.meterkenshin.ui.component.DLMSFunctionsCard
 import com.example.meterkenshin.ui.component.DLMSLogCard
 import com.example.meterkenshin.ui.component.MeterSpecificationsCard
 import com.example.meterkenshin.ui.component.MeterStatusCard
+import com.example.meterkenshin.ui.component.PrintReceiptDialog
 import com.example.meterkenshin.ui.component.SaveJSONDialog
 import com.example.meterkenshin.ui.component.SavedBillingDataCard
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.util.loadMeterRates
 
 /**
@@ -44,11 +46,12 @@ import com.example.meterkenshin.util.loadMeterRates
 @SuppressLint("MissingPermission")
 @Composable
 fun MeterDetailScreen(
+    modifier: Modifier = Modifier,
     meter: Meter,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     registrationViewModel: DLMSViewModel = viewModel(key = "meter_${meter.uid}"),
     fileUploadViewModel: FileUploadViewModel = viewModel(),
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+    printerViewModel: PrinterBluetoothViewModel = viewModel(),  // ADDED: Printer view model
 ) {
     val context = LocalContext.current
 
@@ -71,10 +74,18 @@ fun MeterDetailScreen(
     // Use updatedMeter if available, otherwise use the passed meter
     val activeMeter = updatedMeter ?: meter
 
-    // FIX: Initialize DLMS on screen load and WAIT for completion
+    // NEW: Collect dialog states
+    val showPrintDialog by registrationViewModel.showPrintDialog.collectAsState()
+    val showSaveDialog by registrationViewModel.showSaveDialog.collectAsState()
+
+    // Initialize DLMS and set printer reference
     LaunchedEffect(Unit) {
         try {
             Log.i("MeterDetailScreen", "Initializing DLMS...")
+
+            // ADDED: Set printer view model reference
+            registrationViewModel.setPrinterViewModel(printerViewModel)
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 registrationViewModel.initializeDLMS(context, meter)
             }
@@ -193,6 +204,10 @@ fun MeterDetailScreen(
                     SavedBillingDataCard(
                         billing = saved.billing,
                         daysRemaining = saved.daysRemaining(),
+                        onPrintReceipt = {
+                            // NEW: Print receipt from saved data
+                            registrationViewModel.printReceipt(saved.billing, saved.rates)
+                        },
                         onSaveJSON = {
                             registrationViewModel.saveStoredBillingToJSON()
                         },
@@ -210,16 +225,31 @@ fun MeterDetailScreen(
             Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
 
-        // Show JSON save dialog when readData completes (immediate)
-        if (showSaveJSONDialog && pendingBillingData != null) {
+        // NEW: Print Receipt Dialog - Shows FIRST after read data completes
+        if (showPrintDialog && pendingBillingData != null) {
+            PrintReceiptDialog(
+                serialNumber = pendingBillingData?.SerialNumber,
+                onConfirmPrint = {
+                    // Print and move to save dialog
+                    registrationViewModel.confirmPrint()
+                },
+                onSkipPrint = {
+                    // Skip print, move to save dialog
+                    registrationViewModel.skipPrint()
+                }
+            )
+        }
+
+        // NEW: Save JSON Dialog - Shows SECOND after print dialog
+        if (showSaveDialog && pendingBillingData != null) {
             SaveJSONDialog(
                 onConfirm = {
-                    registrationViewModel.saveReadDataToJSON()
-                    showSaveJSONDialog = false
+                    // Save to JSON
+                    registrationViewModel.confirmSave()
                 },
                 onDismiss = {
-                    registrationViewModel.clearPendingBillingData()
-                    showSaveJSONDialog = false
+                    // Skip save, clear pending data
+                    registrationViewModel.skipSave()
                 }
             )
         }
