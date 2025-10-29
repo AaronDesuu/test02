@@ -24,38 +24,10 @@ import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
+import com.example.meterkenshin.dlms.ReadDataPrinting
+import com.example.meterkenshin.model.RegistrationState
+import com.example.meterkenshin.model.SavedBillingData
 import com.example.meterkenshin.utils.calculateBillingData
-import com.example.meterkenshin.ui.component.printReceipt as sendReceiptToPrinter
-import com.example.meterkenshin.utils.PrinterStatusHelper
-
-data class RegistrationState(
-    val isRunning: Boolean = false,
-    val currentStage: Int = 0,
-    val message: String = "",
-    val isComplete: Boolean = false,
-    val error: String? = null
-)
-
-@Suppress("ArrayInDataClass")
-data class SavedBillingData(
-    val billing: Billing,
-    val timestamp: Long,
-    val rates: FloatArray
-) {
-    // Check if data is still valid (within 30 days)
-    fun isValid(): Boolean {
-        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
-        return (System.currentTimeMillis() - timestamp) < thirtyDaysInMillis
-    }
-
-    fun daysRemaining(): Int {
-        val thirtyDaysInMillis = 30L * 24 * 60 * 60 * 1000
-        val elapsed = System.currentTimeMillis() - timestamp
-        val remaining = thirtyDaysInMillis - elapsed
-        return (remaining / (24 * 60 * 60 * 1000)).toInt()
-    }
-}
 
 @SuppressLint("SameParameterValue", "KotlinConstantConditions", "DefaultLocale", "MissingPermission")
 class DLMSViewModel : ViewModel() {
@@ -74,22 +46,8 @@ class DLMSViewModel : ViewModel() {
     private val _savedBillingData = MutableStateFlow<SavedBillingData?>(null)
     val savedBillingData: StateFlow<SavedBillingData?> = _savedBillingData.asStateFlow()
 
-    private val _pendingBillingData = MutableStateFlow<Billing?>(null)
-    val pendingBillingData: StateFlow<Billing?> = _pendingBillingData.asStateFlow()
 
-    private val _showPrintDialog = MutableStateFlow(false)
-    val showPrintDialog: StateFlow<Boolean> = _showPrintDialog.asStateFlow()
-
-    private var printerViewModel: PrinterBluetoothViewModel? = null
-
-    private val _showSaveDialog = MutableStateFlow(false)
-    val showSaveDialog: StateFlow<Boolean> = _showSaveDialog.asStateFlow()
-
-    private val _showPrinterErrorDialog = MutableStateFlow(false)
-    val showPrinterErrorDialog: StateFlow<Boolean> = _showPrinterErrorDialog.asStateFlow()
-
-    private val _printerErrorMessage = MutableStateFlow("")
-    val printerErrorMessage: StateFlow<String> = _printerErrorMessage.asStateFlow()
+    private val readDataPrinting = ReadDataPrinting(viewModelScope) { appendLog(it) }
 
     // DLMS Initializer handles all Bluetooth/service setup
     private val dlmsInit = DLMSInit { appendLog(it) }
@@ -106,177 +64,32 @@ class DLMSViewModel : ViewModel() {
     private val _currentMeter = MutableStateFlow<Meter?>(null)
     val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
 
-    /**
-     * Set printer view model reference
-     */
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
-        this.printerViewModel = viewModel
+        readDataPrinting.setPrinterViewModel(viewModel)
     }
 
-    /**
-     * Print receipt with billing data
-     * UPDATED: Now uses PrinterStatusHelper for universal printer checking
-     */
-    fun printReceipt(billing: Billing, rates: FloatArray? = null) {
-        viewModelScope.launch {
-            try {
-                val printer = printerViewModel
-                if (printer == null) {
-                    appendLog("ERROR: Printer not configured")
-                    return@launch
-                }
+    // State flow delegations - expose to UI
+    val showPrintDialog: StateFlow<Boolean> get() = readDataPrinting.showPrintDialog
+    val showSaveDialog: StateFlow<Boolean> get() = readDataPrinting.showSaveDialog
+    val showPrinterErrorDialog: StateFlow<Boolean> get() = readDataPrinting.showPrinterErrorDialog
+    val printerErrorMessage: StateFlow<String> get() = readDataPrinting.printerErrorMessage
+    val pendingBillingData: StateFlow<Billing?> get() = readDataPrinting.pendingBillingData
 
-                appendLog("Checking printer status...")
+    fun confirmPrint() = readDataPrinting.confirmPrint()
+    fun retryPrint() = readDataPrinting.retryPrint()
+    fun cancelPrintFromError() = readDataPrinting.cancelPrintFromError()
+    fun skipPrint() = readDataPrinting.skipPrint()
+    fun printReceipt(billing: Billing, rates: FloatArray? = null) =
+        readDataPrinting.printReceipt(billing, rates)
 
-                // Use PrinterStatusHelper for comprehensive status checking
-                PrinterStatusHelper.checkPrinterReadyAndExecute(
-                    printerViewModel = printer,
-                    onNotConnected = {
-                        appendLog("ERROR: Printer not connected")
-                    },
-                    onNotReady = { reason ->
-                        appendLog("ERROR: Printer not ready - $reason")
-                    },
-                    onReady = {
-                        // Printer is ready, proceed with printing
-                        appendLog("Printer ready, preparing receipt...")
-
-                        // Calculate billing if rates provided
-                        if (rates != null) {
-                            calculateBillingData(billing, rates)
-                        }
-
-                        // Create receipt data
-                        val receiptData = createReceiptDataFromBilling(billing)
-
-                        // Send to printer
-                        appendLog("Sending receipt to printer...")
-                        sendReceiptToPrinter(receiptData, printer)
-
-                        appendLog("✅ Receipt sent to printer successfully")
-                    }
-                )
-            } catch (e: Exception) {
-                appendLog("ERROR: Failed to print receipt - ${e.message}")
-                Log.e(TAG, "Print receipt error", e)
-            }
-        }
+    fun skipSave() {
+        readDataPrinting.clearPendingBillingData()  // Use delegation
+        readDataPrinting.dismissSaveDialog()         // Use delegation
     }
 
-    /**
-     * NEW: Print pending receipt (from read data)
-     * Called when user confirms print dialog
-     * UPDATED: Now uses PrinterStatusHelper
-     */
-    fun printPendingReceipt() {
-        val billing = _pendingBillingData.value
-        if (billing != null) {
-            val savedData = _savedBillingData.value
-            val rates = savedData?.rates
-            printReceipt(billing, rates)
-        } else {
-            appendLog("No pending billing data to print")
-        }
-    }
-
-    /**
-     * NEW: Confirm print - checks printer then prints receipt and shows save dialog next
-     * UPDATED: Now checks printer status before printing
-     */
-    fun confirmPrint() {
-        viewModelScope.launch {
-            val printer = printerViewModel
-            if (printer == null) {
-                appendLog("ERROR: Printer not configured")
-                skipPrint() // Skip to save dialog if no printer
-                return@launch
-            }
-
-            // Check printer status before attempting to print
-            PrinterStatusHelper.checkPrinterReadyAndExecute(
-                printerViewModel = printer,
-                onNotConnected = {
-                    appendLog("ERROR: Printer not connected - skipping print")
-                    skipPrint() // Skip to save dialog
-                },
-                onNotReady = { reason ->
-                    appendLog("ERROR: Printer not ready - $reason")
-                    skipPrint() // Skip to save dialog
-                },
-                onReady = {
-                    // Printer ready, print the receipt
-                    printPendingReceipt()
-                    dismissPrintDialog()
-                    // Show save dialog after print
-                    _showSaveDialog.value = true
-                }
-            )
-        }
-    }
-
-    /**
-     * NEW: Retry print from error dialog
-     * Re-checks status and attempts print again
-     */
-    fun retryPrint() {
-        _showPrinterErrorDialog.value = false
-        confirmPrint() // Try again
-    }
-
-    /**
-     * NEW: Cancel print from error dialog
-     * Closes error dialog and goes to save dialog
-     */
-    fun cancelPrintFromError() {
-        _showPrinterErrorDialog.value = false
-        dismissPrintDialog()
-        _showSaveDialog.value = true
-    }
-
-    /**
-     * NEW: Show print dialog after read data completes
-     */
-    private fun showPrintDialog() {
-        _showPrintDialog.value = true
-    }
-
-    /**
-     * NEW: Hide print dialog
-     */
-    fun dismissPrintDialog() {
-        _showPrintDialog.value = false
-    }
-
-    /**
-     * NEW: Skip print - goes directly to save dialog
-     */
-    fun skipPrint() {
-        dismissPrintDialog()
-        // Show save dialog
-        _showSaveDialog.value = true
-    }
-
-    /**
-     * NEW: Dismiss save dialog
-     */
-    fun dismissSaveDialog() {
-        _showSaveDialog.value = false
-    }
-
-    /**
-     * NEW: Confirm save - saves to JSON and clears pending data
-     */
     fun confirmSave() {
         saveReadDataToJSON()
-        dismissSaveDialog()
-    }
-
-    /**
-     * NEW: Skip save - clears pending data without saving
-     */
-    fun skipSave() {
-        clearPendingBillingData()
-        dismissSaveDialog()
+        readDataPrinting.dismissSaveDialog()  // Use delegation
     }
 
     /**
@@ -677,16 +490,17 @@ class DLMSViewModel : ViewModel() {
                     // Save billing data for 30 days (replaces pending data approach)
                     persistBillingData(billing, rates)
 
-                    // Also set as pending to show immediate dialog
-                    _pendingBillingData.value = billing
-
                     // Save current as previous for next time
                     savePreviousReading(meter.serialNumber, billing)
 
                     appendLog("✅ Read Data Complete - Data saved for 30 days")
 
+                    readDataPrinting.setPendingBillingData(billing)
+                    readDataPrinting.setSavedRates(rates)
+                    readDataPrinting.showPrintDialog()
+                    readDataPrinting.showSaveDialog()
+
                     // NEW: Show print dialog first
-                    showPrintDialog()
                 } else {
                     appendLog("No previous reading available - saving current as baseline")
                     val baseline = Billing().apply {
@@ -741,8 +555,8 @@ class DLMSViewModel : ViewModel() {
      * Save pending billing data to JSON (for immediate dialog)
      * Called after user confirms via dialog
      */
-    fun saveReadDataToJSON() {
-        val billing = _pendingBillingData.value
+    private fun saveReadDataToJSON() {
+        val billing = readDataPrinting.pendingBillingData.value
         if (billing != null) {
             viewModelScope.launch {
                 appendLog("Saving billing data to JSON...")
@@ -759,7 +573,7 @@ class DLMSViewModel : ViewModel() {
                 }
 
                 // Clear pending data after save
-                _pendingBillingData.value = null
+                clearPendingBillingData()
             }
         } else {
             appendLog("No pending billing data to save")
@@ -769,8 +583,8 @@ class DLMSViewModel : ViewModel() {
     /**
      * Clear pending billing data without saving (for dialog dismiss)
      */
-    fun clearPendingBillingData() {
-        _pendingBillingData.value = null
+    private fun clearPendingBillingData() {
+        readDataPrinting.clearPendingBillingData()
     }
 
     /**
@@ -798,18 +612,6 @@ class DLMSViewModel : ViewModel() {
         prefs?.edit()?.putString("prev_${serialNumber}", json)?.apply()
     }
 
-    /**
-     * loadProfile - Retrieves load profile data from meter and saves to CSV
-     *
-     * Flow:
-     * 1. Connect to meter via Bluetooth
-     * 2. Establish DLMS session
-     * 3. Retrieve load profile data (IST_LOAD_PROFILE, attribute 2)
-     * 4. Save to CSV file: SerialID_LP_timestamp.csv
-     */
-    /**
-     * Load Profile - Retrieves ALL load profile data using block transfer
-     */
     /**
      * Load Profile - Retrieves ALL load profile data using block transfer
      */
