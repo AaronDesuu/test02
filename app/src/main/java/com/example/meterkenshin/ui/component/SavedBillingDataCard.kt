@@ -78,7 +78,6 @@ fun SavedBillingDataCard(
                     modifier = Modifier.padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    BillingInfoRow("Serial Number", billing.SerialNumber ?: "N/A")
                     BillingInfoRow("Period", billing.Period ?: "N/A")
                     BillingInfoRow("Reading Date", billing.PeriodTo ?: "N/A")
                     BillingInfoRow(

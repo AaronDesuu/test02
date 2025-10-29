@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -44,9 +43,6 @@ fun MeterSpecificationsCard(
 ) {
     // Get the appropriate specifications for this meter
     val specs = MeterSpecifications.getSpecificationForMeter(meter.type.name)
-
-    // Date formatter for last reading
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -89,40 +85,6 @@ fun MeterSpecificationsCard(
                 label = "Bluetooth ID",
                 value = meter.bluetoothId ?: "-"
             )
-
-            // Enhanced data from CSV
-            if (meter.impKWh != null || meter.expKWh != null ||
-                meter.impMaxDemandKW != null || meter.expMaxDemandKW != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Energy Readings",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
-
-                SpecificationRow(
-                    label = "Import Energy (kWh)",
-                    value = meter.impKWh?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Export Energy (kWh)",
-                    value = meter.expKWh?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Import Max Demand (kW)",
-                    value = meter.impMaxDemandKW?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Export Max Demand (kW)",
-                    value = meter.expMaxDemandKW?.let { String.format("%.2f", it) } ?: "-"
-                )
-                SpecificationRow(
-                    label = "Last Reading Date",
-                    value = meter.readDate?.let { dateFormat.format(it) } ?: "-"
-                )
-            }
             SpecificationRow(
                 label = "Phase Wire",
                 value = specs.phaseWire
