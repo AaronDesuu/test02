@@ -10,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.FileUploadState
 import com.example.meterkenshin.model.RequiredFile
-import com.example.meterkenshin.util.getCurrentYearMonth
+import com.example.meterkenshin.utils.getCurrentYearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

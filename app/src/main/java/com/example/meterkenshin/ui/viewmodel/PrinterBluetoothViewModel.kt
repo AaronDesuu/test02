@@ -352,6 +352,65 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
             }
         }
     }
+    /**
+     * Request immediate printer status check (for on-demand checking before print)
+     * PUBLIC method that can be called from UI
+     * Returns true if request was sent successfully
+     */
+    fun checkPrinterStatusNow(): Boolean {
+        if (_connectionState.value != BluetoothPrinterManager.ConnectionState.CONNECTED) {
+            Log.w(TAG, "Cannot check status: Printer not connected")
+            return false
+        }
+
+        Log.d(TAG, "Requesting immediate printer status check")
+
+        // Increment statusWaiting counter so parseStatusResponse will process the response
+        statusWaiting++
+
+        // Send query command to printer
+        sendDataToPrinter(WoosimCmd.queryStatus())
+
+        Log.d(TAG, "Status query sent, waiting=$statusWaiting")
+        return true
+    }
+
+    /**
+     * Get current printer status summary
+     * Returns a Pair of (isReady: Boolean, errorMessage: String?)
+     * - isReady = true means printer is ready to print (paper OK, cover closed)
+     * - errorMessage = specific error message if not ready, null if ready
+     */
+    fun getPrinterStatusSummary(): Pair<Boolean, String?> {
+        return when {
+            _connectionState.value != BluetoothPrinterManager.ConnectionState.CONNECTED -> {
+                Pair(false, "Printer not connected")
+            }
+            _paperStatus.value == PaperStatus.OUT -> {
+                Pair(false, "Paper out - Please load paper")
+            }
+            _coverStatus.value == CoverStatus.OPEN -> {
+                Pair(false, "Cover open - Please close cover")
+            }
+            _paperStatus.value == PaperStatus.UNKNOWN || _coverStatus.value == CoverStatus.UNKNOWN -> {
+                // If status is unknown, we'll allow printing but warn the user
+                Pair(true, null)
+            }
+            else -> {
+                // Paper OK, Cover Closed - all good!
+                Pair(true, null)
+            }
+        }
+    }
+
+    /**
+     * Reset status to UNKNOWN (useful before checking)
+     */
+    fun resetStatus() {
+        _paperStatus.value = PaperStatus.UNKNOWN
+        _coverStatus.value = CoverStatus.UNKNOWN
+        Log.d(TAG, "Status reset to UNKNOWN")
+    }
 
     override fun onCleared() {
         super.onCleared()

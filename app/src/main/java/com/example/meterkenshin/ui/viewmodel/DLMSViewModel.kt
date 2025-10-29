@@ -25,7 +25,7 @@ import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
-import com.example.meterkenshin.util.calculateBillingData
+import com.example.meterkenshin.utils.calculateBillingData
 import com.example.meterkenshin.ui.component.printReceipt as sendReceiptToPrinter
 
 data class RegistrationState(
@@ -84,6 +84,12 @@ class DLMSViewModel : ViewModel() {
     private val _showSaveDialog = MutableStateFlow(false)
     val showSaveDialog: StateFlow<Boolean> = _showSaveDialog.asStateFlow()
 
+    private val _showPrinterErrorDialog = MutableStateFlow(false)
+    val showPrinterErrorDialog: StateFlow<Boolean> = _showPrinterErrorDialog.asStateFlow()
+
+    private val _printerErrorMessage = MutableStateFlow("")
+    val printerErrorMessage: StateFlow<String> = _printerErrorMessage.asStateFlow()
+
     // DLMS Initializer handles all Bluetooth/service setup
     private val dlmsInit = DLMSInit { appendLog(it) }
     private lateinit var sessionManager: DLMSSessionManager
@@ -104,6 +110,50 @@ class DLMSViewModel : ViewModel() {
      */
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         this.printerViewModel = viewModel
+    }
+
+
+    /**
+     * NEW: Confirm print - checks printer status first, then prints receipt
+     * Shows error dialog if printer has issues
+     */
+    fun confirmPrint() {
+        viewModelScope.launch {
+            val printer = printerViewModel
+            if (printer == null) {
+                appendLog("ERROR: Printer not configured")
+                dismissPrintDialog()
+                _showSaveDialog.value = true
+                return@launch
+            }
+
+            // Check printer status before printing
+            appendLog("Checking printer status...")
+
+            // Request fresh status
+            val statusRequested = printer.checkPrinterStatusNow()
+            if (statusRequested) {
+                delay(500) // Wait for status response
+            }
+
+            // Verify printer status
+            val (isReady, errorMessage) = printer.getPrinterStatusSummary()
+
+            if (!isReady && errorMessage != null) {
+                // Printer has an issue - show error dialog
+                appendLog("⚠️ Printer error: $errorMessage")
+                _printerErrorMessage.value = errorMessage
+                _showPrinterErrorDialog.value = true
+                return@launch
+            }
+
+            // Printer is ready - proceed with printing
+            appendLog("✓ Printer status OK")
+            printPendingReceipt()
+            dismissPrintDialog()
+            // Show save dialog after print
+            _showSaveDialog.value = true
+        }
     }
 
     /**
@@ -157,6 +207,25 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
+     * NEW: Retry print from error dialog
+     * Re-checks status and attempts print again
+     */
+    fun retryPrint() {
+        _showPrinterErrorDialog.value = false
+        confirmPrint() // Try again
+    }
+
+    /**
+     * NEW: Cancel print from error dialog
+     * Closes error dialog and goes to save dialog
+     */
+    fun cancelPrintFromError() {
+        _showPrinterErrorDialog.value = false
+        dismissPrintDialog()
+        _showSaveDialog.value = true
+    }
+
+    /**
      * NEW: Show print dialog after read data completes
      */
     private fun showPrintDialog() {
@@ -171,27 +240,11 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
-     * NEW: Confirm print - prints receipt and shows save dialog next
-     */
-    fun confirmPrint() {
-        printPendingReceipt()
-        dismissPrintDialog()
-        // Show save dialog after print
-        _showSaveDialog.value = true
-    }
-
-    /**
      * NEW: Skip print - goes directly to save dialog
      */
     fun skipPrint() {
         dismissPrintDialog()
         // Show save dialog
-        _showSaveDialog.value = true
-    }
-    /**
-     * NEW: Show save dialog
-     */
-    fun showSaveDialog() {
         _showSaveDialog.value = true
     }
 

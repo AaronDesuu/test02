@@ -32,13 +32,14 @@ import com.example.meterkenshin.ui.component.DLMSLogCard
 import com.example.meterkenshin.ui.component.MeterSpecificationsCard
 import com.example.meterkenshin.ui.component.MeterStatusCard
 import com.example.meterkenshin.ui.component.PrintReceiptDialog
+import com.example.meterkenshin.ui.component.PrinterStatusErrorDialog
 import com.example.meterkenshin.ui.component.SaveJSONDialog
 import com.example.meterkenshin.ui.component.SavedBillingDataCard
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
-import com.example.meterkenshin.util.loadMeterRates
+import com.example.meterkenshin.utils.loadMeterRates
 
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
@@ -57,6 +58,16 @@ fun MeterDetailScreen(
 
     // Track DLMS initialization state
     var isDlmsInitialized by remember { mutableStateOf(false) }
+
+    // Collect printer states for error dialog
+    val bluetoothConnectionState by printerViewModel.connectionState.collectAsState()
+    val isBluetoothEnabled by printerViewModel.isBluetoothEnabled.collectAsState()
+    val paperStatus by printerViewModel.paperStatus.collectAsState()
+    val coverStatus by printerViewModel.coverStatus.collectAsState()
+
+    // Collect printer error dialog state
+    val showPrinterErrorDialog by registrationViewModel.showPrinterErrorDialog.collectAsState()
+    val printerErrorMessage by registrationViewModel.printerErrorMessage.collectAsState()
 
     // Track dialog state
     var showSaveJSONDialog by remember { mutableStateOf(false) }
@@ -204,6 +215,9 @@ fun MeterDetailScreen(
                     SavedBillingDataCard(
                         billing = saved.billing,
                         daysRemaining = saved.daysRemaining(),
+                        bluetoothConnectionState = bluetoothConnectionState,
+                        printerViewModel = printerViewModel,
+                        isBluetoothEnabled = isBluetoothEnabled,
                         onPrintReceipt = {
                             // NEW: Print receipt from saved data
                             registrationViewModel.printReceipt(saved.billing, saved.rates)
@@ -225,12 +239,12 @@ fun MeterDetailScreen(
             Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
 
-        // NEW: Print Receipt Dialog - Shows FIRST after read data completes
+        // Print Receipt Dialog - Shows FIRST after read data completes
         if (showPrintDialog && pendingBillingData != null) {
             PrintReceiptDialog(
                 serialNumber = pendingBillingData?.SerialNumber,
                 onConfirmPrint = {
-                    // Print and move to save dialog
+                    // Check printer status and print
                     registrationViewModel.confirmPrint()
                 },
                 onSkipPrint = {
@@ -240,7 +254,24 @@ fun MeterDetailScreen(
             )
         }
 
-        // NEW: Save JSON Dialog - Shows SECOND after print dialog
+        // NEW: Printer Status Error Dialog - Shows if printer has issues
+        if (showPrinterErrorDialog) {
+            PrinterStatusErrorDialog(
+                errorMessage = printerErrorMessage,
+                paperStatus = paperStatus,
+                coverStatus = coverStatus,
+                onRetry = {
+                    // Retry printing
+                    registrationViewModel.retryPrint()
+                },
+                onCancel = {
+                    // Cancel and go to save dialog
+                    registrationViewModel.cancelPrintFromError()
+                }
+            )
+        }
+
+        // Save JSON Dialog - Shows SECOND after print dialog
         if (showSaveDialog && pendingBillingData != null) {
             SaveJSONDialog(
                 onConfirm = {

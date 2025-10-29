@@ -87,7 +87,7 @@ object DLMSJSONWriter {
                 }
 
                 // Calculate billing charges (populates remaining fields)
-                com.example.meterkenshin.util.calculateBillingData(billing, rates)
+                com.example.meterkenshin.utils.calculateBillingData(billing, rates)
 
                 billingDataList.add(billing)
             }

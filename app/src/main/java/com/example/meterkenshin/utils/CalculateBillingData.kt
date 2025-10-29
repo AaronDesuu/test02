@@ -1,4 +1,4 @@
-package com.example.meterkenshin.util
+package com.example.meterkenshin.utils
 
 import com.example.meterkenshin.model.Billing
 

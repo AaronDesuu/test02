@@ -5,7 +5,7 @@ import android.content.Context
 import android.util.Log
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.BillingRecord
-import com.example.meterkenshin.util.calculateBillingData
+import com.example.meterkenshin.utils.calculateBillingData
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

@@ -19,9 +19,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.data.getDefaultRates
-import com.example.meterkenshin.util.calculateBillingData
-import com.example.meterkenshin.util.getCurrentDate
-import com.example.meterkenshin.util.getCurrentDateTime
+import com.example.meterkenshin.utils.calculateBillingData
+import com.example.meterkenshin.utils.getCurrentDate
+import com.example.meterkenshin.utils.getCurrentDateTime
 
 @SuppressLint("DefaultLocale")
 @Composable

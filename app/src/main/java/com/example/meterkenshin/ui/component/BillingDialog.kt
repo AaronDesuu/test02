@@ -34,9 +34,6 @@ fun PrintReceiptDialog(
                 tint = Color(0xFF1976D2)
             )
         },
-        title = {
-            Text("Print Receipt")
-        },
         text = {
             Text("Serial Number: ${serialNumber ?: "Unknown"}\n\nWould you like to print the receipt?")
         },
@@ -67,7 +64,7 @@ fun SaveJSONDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = "Save Billing Data",
+                text = "Save Data as .JSON",
                 fontWeight = FontWeight.Bold
             )
         },

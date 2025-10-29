@@ -56,9 +56,9 @@ import com.example.meterkenshin.ui.component.createSampleReceiptData
 import com.example.meterkenshin.ui.component.printReceipt
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
-import com.example.meterkenshin.util.RateDataDialog
-import com.example.meterkenshin.util.calculateBillingData
-import com.example.meterkenshin.util.loadRates
+import com.example.meterkenshin.utils.RateDataDialog
+import com.example.meterkenshin.utils.calculateBillingData
+import com.example.meterkenshin.utils.loadRates
 
 @Composable
 fun ReceiptScreen(

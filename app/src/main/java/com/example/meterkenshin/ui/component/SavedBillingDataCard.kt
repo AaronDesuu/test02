@@ -1,34 +1,101 @@
 package com.example.meterkenshin.ui.component
 
 import android.annotation.SuppressLint
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.model.Billing
+import com.example.meterkenshin.printer.BluetoothPrinterManager
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.utils.PrinterStatusHelper
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * SavedBillingDataCard - Shows saved billing data with options to print, export JSON, or clear
  * Displays data that's available for up to 30 days after readData
+ *
+ * UPDATED: Now uses PrinterStatusHelper for universal printer status checking
+ * INCLUDES:
+ * - Printer connectivity check before printing
+ * - Paper and cover status check on button click
+ * - Alert dialog with real-time status for printer errors
+ * - 5-second button disable after print to prevent double printing
  */
 @SuppressLint("DefaultLocale")
 @Composable
 fun SavedBillingDataCard(
     billing: Billing?,
     daysRemaining: Int,
-    onPrintReceipt: () -> Unit,  // NEW: Print receipt callback
+    printerViewModel: PrinterBluetoothViewModel,
+    bluetoothConnectionState: BluetoothPrinterManager.ConnectionState?,
+    isBluetoothEnabled: Boolean,
+    onPrintReceipt: () -> Unit,
     onSaveJSON: () -> Unit,
     onClearData: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (billing == null) return
+
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    // Track print button state - disable for 5 seconds after print
+    var isPrintButtonEnabled by remember { mutableStateOf(true) }
+
+    // Track error dialog state
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    // Collect real-time printer status for dialog
+    val paperStatus by printerViewModel.paperStatus.collectAsState()
+    val coverStatus by printerViewModel.coverStatus.collectAsState()
+
+    // Check if printer is ready using helper
+    val isPrinterReady = PrinterStatusHelper.isPrinterConnected(printerViewModel)
+    val canPrint = isPrinterReady && isBluetoothEnabled && isPrintButtonEnabled
+
+    // Function to attempt printing using PrinterStatusHelper
+    fun attemptPrint() {
+        coroutineScope.launch {
+            PrinterStatusHelper.checkPrinterReadyAndExecute(
+                printerViewModel = printerViewModel,
+                onNotConnected = {
+                    errorMessage = "Printer is not connected. Please connect to printer."
+                    showErrorDialog = true
+                },
+                onNotReady = { reason ->
+                    errorMessage = reason
+                    showErrorDialog = true
+                },
+                onReady = {
+                    // All checks passed - proceed with printing
+                    onPrintReceipt()
+
+                    Toast.makeText(
+                        context,
+                        "✅ Printing receipt...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    // Disable button for 5 seconds to prevent double printing
+                    isPrintButtonEnabled = false
+                    delay(5000)
+                    isPrintButtonEnabled = true
+                }
+            )
+        }
+    }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -81,6 +148,7 @@ fun SavedBillingDataCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     BillingInfoRow("Period", billing.Period ?: "N/A")
+                    BillingInfoRow("Serial Number", billing.SerialNumber ?: "N/A")
                     BillingInfoRow("Reading Date", billing.PeriodTo ?: "N/A")
                     BillingInfoRow(
                         "Total Use",
@@ -95,17 +163,20 @@ fun SavedBillingDataCard(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action buttons - NOW WITH 3 BUTTONS
+            // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Print Receipt button (NEW - on the left)
+                // Print Receipt button
                 Button(
-                    onClick = onPrintReceipt,
+                    onClick = { attemptPrint() },
+                    enabled = canPrint,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1976D2)
+                        containerColor = if (canPrint) Color(0xFF1976D2)
+                        else Color(0xFFCCCCCC),
+                        contentColor = Color.White
                     )
                 ) {
                     Icon(
@@ -114,10 +185,18 @@ fun SavedBillingDataCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(1.dp))
-                    Text("Print")
+                    Text(
+                        text = when {
+                            !isBluetoothEnabled -> "BT Off"
+                            !isPrinterReady -> "Offline"
+                            !isPrintButtonEnabled -> "..."
+                            else -> "Print"
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
                 }
 
-                // Export JSON button (in the middle)
+                // Export JSON button
                 Button(
                     onClick = onSaveJSON,
                     modifier = Modifier.weight(1f),
@@ -134,7 +213,7 @@ fun SavedBillingDataCard(
                     Text("Export")
                 }
 
-                // Clear data button (on the right)
+                // Clear data button
                 OutlinedButton(
                     onClick = onClearData,
                     colors = ButtonDefaults.outlinedButtonColors(
@@ -150,29 +229,24 @@ fun SavedBillingDataCard(
                     Text("Clear")
                 }
             }
-
-            // Warning if expiring soon
-            if (daysRemaining < 7) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "This data will expire soon. Export to JSON if needed.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
         }
+    }
+
+    // Show error dialog when there's a printer issue
+    if (showErrorDialog) {
+        PrinterStatusErrorDialog(
+            errorMessage = errorMessage,
+            paperStatus = paperStatus,
+            coverStatus = coverStatus,
+            onRetry = {
+                showErrorDialog = false
+                // Retry printing
+                attemptPrint()
+            },
+            onCancel = {
+                showErrorDialog = false
+            }
+        )
     }
 }
 
@@ -190,8 +264,7 @@ private fun BillingInfoRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
+            fontWeight = FontWeight.Medium
         )
     }
 }
