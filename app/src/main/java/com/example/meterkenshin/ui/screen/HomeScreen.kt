@@ -23,7 +23,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,7 +56,6 @@ import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.component.HomeMeterList
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     sessionManager: SessionManager,
@@ -98,7 +96,7 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        // Wire the viewmodels together
+        // Wire the viewmodel together
         meterReadingViewModel.setPrinterViewModel(printerBluetoothViewModel)
     }
 

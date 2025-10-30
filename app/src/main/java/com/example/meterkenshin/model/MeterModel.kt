@@ -22,6 +22,7 @@ data class Meter(
     val type: MeterType,
     val installationDate: Date?,
     val bluetoothId: String? = null,
+    val billingPrintDate: Date? = null,
 
     // DLMS credentials (add these)
     val account: String = "Admin",
@@ -37,7 +38,6 @@ enum class MeterType(val displayName: String) {
 enum class MeterStatus() {  // Currently used in MeterTestViewmodel
     ACTIVE(),
     OFFLINE(),
-    MAINTENANCE(),
     ERROR()
 }
 

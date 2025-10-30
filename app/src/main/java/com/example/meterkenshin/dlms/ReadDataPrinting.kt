@@ -1,6 +1,5 @@
 package com.example.meterkenshin.dlms
 
-import android.util.Log
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
 import com.example.meterkenshin.ui.component.printReceipt as sendReceiptToPrinter
@@ -21,9 +20,6 @@ class ReadDataPrinting(
     private val viewModelScope: CoroutineScope,
     private val appendLog: (String) -> Unit
 ) {
-    companion object {
-        private const val TAG = "ReadDataPrinting"
-    }
 
     // State flows for print dialogs
     private val _showPrintDialog = MutableStateFlow(false)
@@ -42,7 +38,15 @@ class ReadDataPrinting(
     val pendingBillingData: StateFlow<Billing?> = _pendingBillingData.asStateFlow()
 
     private var printerViewModel: PrinterBluetoothViewModel? = null
+    private var onPrintSuccess: ((serialNumber: String) -> Unit)? = null
     private var savedRates: FloatArray? = null
+
+    /**
+     * Set callback for successful print (called by DLMSViewModel)
+     */
+    fun setOnPrintSuccessCallback(callback: (String) -> Unit) {
+        this.onPrintSuccess = callback
+    }
 
     /**
      * Set printer view model reference
@@ -66,10 +70,10 @@ class ReadDataPrinting(
     }
 
     /**
-     * Print receipt with billing data
-     * Uses PrinterStatusHelper for universal printer checking
+     * Update printReceipt to trigger callback after successful print
      */
-    fun printReceipt(billing: Billing, rates: FloatArray? = null) {
+    fun printReceipt(billing: Billing, rates: FloatArray? = null): Boolean {
+        var printSuccess = false
         viewModelScope.launch {
             try {
                 val printer = printerViewModel
@@ -78,48 +82,41 @@ class ReadDataPrinting(
                     return@launch
                 }
 
-                appendLog("Checking printer status...")
-
-                // Use PrinterStatusHelper for comprehensive status checking
                 PrinterStatusHelper.checkPrinterReadyAndExecute(
                     printerViewModel = printer,
-                    onNotConnected = {
-                        appendLog("ERROR: Printer not connected")
-                    },
-                    onNotReady = { reason ->
-                        appendLog("ERROR: Printer not ready - $reason")
-                    },
+                    onNotConnected = { appendLog("ERROR: Printer not connected") },
+                    onNotReady = { reason -> appendLog("ERROR: Printer not ready - $reason") },
                     onReady = {
-                        // Printer is ready, proceed with printing
                         appendLog("Printer ready, preparing receipt...")
 
-                        // Calculate billing if rates provided
                         if (rates != null) {
                             calculateBillingData(billing, rates)
                         }
 
-                        // Create receipt data
                         val receiptData = createReceiptDataFromBilling(billing)
-
-                        // Send to printer
-                        appendLog("Sending receipt to printer...")
                         sendReceiptToPrinter(receiptData, printer)
 
                         appendLog("✅ Receipt sent to printer successfully")
+                        printSuccess = true
+
+                        // NEW: Trigger callback to update meter CSV
+                        billing.SerialNumber?.let { serialNo ->
+                            onPrintSuccess?.invoke(serialNo)
+                        }
                     }
                 )
             } catch (e: Exception) {
                 appendLog("ERROR: Failed to print receipt - ${e.message}")
-                Log.e(TAG, "Print receipt error", e)
             }
         }
+        return printSuccess
     }
 
     /**
      * Print pending receipt (from read data)
      * Called when user confirms print dialog
      */
-    fun printPendingReceipt() {
+    private fun printPendingReceipt() {
         val billing = _pendingBillingData.value
         if (billing != null) {
             val rates = savedRates
@@ -193,7 +190,7 @@ class ReadDataPrinting(
     /**
      * Hide print dialog
      */
-    fun dismissPrintDialog() {
+    private fun dismissPrintDialog() {
         _showPrintDialog.value = false
     }
 
@@ -212,14 +209,6 @@ class ReadDataPrinting(
     fun dismissSaveDialog() {
         _showSaveDialog.value = false
     }
-
-    /**
-     * Show save dialog
-     */
-    fun showSaveDialog() {
-        _showSaveDialog.value = true
-    }
-
     /**
      * Clear pending billing data
      */

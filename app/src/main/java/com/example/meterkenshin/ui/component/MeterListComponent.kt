@@ -203,10 +203,10 @@ fun MeterListComponent(
                         // Print Actions Dropdown
                         PrintActionsDropdown(
                             onBatchReading = {
-                                // TODO: Implement batch reading functionality
+
                             },
                             onBatchPrinting = {
-                                // TODO: Implement batch printing functionality
+
                             },
                             onSelectAndPrint = {
                                 // TODO: Implement select and print functionality
@@ -254,7 +254,7 @@ fun MeterListComponent(
                                 onClick = { onMeterClick(meter) },
                                 modifier = Modifier.fillMaxWidth(),
                                 isNearby = isNearby,
-                                inspectionStatus = getInspectionStatus(meter, isNearby),
+                                inspectionStatus = getInspectionStatus(meter),
                                 signalStrength = signalStrength
                             )
                         }
@@ -288,7 +288,7 @@ fun MeterListComponent(
                                 onClick = { onMeterClick(meter) },
                                 modifier = Modifier.fillMaxWidth(),
                                 isNearby = isNearby,
-                                inspectionStatus = getInspectionStatus(meter, isNearby),
+                                inspectionStatus = getInspectionStatus(meter),
                                 signalStrength = signalStrength
                             )
                         }

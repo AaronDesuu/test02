@@ -108,7 +108,6 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     // Modified callback - only captures first RSSI per cycle
-    @Suppress("DEPRECATION")
     private val mLeScanCallback = BluetoothAdapter.LeScanCallback { device, rssi, _ ->
         val knownMacAddresses = _uiState.value.allMeters
             .mapNotNull { it.bluetoothId?.uppercase() }
@@ -486,8 +485,7 @@ class MeterReadingViewModel : ViewModel() {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             try {
-                val result = loadMeterDataFromFile(context, fileName)
-                when (result) {
+                when (val result = loadMeterDataFromFile(context, fileName)) {
                     is MeterLoadResult.Success -> {
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
@@ -517,6 +515,20 @@ class MeterReadingViewModel : ViewModel() {
                 Log.e(TAG, "Exception loading meters", e)
             }
         }
+    }
+
+    fun reloadMeters(context: Context) {
+        val currentYearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
+        val currentMeterFile = "${currentYearMonth}_meter.csv"
+        val fallbackFile = "meter.csv"
+
+        val fileToLoad = if (File(context.getExternalFilesDir(null), "app_files/$currentMeterFile").exists()) {
+            currentMeterFile
+        } else {
+            fallbackFile
+        }
+
+        loadMeters(context, fileToLoad)
     }
 
     private fun applySorting() {
@@ -553,8 +565,6 @@ class MeterReadingViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(filteredMeters = filteredMeters)
     }
 
-    // ... rest of private helper methods ...
-
     private fun loadMeterDataFromFile(context: Context, fileName: String): MeterLoadResult {
         return try {
             val externalFilesDir = context.getExternalFilesDir(null)
@@ -564,6 +574,9 @@ class MeterReadingViewModel : ViewModel() {
             if (!meterFile.exists()) {
                 return MeterLoadResult.Error("Meter file not found")
             }
+
+            // First, check if CSV needs billingPrintDate column and add it if missing
+            ensureBillingPrintDateColumn(meterFile)
 
             val meters = mutableListOf<Meter>()
             val reader = BufferedReader(FileReader(meterFile))
@@ -596,13 +609,13 @@ class MeterReadingViewModel : ViewModel() {
                                 minVoltV = columns[9].toDoubleOrNull(),
                                 alert = columns[10].toDoubleOrNull(),
                                 readDate = parseDate(columns[11]),
+                                billingPrintDate = if (columns.size >= 13) parseDate(columns[12]) else null,
 
                                 location = "Location $lineNumber",
                                 type = MeterType.Type01,
                                 status = if (columns[1].toIntOrNull() == 1) MeterStatus.ACTIVE else MeterStatus.OFFLINE,
-
                                 installationDate = null,
-                                )
+                            )
                             meters.add(meter)
                         }
                     } catch (e: Exception) {
@@ -671,6 +684,40 @@ class MeterReadingViewModel : ViewModel() {
     fun resumeScanning() {
         startPeriodicScanning()
         Log.i(TAG, "BLE scanning resumed")
+    }
+
+    /**
+     * Ensure the CSV file has billingPrintDate column (column 13)
+     * If not present, add it to the header and all rows with empty values
+     */
+    private fun ensureBillingPrintDateColumn(file: File) {
+        try {
+            val lines = file.readLines().toMutableList()
+            if (lines.isEmpty()) return
+
+            // Check header (first line)
+            val headerColumns = lines[0].split(',')
+
+            // If header already has 13+ columns, assume billingPrintDate exists
+            if (headerColumns.size >= 13) return
+
+            Log.d(TAG, "Adding billingPrintDate column to CSV (column was missing)")
+
+            // Add billingPrintDate to header
+            lines[0] = lines[0] + ",billingPrintDate"
+
+            // Add empty billingPrintDate to all data rows
+            for (i in 1 until lines.size) {
+                lines[i] = lines[i] + ","
+            }
+
+            // Write back to file
+            file.writeText(lines.joinToString("\n"))
+            Log.d(TAG, "Successfully added billingPrintDate column to meter CSV")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adding billingPrintDate column: ${e.message}", e)
+        }
     }
 
     override fun onCleared() {

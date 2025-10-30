@@ -39,7 +39,6 @@ fun MeterReadingScreen(
             modifier = Modifier.fillMaxSize(),
             customHeader = null,    // No custom header needed for full screen
             customEmptyState = null, // Use default empty states
-            dlmsMaxDemandProvider = null // DLMS data provider (will be implemented later)
         )
     }
 }

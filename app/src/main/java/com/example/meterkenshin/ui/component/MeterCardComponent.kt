@@ -49,7 +49,7 @@ fun ModernMeterCard(
     showChevron: Boolean = true,
     customContent: (@Composable () -> Unit)? = null,
     isNearby: Boolean = false,
-    inspectionStatus: InspectionStatus = getInspectionStatus(meter, isNearby),
+    inspectionStatus: InspectionStatus = getInspectionStatus(meter),
     signalStrength: Int? = null,
 ) {
     // Check if meter is not registered (activate = 0)
@@ -314,26 +314,32 @@ enum class ConnectionStatus(
  * Uses the meter's properties to determine the actual inspection and billing status
  */
 @Composable
-fun getInspectionStatus(meter: Meter, isNearby: Boolean): InspectionStatus {
-    // Use meter data to determine inspection status
-    return when {
-        meter.readDate == null && (meter.impKWh == null || meter.impKWh == 0.0) -> {
-            InspectionStatus.NOT_INSPECTED
-        }
-
-        // If meter has readings
-        meter.readDate != null -> {
-            InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
-        }
-
-        // Default case - not inspected
-        else -> InspectionStatus.NOT_INSPECTED
+fun getInspectionStatus(meter: Meter): InspectionStatus {
+    // Check if meter has been read
+    if (meter.readDate == null || meter.impKWh == null || meter.impKWh == 0.0) {
+        return InspectionStatus.NOT_INSPECTED
     }
+
+    // Meter has been inspected (has readDate and readings)
+    // Now check billing print status
+    if (meter.billingPrintDate != null) {
+        // Calculate the difference in days
+        val timeDiffMillis = meter.billingPrintDate.time - meter.readDate.time
+        val daysDiff = timeDiffMillis / (1000 * 60 * 60 * 24)
+
+        // Check if billing was printed within 30 days AFTER the read date
+        if (daysDiff in 0..30) {
+            return InspectionStatus.INSPECTED_BILLING_PRINTED
+        }
+    }
+
+    // Meter has readings but billing not printed (or printed outside 30-day window)
+    return InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
 }
 
 fun getSignalColor(rssi: Int): Color {
     return when {
-        rssi >= -50 -> Color(0xFF4CAF50) // Excellent: Green
+        rssi >= -50 -> Color(0xFF4CAF50) // Excellent: Best
         rssi >= -70 -> Color(0xFF8BC34A) // Good: Light Green
         rssi >= -85 -> Color(0xFFFFC107) // Fair: Orange
         else -> Color(0xFFF44336) // Poor: Red
@@ -342,7 +348,7 @@ fun getSignalColor(rssi: Int): Color {
 
 fun getSignalQuality(rssi: Int): String {
     return when {
-        rssi >= -50 -> "Excellent"
+        rssi >= -50 -> "Best"
         rssi >= -70 -> "Good"
         rssi >= -85 -> "Fair"
         else -> "Poor"

@@ -6,11 +6,15 @@ import android.util.Log
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.utils.getCurrentYearMonth
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * DLMS Functions - Extracted from DLMSViewModel
  * Contains reusable DLMS operations for meter registration and data retrieval
  */
+@Suppress("SameParameterValue")
 class DLMSFunctions(
     private val dlmsInitializer: DLMSInit,
     private val dlmsDataAccess: DLMSDataAccess,
@@ -366,6 +370,98 @@ class DLMSFunctions(
         } catch (e: Exception) {
             logCallback("ERROR: Failed to export meter data: ${e.message}")
             Log.e(TAG, "Export error", e)
+        }
+    }
+
+    fun exportMeterDataWithBillingDate(
+        uid: String,
+        activate: String,
+        serialNo: String,
+        bluetoothId: String,
+        fixedDate: String,
+        imp: String,
+        exp: String,
+        impMaxDemand: String,
+        expMaxDemand: String,
+        minVolt: String,
+        alert: String,
+        readDate: String,
+        billingPrintDate: String
+    ) {
+        try {
+            val externalFilesDir = context?.getExternalFilesDir(null) ?: return
+            val csvDir = File(externalFilesDir, "app_files")
+            if (!csvDir.exists()) {
+                csvDir.mkdirs()
+            }
+
+            val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
+            val filename = "${yearMonth}_meter.csv"
+            val meterFile = File(csvDir, filename)
+
+            if (!meterFile.exists()) {
+                logCallback("ERROR: Meter CSV file does not exist")
+                return
+            }
+
+            // Read all lines
+            val lines = meterFile.readLines().toMutableList()
+
+            if (lines.isEmpty()) {
+                logCallback("ERROR: Meter CSV is empty")
+                return
+            }
+
+            // ✅ FIX: Ensure header has billingPrintDate column
+            if (lines[0].startsWith("UID,")) {
+                val headerColumns = lines[0].split(',')
+                if (!headerColumns.contains("billingPrintDate")) {
+                    lines[0] = lines[0] + ",billingPrintDate"
+                    logCallback("Added billingPrintDate column to CSV header")
+                }
+            }
+
+            lines[0].split(',').size
+            val uidIndex = 0
+            val serialNoIndex = 2
+            var wasUpdated = false
+
+            // ✅ FIX: Create new row data with all 13 columns
+            val newRowData = listOf(
+                uid, activate, serialNo, bluetoothId, fixedDate,
+                imp, exp, impMaxDemand, expMaxDemand, minVolt,
+                alert, readDate, billingPrintDate
+            )
+            val newRowString = newRowData.joinToString(",")
+
+            // Update ONLY the matching row
+            for (i in 1 until lines.size) {  // Start from 1 to skip header
+                val columns = lines[i].split(',')
+                val csvUid = columns.getOrNull(uidIndex)?.trim()?.removeSurrounding("\"")
+                val csvSerialNo = columns.getOrNull(serialNoIndex)?.trim()?.removeSurrounding("\"")
+
+                // ✅ FIX: Match by BOTH uid AND serialNo
+                if (csvUid == uid && csvSerialNo == serialNo) {
+                    lines[i] = newRowString
+                    wasUpdated = true
+                    logCallback("✅ Updated meter row - UID: $uid, Serial: $serialNo")
+                    break  // Stop after first match
+                }
+            }
+
+            if (!wasUpdated) {
+                logCallback("⚠ WARNING: No matching meter found to update (UID: $uid, Serial: $serialNo)")
+                logCallback("⚠ This should not happen when printing from SavedBillingDataCard")
+                return  // ❌ DO NOT add new row
+            }
+
+            // Write back to file
+            meterFile.writeText(lines.joinToString("\n"))
+            logCallback("✅ Meter CSV updated successfully")
+
+        } catch (e: Exception) {
+            logCallback("ERROR: Failed to export meter data: ${e.message}")
+            Log.e(TAG, "exportMeterDataWithBillingDate error", e)
         }
     }
 }
