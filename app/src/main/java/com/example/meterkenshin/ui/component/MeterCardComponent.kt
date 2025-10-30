@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,6 +52,8 @@ fun ModernMeterCard(
     isNearby: Boolean = false,
     inspectionStatus: InspectionStatus = getInspectionStatus(meter),
     signalStrength: Int? = null,
+    showCheckbox: Boolean = false,
+    isSelected: Boolean = false,
 ) {
     // Check if meter is not registered (activate = 0)
     val isNotRegistered = meter.activate == 0
@@ -84,6 +87,13 @@ fun ModernMeterCard(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (showCheckbox) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = { onClick() },
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
                 // Left side - Meter icon and ID
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

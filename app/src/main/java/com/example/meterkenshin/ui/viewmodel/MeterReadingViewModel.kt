@@ -107,6 +107,37 @@ class MeterReadingViewModel : ViewModel() {
         printerViewModel = viewModel
     }
 
+    private val _selectionMode = MutableStateFlow(false)
+    val selectionMode: StateFlow<Boolean> = _selectionMode.asStateFlow()
+
+    private val _selectedMeters = MutableStateFlow<Set<Int>>(emptySet())
+    val selectedMeters: StateFlow<Set<Int>> = _selectedMeters.asStateFlow()
+
+    fun toggleSelectionMode() {
+        _selectionMode.value = !_selectionMode.value
+        if (!_selectionMode.value) {
+            _selectedMeters.value = emptySet()
+        }
+    }
+
+    fun toggleMeterSelection(meterUid: Int) {
+        _selectedMeters.update { current ->
+            if (current.contains(meterUid)) {
+                current - meterUid
+            } else {
+                current + meterUid
+            }
+        }
+    }
+
+    fun selectAllMeters() {
+        _selectedMeters.value = _uiState.value.filteredMeters.map { it.uid }.toSet()
+    }
+
+    fun clearSelection() {
+        _selectedMeters.value = emptySet()
+        _selectionMode.value = false
+    }
     // Modified callback - only captures first RSSI per cycle
     private val mLeScanCallback = BluetoothAdapter.LeScanCallback { device, rssi, _ ->
         val knownMacAddresses = _uiState.value.allMeters

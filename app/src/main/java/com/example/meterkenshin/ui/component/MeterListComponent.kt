@@ -1,7 +1,9 @@
 package com.example.meterkenshin.ui.component
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,19 +20,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Cable
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,6 +51,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,20 +62,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.data.RequiredFile
+import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.viewmodel.BatchProcessingManager
+import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
+import com.example.meterkenshin.utils.loadMeterRates
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -74,8 +81,8 @@ import java.util.Locale
  * Handles all meter list functionality including CSV loading, search, and display
  * BLE scanning starts automatically when user is logged in
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("MissingPermission")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MeterListComponent(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
@@ -90,6 +97,7 @@ fun MeterListComponent(
     useScrolling: Boolean = true
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val uiState by meterReadingViewModel.uiState.collectAsState()
     val searchQuery by meterReadingViewModel.searchQuery.collectAsState()
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
@@ -105,6 +113,27 @@ fun MeterListComponent(
     val currentMeterFile = "${currentYearMonth}_meter.csv"
     val fallbackFile = "meter.csv"
 
+    val dlmsViewModel: DLMSViewModel = viewModel()
+    val batchProcessor = remember(dlmsViewModel, scope, context) {
+        BatchProcessingManager(dlmsViewModel, scope, context)
+    }
+
+    val showPrintDialog by dlmsViewModel.showPrintDialog.collectAsState()
+    val showSaveDialog by dlmsViewModel.showSaveDialog.collectAsState()
+    val pendingBillingData by dlmsViewModel.pendingBillingData.collectAsState()
+
+    // Collect batch processing states
+    val isProcessing by batchProcessor.isProcessing.collectAsState()
+    val batchProgress by batchProcessor.currentProgress.collectAsState()
+    val processedCount by batchProcessor.processedCount.collectAsState()
+    val totalCount by batchProcessor.totalCount.collectAsState()
+
+    // Other existing states
+    val selectionMode by meterReadingViewModel.selectionMode.collectAsState()
+    val selectedMeters by meterReadingViewModel.selectedMeters.collectAsState()
+    val rates = remember(fileUploadViewModel) {
+        loadMeterRates(context, fileUploadViewModel)
+    }
     // Load meters when CSV is available
     LaunchedEffect(isMeterCsvUploaded, Unit) {
         if (isMeterCsvUploaded) {
@@ -163,56 +192,194 @@ fun MeterListComponent(
             else -> {
                 // Search bar (without scan button - scanning is automatic)
                 if (showSearch) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Search field
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = meterReadingViewModel::updateSearchQuery,
-                            label = { Text("Search meters...") },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search"
-                                )
-                            },
-                            trailingIcon = {
-                                IconButton(onClick = {
-                                    Toast.makeText(
-                                        context,
-                                        "Refreshing BLE connection...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    meterReadingViewModel.startBLEScanning()
-                                }) {
+                    // When in selection mode, replace search bar with selection toolbar
+                    if (selectionMode) {
+                        // Selection toolbar - replaces search bar
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Left side - Selection count
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.Refresh,
-                                        contentDescription = "Refresh BLE scan"
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "${selectedMeters.size} selected",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
 
-                        // Print Actions Dropdown
-                        PrintActionsDropdown(
-                            onBatchReading = {
-
-                            },
-                            onBatchPrinting = {
-
-                            },
-                            onSelectAndPrint = {
-                                // TODO: Implement select and print functionality
+                                // Right side - Action buttons
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = { meterReadingViewModel.selectAllMeters() }) {
+                                        Text("Select All")
+                                    }
+                                    TextButton(onClick = { meterReadingViewModel.clearSelection() }) {
+                                        Text("Cancel")
+                                    }
+                                    Button(
+                                        onClick = {
+                                            val selected = uiState.filteredMeters.filter {
+                                                selectedMeters.contains(it.uid)
+                                            }
+                                            if (selected.isNotEmpty()) {
+                                                batchProcessor.processBatch(
+                                                    meters = selected,
+                                                    rates = rates,
+                                                    onComplete = { success, failedMeters ->
+                                                        meterReadingViewModel.clearSelection()
+                                                        val message = if (success) {
+                                                            "All ${selected.size} meters processed!"
+                                                        } else {
+                                                            "${selected.size - failedMeters.size}/${selected.size} completed"
+                                                        }
+                                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                                    }
+                                                )
+                                            }
+                                        },
+                                        enabled = selectedMeters.isNotEmpty() && !isProcessing
+                                    ) {
+                                        Text("Process")
+                                    }
+                                }
                             }
-                        )
+                        }
+                    } else {
+                        // Normal mode - search bar with print dropdown
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Search field
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = meterReadingViewModel::updateSearchQuery,
+                                label = { Text("Search meters...") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search"
+                                    )
+                                },
+                                trailingIcon = {
+                                    IconButton(onClick = {
+                                        Toast.makeText(
+                                            context,
+                                            "Refreshing BLE connection...",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                        meterReadingViewModel.startBLEScanning()
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Refresh BLE scan"
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+
+                            // Print Actions Dropdown
+                            PrintActionsDropdown(
+                                onBatchReading = {
+                                    // TODO
+                                },
+                                onBatchPrinting = {
+                                    // TODO
+                                },
+                                onSelectAndPrint = {
+                                    // Enter selection mode
+                                    meterReadingViewModel.toggleSelectionMode()
+                                    Toast.makeText(context, "Select meters to process", Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
                     }
+                }
+
+                // Show progress dialog during batch processing (place AFTER showStatistics section)
+                if (isProcessing) {
+                    AlertDialog(
+                        onDismissRequest = { /* Prevent dismiss */ },
+                        title = { Text("Batch Processing") },
+                        text = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = batchProgress,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(bottom = 16.dp)
+                                )
+                                LinearProgressIndicator(
+                                    progress = {
+                                        if (totalCount > 0) processedCount.toFloat() / totalCount else 0f
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Text(
+                                    text = "$processedCount / $totalCount",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { batchProcessor.cancel() }) {
+                                Text("Cancel")
+                            }
+                        }
+                    )
+                }
+
+                // Show print dialog during batch processing
+                if (isProcessing && showPrintDialog && pendingBillingData != null) {
+                    PrintReceiptDialog(
+                        serialNumber = pendingBillingData?.SerialNumber,
+                        onConfirmPrint = {
+                            dlmsViewModel.confirmPrint()
+                        },
+                        onSkipPrint = {
+                            dlmsViewModel.skipPrint()
+                        }
+                    )
+                }
+
+                // Show save dialog during batch processing
+                if (isProcessing && showSaveDialog && pendingBillingData != null) {
+                    SaveJSONDialog(
+                        onConfirm = {
+                            dlmsViewModel.confirmSave()
+                        },
+                        onDismiss = {
+                            dlmsViewModel.skipSave()
+                        }
+                    )
                 }
 
                 // Statistics
@@ -251,11 +418,19 @@ fun MeterListComponent(
 
                             ModernMeterCard(
                                 meter = meter,
-                                onClick = { onMeterClick(meter) },
+                                onClick = {
+                                    if (selectionMode) {
+                                        meterReadingViewModel.toggleMeterSelection(meter.uid)
+                                    } else {
+                                        onMeterClick(meter)
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth(),
                                 isNearby = isNearby,
                                 inspectionStatus = getInspectionStatus(meter),
-                                signalStrength = signalStrength
+                                signalStrength = signalStrength,
+                                showCheckbox = selectionMode,
+                                isSelected = selectedMeters.contains(meter.uid)
                             )
                         }
 
@@ -396,7 +571,6 @@ private fun StatisticCard(
 /**
  * Filter and Sort Control Row
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterSortControlRow(
     meterReadingViewModel: MeterReadingViewModel,

@@ -74,10 +74,6 @@ class DLMSViewModel : ViewModel() {
 
     private var meterReadingViewModel: MeterReadingViewModel? = null
 
-    fun setMeterReadingViewModel(viewModel: MeterReadingViewModel) {
-        this.meterReadingViewModel = viewModel
-    }
-
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         readDataPrinting.setPrinterViewModel(viewModel)
     }
@@ -1159,7 +1155,7 @@ class DLMSViewModel : ViewModel() {
 
                     // Reload meters to update UI
                     withContext(Dispatchers.Main) {
-                        mContext?.let { ctx ->
+                        mContext?.let {
                             // If you have a reference to meterReadingViewModel, call reload here
                             // meterReadingViewModel?.reloadMeters(ctx)
                             appendLog("🔄 Meter Data Reloaded")
@@ -1176,6 +1172,23 @@ class DLMSViewModel : ViewModel() {
                 appendLog("ERROR: Failed to save billing print date: ${e.message}")
                 Log.e(TAG, "updateMeterBillingPrintDate error", e)
             }
+        }
+    }
+
+    /**
+     * Trigger print from batch processing
+     * This bypasses the dialog and directly initiates printing
+     */
+    fun triggerPrintFromBatch() {
+        val savedData = _savedBillingData.value
+        if (savedData != null && savedData.isValid()) {
+            appendLog("Printing receipt for ${savedData.billing.SerialNumber}")
+            readDataPrinting.setPendingBillingData(savedData.billing)
+            readDataPrinting.setSavedRates(savedData.rates)
+            // For batch processing, auto-confirm print
+            readDataPrinting.confirmPrint()
+        } else {
+            appendLog("ERROR: No valid billing data to print")
         }
     }
 
