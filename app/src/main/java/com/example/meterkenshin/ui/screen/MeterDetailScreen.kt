@@ -171,23 +171,23 @@ fun MeterDetailScreen(
                     }
                 },
                 onReadData = {
-                    if (isDlmsInitialized && meter.activate == 1) {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
                         val rates = loadMeterRates(context, fileUploadViewModel)
                         registrationViewModel.readData(meter, rates)
                     }
                 },
                 onLoadProfile = {
-                    if (isDlmsInitialized && meter.activate == 1) {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
                         registrationViewModel.loadProfile(meter)
                     }
                 },
                 onEventLog = {
-                    if (isDlmsInitialized && meter.activate == 1) {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
                         registrationViewModel.eventLog(meter)
                     }
                 },
                 onBillingData = {
-                    if (isDlmsInitialized && meter.activate == 1) {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
                         val rates = loadMeterRates(context, fileUploadViewModel)
                         registrationViewModel.billingData(meter, rates)
                     }

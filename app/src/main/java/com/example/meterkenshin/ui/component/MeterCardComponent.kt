@@ -326,7 +326,7 @@ enum class ConnectionStatus(
 @Composable
 fun getInspectionStatus(meter: Meter): InspectionStatus {
     // Check if meter has been read
-    if (meter.readDate == null || meter.impKWh == null || meter.impKWh == 0.0) {
+    if (meter.readDate == null || meter.impKWh == null) {
         return InspectionStatus.NOT_INSPECTED
     }
 

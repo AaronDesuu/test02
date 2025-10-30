@@ -1155,10 +1155,8 @@ class DLMSViewModel : ViewModel() {
 
                     // Reload meters to update UI
                     withContext(Dispatchers.Main) {
-                        mContext?.let {
-                            // If you have a reference to meterReadingViewModel, call reload here
-                            // meterReadingViewModel?.reloadMeters(ctx)
-                            appendLog("🔄 Meter Data Reloaded")
+                        mContext?.let { ctx ->
+                            meterReadingViewModel?.reloadMeters(ctx)
                         }
                     }
                 } else {
