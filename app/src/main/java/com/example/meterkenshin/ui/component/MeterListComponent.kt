@@ -23,14 +23,10 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -52,7 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.data.RequiredFile
@@ -187,76 +182,29 @@ fun MeterListComponent(
                 if (showSearch) {
                     // When in selection mode, replace search bar with selection toolbar
                     if (selectionMode) {
-                        // Selection toolbar - replaces search bar
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Left side - Selection count
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "${selectedMeters.size} selected",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                // Right side - Action buttons
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    TextButton(onClick = { meterReadingViewModel.selectAllMeters() }) {
-                                        Text("Select All")
+                        SelectionModeCard(
+                            selectedCount = selectedMeters.size,
+                            filteredMeters = uiState.filteredMeters,
+                            selectedMeters = selectedMeters,
+                            onSelectAll = { meterReadingViewModel.selectAllMeters() },
+                            onCancel = { meterReadingViewModel.clearSelection() },
+                            onBatchRead = { selectedMeterList ->
+                                batchProcessor.processBatch(
+                                    meters = selectedMeterList,
+                                    rates = rates,
+                                    onComplete = { success, failedMeters ->
+                                        meterReadingViewModel.clearSelection()
+                                        val message = if (success) {
+                                            "All ${selectedMeterList.size} meters processed!"
+                                        } else {
+                                            "${selectedMeterList.size - failedMeters.size}/${selectedMeterList.size} completed"
+                                        }
+                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                     }
-                                    TextButton(onClick = { meterReadingViewModel.clearSelection() }) {
-                                        Text("Cancel")
-                                    }
-                                    Button(
-                                        onClick = {
-                                            val selected = uiState.filteredMeters.filter {
-                                                selectedMeters.contains(it.uid)
-                                            }
-                                            if (selected.isNotEmpty()) {
-                                                batchProcessor.processBatch(
-                                                    meters = selected,
-                                                    rates = rates,
-                                                    onComplete = { success, failedMeters ->
-                                                        meterReadingViewModel.clearSelection()
-                                                        val message = if (success) {
-                                                            "All ${selected.size} meters processed!"
-                                                        } else {
-                                                            "${selected.size - failedMeters.size}/${selected.size} completed"
-                                                        }
-                                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-                                                    }
-                                                )
-                                            }
-                                        },
-                                        enabled = selectedMeters.isNotEmpty() && !isProcessing
-                                    ) {
-                                        Text("Process")
-                                    }
-                                }
-                            }
-                        }
+                                )
+                            },
+                            isProcessing = isProcessing
+                        )
                     } else {
                         // Normal mode - search bar with print dropdown
                         Row(
