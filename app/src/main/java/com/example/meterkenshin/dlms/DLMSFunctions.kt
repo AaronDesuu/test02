@@ -7,6 +7,7 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.utils.getCurrentYearMonth
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -38,12 +39,23 @@ class DLMSFunctions(
         dlmsDataAccess.setDataIndex(0)
         dlmsDataAccess.setSelector(0)
 
-        val sec = dlmsInitializer.dlms?.CurrentDatetimeSec()?.plus(1) ?: return false
+        // Get current time using Calendar to avoid DatetimeToSec bug
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.SECOND, 1) // Add 1 second
 
-        // FIX: Add 86400 seconds (1 day) to compensate for bug
-        val secFixed = sec + 86400
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH) + 1 // Calendar.MONTH is 0-based
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
+        val minute = calendar.get(Calendar.MINUTE)
+        val second = calendar.get(Calendar.SECOND)
 
-        val rawDatetime = dlmsInitializer.dlms?.SecToRawDatetime(secFixed) ?: return false
+        // Format: %04x%02x%02xff%02x%02x%02xff800000
+        // This matches SecToRawDatetime format from DLMS.java
+        val rawDatetime = String.format(
+            "%04x%02x%02xff%02x%02x%02xff800000",
+            year, month, day, hour, minute, second
+        )
 
         dlmsDataAccess.setParameter("090c$rawDatetime")
 
