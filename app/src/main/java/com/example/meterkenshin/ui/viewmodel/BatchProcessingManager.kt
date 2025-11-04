@@ -6,6 +6,7 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.utils.PrinterStatusHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -81,6 +82,20 @@ class BatchProcessingManager(
 
     enum class UserActionType {
         PRINT_AND_SAVE_OPTIONS
+    }
+
+    // ADD: Printer error dialog states
+    private val _showPrinterErrorDialog = MutableStateFlow(false)
+    val showPrinterErrorDialog: StateFlow<Boolean> = _showPrinterErrorDialog.asStateFlow()
+
+    private val _printerErrorMessage = MutableStateFlow("")
+    val printerErrorMessage: StateFlow<String> = _printerErrorMessage.asStateFlow()
+
+    private var printerViewModel: PrinterBluetoothViewModel? = null
+
+    // ADD: Set printer ViewModel
+    fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
+        this.printerViewModel = viewModel
     }
 
     /**
@@ -212,7 +227,14 @@ class BatchProcessingManager(
 
                             if (_shouldPrint.value) {
                                 Log.i(TAG, "Printing receipt for ${meter.serialNumber}")
-                                printReceipt(meter)
+                                val printSuccess = printReceipt(meter)
+
+                                if (!printSuccess) {
+                                    // Wait for user to handle printer error
+                                    while (_showPrinterErrorDialog.value) {
+                                        delay(500)
+                                    }
+                                }
                                 delay(PRINT_DELAY_MS)
                             }
 
@@ -221,9 +243,6 @@ class BatchProcessingManager(
                                 saveJson()
                                 delay(500)
                             }
-                        } else {
-                            updateProgressWithStep(6, "Skipping actions (none selected)...")
-                            Log.i(TAG, "Meter ${meter.serialNumber} skipped - no action selected")
                         }
 
                         // Step 7: Complete
@@ -328,20 +347,61 @@ class BatchProcessingManager(
      * Print receipt for meter using saved billing data
      * FIXED: triggerPrintFromBatch already checks printer status via PrinterStatusHelper
      */
-    private fun printReceipt(meter: Meter) {
+    private suspend fun printReceipt(meter: Meter): Boolean {
         val savedData = dlmsViewModel.savedBillingData.value
 
         if (savedData == null || !savedData.isValid()) {
             Log.e(TAG, "No valid billing data available for printing: ${meter.serialNumber}")
             updateProgress("ERROR: No billing data")
-            throw IllegalStateException("No valid billing data for ${meter.serialNumber}")
+            return false
         }
 
-        Log.i(TAG, "Initiating print for ${savedData.billing.SerialNumber}")
+        Log.i(TAG, "Checking printer status for ${savedData.billing.SerialNumber}")
 
-        // triggerPrintFromBatch internally uses PrinterStatusHelper to check printer status
-        // It will log errors if printer is not ready
-        dlmsViewModel.triggerPrintFromBatch()
+        val printer = printerViewModel
+        if (printer == null) {
+            Log.e(TAG, "Printer ViewModel not set")
+            return false
+        }
+
+        var printSuccess = false
+
+        // Check printer status using PrinterStatusHelper
+        PrinterStatusHelper.checkPrinterReadyAndExecute(
+            printerViewModel = printer,
+            onNotConnected = {
+                _printerErrorMessage.value = "Printer not connected"
+                _showPrinterErrorDialog.value = true
+                Log.w(TAG, "Printer not connected")
+            },
+            onNotReady = { reason ->
+                _printerErrorMessage.value = reason
+                _showPrinterErrorDialog.value = true
+                Log.w(TAG, "Printer not ready: $reason")
+            },
+            onReady = {
+                // Printer ready, print
+                dlmsViewModel.triggerPrintFromBatch()
+                printSuccess = true
+            }
+        )
+
+        return printSuccess
+    }
+
+    /**
+     * User dismisses printer error dialog and skips printing
+     */
+    fun dismissPrinterError() {
+        _showPrinterErrorDialog.value = false
+    }
+
+    /**
+     * User retries printing from error dialog
+     */
+    suspend fun retryPrinting(meter: Meter) {
+        _showPrinterErrorDialog.value = false
+        printReceipt(meter)
     }
 
     /**

@@ -168,15 +168,13 @@ fun SavedBillingDataCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Print Receipt button
+                // Print button - CHANGED: Always enabled (except during 5-sec cooldown)
                 Button(
                     onClick = { attemptPrint() },
-                    enabled = canPrint,
+                    enabled = isPrintButtonEnabled, // Only disable during cooldown
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (canPrint) Color(0xFF1976D2)
-                        else Color(0xFFCCCCCC),
-                        contentColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Icon(
@@ -185,24 +183,13 @@ fun SavedBillingDataCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(1.dp))
-                    Text(
-                        text = when {
-                            !isBluetoothEnabled -> "BT Off"
-                            !isPrinterReady -> "Offline"
-                            !isPrintButtonEnabled -> "..."
-                            else -> "Print"
-                        },
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    Text("Print")
                 }
 
-                // Export JSON button
-                Button(
+                // Save JSON button
+                OutlinedButton(
                     onClick = onSaveJSON,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    modifier = Modifier.weight(1f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Save,
@@ -210,23 +197,20 @@ fun SavedBillingDataCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(1.dp))
-                    Text("Export")
+                    Text("Save")
                 }
 
-                // Clear data button
+                // Clear button
                 OutlinedButton(
                     onClick = onClearData,
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
+                    modifier = Modifier.weight(0.6f)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = null,
+                        tint = Color.Red,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(1.dp))
-                    Text("Clear")
                 }
             }
         }
@@ -238,6 +222,7 @@ fun SavedBillingDataCard(
             errorMessage = errorMessage,
             paperStatus = paperStatus,
             coverStatus = coverStatus,
+            printerViewModel = printerViewModel,
             onRetry = {
                 showErrorDialog = false
                 // Retry printing

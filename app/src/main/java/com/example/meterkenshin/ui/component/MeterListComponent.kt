@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +70,7 @@ import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
 import com.example.meterkenshin.utils.loadMeterRates
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -132,18 +134,25 @@ fun MeterListComponent(
     val currentStep by batchProcessor.currentStep.collectAsState()
     val currentStepDescription by batchProcessor.currentStepDescription.collectAsState()
     val errorCount by batchProcessor.errorCount.collectAsState()
+    val selectionMode by meterReadingViewModel.selectionMode.collectAsState()
+    val selectedMeters by meterReadingViewModel.selectedMeters.collectAsState()
+    val showPrinterErrorDialog by batchProcessor.showPrinterErrorDialog.collectAsState()
+    val printerErrorMessage by batchProcessor.printerErrorMessage.collectAsState()
 
     val printerViewModel: PrinterBluetoothViewModel = viewModel()
 
     // Set printer reference in DLMS ViewModel
     LaunchedEffect(Unit) {
         dlmsViewModel.setPrinterViewModel(printerViewModel)
+        batchProcessor.setPrinterViewModel(printerViewModel)
         Log.d("MeterListComponent", "Printer ViewModel configured for batch processing")
     }
 
+    BackHandler(enabled = selectionMode) {
+        meterReadingViewModel.clearSelection()
+    }
+
     // Other existing states
-    val selectionMode by meterReadingViewModel.selectionMode.collectAsState()
-    val selectedMeters by meterReadingViewModel.selectedMeters.collectAsState()
     val rates = remember(fileUploadViewModel) {
         loadMeterRates(context, fileUploadViewModel)
     }
@@ -543,6 +552,30 @@ fun MeterListComponent(
                             }
                         }
                     )
+                    if (showPrinterErrorDialog) {
+                        val printerPaperStatus by printerViewModel.paperStatus.collectAsState()
+                        val printerCoverStatus by printerViewModel.coverStatus.collectAsState()
+
+                        PrinterStatusErrorDialog(
+                            errorMessage = printerErrorMessage,
+                            paperStatus = printerPaperStatus,
+                            coverStatus = printerCoverStatus,
+                            printerViewModel = printerViewModel, // ADDED
+                            onRetry = {
+                                scope.launch {
+                                    currentMeterSerial?.let { serial ->
+                                        val meter = uiState.allMeters.find { it.serialNumber == serial }
+                                        meter?.let {
+                                            batchProcessor.retryPrinting(it)
+                                        }
+                                    }
+                                }
+                            },
+                            onCancel = {
+                                batchProcessor.dismissPrinterError()
+                            }
+                        )
+                    }
                 }
 
                 // Statistics

@@ -57,6 +57,7 @@ fun ModernMeterCard(
 ) {
     // Check if meter is not registered (activate = 0)
     val isNotRegistered = meter.activate == 0
+    val isDisabled = isNotRegistered && showCheckbox
 
     // Determine connection status based on activate field from CSV (via MeterReadingViewModel)
     val connectionStatus = when {
@@ -65,10 +66,19 @@ fun ModernMeterCard(
     }
 
     Card(
-        onClick = onClick,
+        onClick = {
+            if (!isDisabled) {
+                onClick()
+            }
+        },
         modifier = modifier,
+        enabled = !isDisabled,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isDisabled) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(
@@ -87,27 +97,29 @@ fun ModernMeterCard(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (showCheckbox) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onClick() },
-                        modifier = Modifier.padding(end = 8.dp)
-                    )
-                }
                 // Left side - Meter icon and ID
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    // Meter icon with status indicator
-                    Box {
-                        Icon(
-                            imageVector = Icons.Default.ElectricBolt,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
+                    // CHANGE: Show checkbox OR electric icon
+                    if (showCheckbox && !isNotRegistered) {
+                        // Selection mode - show checkbox
+                        Checkbox(
+                            checked = isSelected,
+                            onCheckedChange = { onClick() },
                             modifier = Modifier.size(40.dp)
                         )
-
+                    } else {
+                        // Normal mode - show electric icon
+                        Box {
+                            Icon(
+                                imageVector = Icons.Default.ElectricBolt,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))

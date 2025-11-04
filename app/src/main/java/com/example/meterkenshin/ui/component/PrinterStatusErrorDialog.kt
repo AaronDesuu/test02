@@ -8,11 +8,16 @@ import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 
 /**
@@ -20,7 +25,9 @@ import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
  *
  * Features:
  * - Error message at top
+ * - Connection status (Connected/Disconnected)
  * - Real-time printer status (Paper & Cover) - updates automatically
+ * - Connect button when printer is not connected
  * - Retry and Cancel buttons
  */
 @Composable
@@ -28,9 +35,17 @@ fun PrinterStatusErrorDialog(
     errorMessage: String,
     paperStatus: PrinterBluetoothViewModel.PaperStatus,
     coverStatus: PrinterBluetoothViewModel.CoverStatus,
+    printerViewModel: PrinterBluetoothViewModel? = null,
     onRetry: () -> Unit,
     onCancel: () -> Unit
 ) {
+    // Collect connection state if printerViewModel is provided
+    val connectionState by (printerViewModel?.connectionState?.collectAsState()
+        ?: remember { mutableStateOf(null) })
+    val isConnecting = connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING
+    val isConnected = connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED
+    val isNotConnected = !isConnected
+
     AlertDialog(
         onDismissRequest = onCancel,
         icon = {
@@ -63,13 +78,36 @@ fun PrinterStatusErrorDialog(
 
                 HorizontalDivider(color = Color.LightGray)
 
-                // 2. Printer Status (Real-time) - Similar to HomeScreen
-                Text(
-                    text = "Printer Status:",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                // 2. Printer Status Title with Connection Status
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Printer Status:",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
 
+                    // Connection Status Badge
+                    Text(
+                        text = when {
+                            isConnecting -> "Connecting..."
+                            isConnected -> "Connected"
+                            else -> "Disconnected"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = when {
+                            isConnecting -> Color(0xFFFF9800)
+                            isConnected -> Color(0xFF4CAF50)
+                            else -> Color(0xFFF44336)
+                        }
+                    )
+                }
+
+                // 3. Paper & Cover Status Card
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -160,9 +198,34 @@ fun PrinterStatusErrorDialog(
                     }
                 }
 
+                // 4. Connect Button (shown when printer is not connected)
+                if (isNotConnected && printerViewModel != null) {
+                    OutlinedButton(
+                        onClick = {
+                            printerViewModel.startAutoConnect()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !isConnecting
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bluetooth,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            if (isConnecting) "Connecting..." else "Connect to Printer"
+                        )
+                    }
+                }
+
                 // Help text
                 Text(
-                    text = "Please resolve the issue above and try again.",
+                    text = if (isNotConnected) {
+                        "Please connect to printer and try again."
+                    } else {
+                        "Please resolve the issue above and try again."
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
