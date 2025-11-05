@@ -64,23 +64,50 @@ class BatchPrintManager(
     private val _printerErrorMessage = MutableStateFlow("")
     val printerErrorMessage: StateFlow<String> = _printerErrorMessage.asStateFlow()
 
+    // Real-time printer status for error dialog
+    private val _printerPaperStatus = MutableStateFlow(PrinterBluetoothViewModel.PaperStatus.UNKNOWN)
+    val printerPaperStatus: StateFlow<PrinterBluetoothViewModel.PaperStatus> = _printerPaperStatus.asStateFlow()
+
+    private val _printerCoverStatus = MutableStateFlow(PrinterBluetoothViewModel.CoverStatus.UNKNOWN)
+    val printerCoverStatus: StateFlow<PrinterBluetoothViewModel.CoverStatus> = _printerCoverStatus.asStateFlow()
+
     private var printerViewModel: PrinterBluetoothViewModel? = null
 
     /**
-     * Set printer ViewModel reference
+     * Set printer ViewModel reference and collect real-time status
      */
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         this.printerViewModel = viewModel
+
+        // Collect real-time printer status for error dialog
+        scope.launch {
+            viewModel.paperStatus.collect { _printerPaperStatus.value = it }
+        }
+        scope.launch {
+            viewModel.coverStatus.collect { _printerCoverStatus.value = it }
+        }
     }
 
     /**
-     * Check if meter has valid saved billing data
+     * Check if meter has valid billing data (either from savedBillingData OR from CSV)
+     * ✅ FIXED: Now checks BOTH temporary savedBillingData AND persistent CSV data
      */
     private fun hasValidBillingData(meter: Meter): Boolean {
+        // Check 1: Temporary savedBillingData (in-memory)
         val savedData = dlmsViewModel.savedBillingData.value
-        return savedData != null &&
-                savedData.billing.SerialNumber == meter.serialNumber &&
-                savedData.isValid()
+        if (savedData != null &&
+            savedData.billing.SerialNumber == meter.serialNumber &&
+            savedData.isValid()) {
+            return true
+        }
+
+        // Check 2: Persistent CSV data (readDate + impKWh stored in database)
+        // This covers meters with status "Inspected & Billing Printed"
+        if (meter.readDate != null && meter.impKWh != null) {
+            return true
+        }
+
+        return false
     }
 
     /**
