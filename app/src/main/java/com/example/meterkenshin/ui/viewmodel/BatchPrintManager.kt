@@ -44,7 +44,6 @@ class BatchPrintManager(
     val totalCount: StateFlow<Int> = _totalCount.asStateFlow()
 
     private val _failedMeters = MutableStateFlow<List<String>>(emptyList())
-    val failedMeters: StateFlow<List<String>> = _failedMeters.asStateFlow()
 
     private val _currentMeterSerial = MutableStateFlow<String?>(null)
     val currentMeterSerial: StateFlow<String?> = _currentMeterSerial.asStateFlow()

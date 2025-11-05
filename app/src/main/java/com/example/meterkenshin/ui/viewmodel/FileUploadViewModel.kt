@@ -20,6 +20,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.text.format
+import androidx.core.content.edit
 
 class FileUploadViewModel : ViewModel() {
     private val _uploadState = MutableStateFlow(FileUploadState())
@@ -188,8 +189,14 @@ class FileUploadViewModel : ViewModel() {
     fun removeFile(fileType: RequiredFile.FileType, context: Context) {
         viewModelScope.launch {
             try {
-                // Delete from app storage if it exists
-                deleteExistingFile(fileType, context)
+                // If deleting meter.csv, delete ALL meter-related files and data
+                if (fileType == RequiredFile.FileType.METER) {
+                    deleteAllMeterFiles(context)
+                    clearAllBillingData(context)
+                } else {
+                    // For printer.csv and rate.csv, just delete the specific file
+                    deleteExistingFile(fileType, context)
+                }
 
                 // Reset the file state
                 updateFileSelection(fileType, null, null, 0)
@@ -199,6 +206,63 @@ class FileUploadViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error removing file", e)
                 updateUploadError(e.localizedMessage ?: context.getString(R.string.file_removal_failed))
+            }
+        }
+    }
+
+    private suspend fun deleteAllMeterFiles(context: Context): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val appFilesDir = getAppFilesDirectory(context)
+                val externalFilesDir = context.getExternalFilesDir(null)
+                var deletedCount = 0
+
+                // Delete all files containing "meter" in app_files folder
+                appFilesDir.listFiles()?.forEach { file ->
+                    if (file.name.contains("meter", ignoreCase = true)) {
+                        if (file.delete()) {
+                            deletedCount++
+                            Log.i(TAG, "Deleted from app_files: ${file.name}")
+                        }
+                    }
+                }
+
+                // Delete all JSON billing files from externalFilesDir (format: YYYYMM_SerialNumber.json)
+                externalFilesDir?.listFiles()?.forEach { file ->
+                    if (file.name.matches(Regex("\\d{6}_\\w+\\.json"))) {
+                        if (file.delete()) {
+                            deletedCount++
+                            Log.i(TAG, "Deleted billing JSON: ${file.name}")
+                        }
+                    }
+                }
+
+                Log.i(TAG, "Deleted $deletedCount meter-related files")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error deleting meter files", e)
+                false
+            }
+        }
+    }
+
+    private suspend fun clearAllBillingData(context: Context): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Clear SharedPreferences: MeterReadings (stores prev_SerialNumber readings)
+                val meterReadingsPrefs = context.getSharedPreferences("MeterReadings", Context.MODE_PRIVATE)
+                meterReadingsPrefs.edit { clear() }
+                Log.i(TAG, "Cleared MeterReadings SharedPreferences")
+
+                // Clear SharedPreferences: BillingDataStorage (stores 30-day billing data)
+                val billingStoragePrefs = context.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
+                billingStoragePrefs.edit { clear() }
+                Log.i(TAG, "Cleared BillingDataStorage SharedPreferences")
+
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Error clearing billing data", e)
+                false
             }
         }
     }

@@ -520,7 +520,7 @@
     <!-- Navigation Drawer -->
     <string name="nav_home">Home</string>
     <string name="nav_meter_reading">Meter Reading</string>
-    <string name="nav_import_data">Import Data</string>
+    <string name="nav_upload_data">Upload Data</string>
     <string name="nav_receipt_template">Receipt Template</string>
     <string name="navigation_drawer">Navigation Drawer</string>
     <string name="open_drawer">Open navigation drawer</string>

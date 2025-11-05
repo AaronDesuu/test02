@@ -219,7 +219,7 @@ private fun DrawerContentWithTest(
                     screen = AppScreen.METER_READING
                 ),
                 DrawerNavigationItem(
-                    title = stringResource(R.string.nav_import_data),
+                    title = stringResource(R.string.nav_upload_data),
                     icon = Icons.Default.Upload,
                     action = {
                         onNavigationItemClick(AppScreen.IMPORT_DATA)
