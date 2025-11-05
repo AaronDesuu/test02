@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,15 @@ fun PrinterStatusErrorDialog(
     val isConnecting = connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING
     val isConnected = connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED
     val isNotConnected = !isConnected
+
+    LaunchedEffect(isConnected) {
+        if (isConnected && printerViewModel != null) {
+            // Reset status to UNKNOWN before checking
+            printerViewModel.resetStatus()
+            // Request immediate status check
+            printerViewModel.checkPrinterStatusNow()
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onCancel,

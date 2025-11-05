@@ -63,8 +63,6 @@ fun MeterDetailScreen(
     // Collect printer states for error dialog
     val bluetoothConnectionState by printerViewModel.connectionState.collectAsState()
     val isBluetoothEnabled by printerViewModel.isBluetoothEnabled.collectAsState()
-    val paperStatus by printerViewModel.paperStatus.collectAsState()
-    val coverStatus by printerViewModel.coverStatus.collectAsState()
 
     // Collect printer error dialog state
     val showPrinterErrorDialog by registrationViewModel.showPrinterErrorDialog.collectAsState()
@@ -255,20 +253,14 @@ fun MeterDetailScreen(
                 )
             }
 
-            // NEW: Printer Status Error Dialog - Shows if printer has issues
             if (showPrinterErrorDialog) {
                 PrinterStatusErrorDialog(
                     errorMessage = printerErrorMessage,
-                    paperStatus = paperStatus,
-                    coverStatus = coverStatus,
-                    onRetry = {
-                        // Retry printing
-                        registrationViewModel.retryPrint()
-                    },
-                    onCancel = {
-                        // Cancel and go to save dialog
-                        registrationViewModel.cancelPrintFromError()
-                    }
+                    paperStatus = registrationViewModel.readDataPrinting.printerPaperStatus.collectAsState().value,
+                    coverStatus = registrationViewModel.readDataPrinting.printerCoverStatus.collectAsState().value,
+                    printerViewModel = printerViewModel,
+                    onRetry = { registrationViewModel.readDataPrinting.retryPrint() },
+                    onCancel = { registrationViewModel.readDataPrinting.cancelPrintFromError() }
                 )
             }
 

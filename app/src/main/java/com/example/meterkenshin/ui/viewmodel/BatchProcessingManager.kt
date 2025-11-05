@@ -159,7 +159,7 @@ class BatchProcessingManager(
         scope.launch {
             try {
                 _isProcessing.value = true
-                _processedCount.value = 0
+                _processedCount.value = 1
                 _totalCount.value = meters.size
                 _failedMeters.value = emptyList()
                 _errorCount.value = 0
@@ -246,7 +246,7 @@ class BatchProcessingManager(
 
                         // Step 7: Complete
                         updateProgressWithStep(7, "✅ Completed ${meter.serialNumber}")
-                        _processedCount.value = meterNum
+                        _processedCount.value += meterNum
                         Log.i(TAG, "Successfully processed ${meter.serialNumber}")
 
                     } catch (e: Exception) {
@@ -446,7 +446,7 @@ class BatchProcessingManager(
     fun reset() {
         _isProcessing.value = false
         _currentProgress.value = ""
-        _processedCount.value = 0
+        _processedCount.value = 1
         _totalCount.value = 0
         _failedMeters.value = emptyList()
         _awaitingUserAction.value = false

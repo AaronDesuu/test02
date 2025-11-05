@@ -168,7 +168,7 @@ class BatchPrintManager(
         scope.launch {
             try {
                 _isProcessing.value = true
-                _processedCount.value = 0
+                _processedCount.value = 1
                 _totalCount.value = meters.size
                 _errorCount.value = 0
                 val failed = mutableListOf<String>()
@@ -229,7 +229,7 @@ class BatchPrintManager(
                         delay(PRINT_DELAY_MS)
 
                         updateProgressWithStep(3, "✅ Printed ${meter.serialNumber}")
-                        _processedCount.value = meterNum
+                        _processedCount.value += meterNum
                         Log.i(TAG, "Successfully printed ${meter.serialNumber}")
 
                     } catch (e: Exception) {
@@ -286,7 +286,7 @@ class BatchPrintManager(
      */
     fun reset() {
         _isProcessing.value = false
-        _processedCount.value = 0
+        _processedCount.value = 1
         _totalCount.value = 0
         _failedMeters.value = emptyList()
         _currentMeterSerial.value = null

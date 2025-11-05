@@ -7,13 +7,9 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import com.example.meterkenshin.model.BillingRecord
+import com.example.meterkenshin.data.BillingDataRepository
+import com.example.meterkenshin.data.RegistrationState
+import com.example.meterkenshin.data.SavedBillingData
 import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.dlms.DLMSCSVWriter
 import com.example.meterkenshin.dlms.DLMSDataAccess
@@ -21,23 +17,32 @@ import com.example.meterkenshin.dlms.DLMSFunctions
 import com.example.meterkenshin.dlms.DLMSInit
 import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.dlms.DLMSSessionManager
-import com.example.meterkenshin.model.Billing
-import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.dlms.ReadDataPrinting
-import com.example.meterkenshin.data.RegistrationState
-import com.example.meterkenshin.data.SavedBillingData
-import com.example.meterkenshin.utils.calculateBillingData
-import com.example.meterkenshin.data.BillingDataRepository
-import com.example.meterkenshin.utils.getCurrentYearMonth
+import com.example.meterkenshin.model.Billing
+import com.example.meterkenshin.model.BillingRecord
+import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.notification.NotificationManager
+import com.example.meterkenshin.utils.calculateBillingData
+import com.example.meterkenshin.utils.getCurrentYearMonth
+import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@SuppressLint("SameParameterValue", "KotlinConstantConditions", "DefaultLocale", "MissingPermission")
+@SuppressLint(
+    "SameParameterValue",
+    "KotlinConstantConditions",
+    "DefaultLocale",
+    "MissingPermission"
+)
 class DLMSViewModel : ViewModel() {
 
     companion object {
@@ -56,7 +61,7 @@ class DLMSViewModel : ViewModel() {
 
     private var billingRepository: BillingDataRepository? = null
 
-    private val readDataPrinting = ReadDataPrinting(viewModelScope) { appendLog(it) }
+    val readDataPrinting = ReadDataPrinting(viewModelScope) { appendLog(it) }
 
     // DLMS Initializer handles all Bluetooth/service setup
     private val dlmsInit = DLMSInit { appendLog(it) }
@@ -87,8 +92,6 @@ class DLMSViewModel : ViewModel() {
     val pendingBillingData: StateFlow<Billing?> get() = readDataPrinting.pendingBillingData
 
     fun confirmPrint() = readDataPrinting.confirmPrint()
-    fun retryPrint() = readDataPrinting.retryPrint()
-    fun cancelPrintFromError() = readDataPrinting.cancelPrintFromError()
     fun skipPrint() = readDataPrinting.skipPrint()
     fun printReceipt(billing: Billing, rates: FloatArray? = null) =
         readDataPrinting.printReceipt(billing, rates)
@@ -328,10 +331,10 @@ class DLMSViewModel : ViewModel() {
 
             } catch (e: Exception) {
                 appendLog("ERROR: ${e.message}")
+                NotificationManager.showError("Registration failed: ${e.message}")
                 _registrationState.value = RegistrationState(
                     error = e.message ?: "Registration failed"
                 )
-                NotificationManager.showError("Registration failed: ${e.message}")
             } finally {
                 // ALWAYS close connection, success or failure
                 dlmsInit.bluetoothLeService?.close()
@@ -453,55 +456,46 @@ class DLMSViewModel : ViewModel() {
 
                 val previousReading = loadPreviousReading(meter.serialNumber)
 
-                if (previousReading != null) {
-                    // Create Billing object with current and previous data
-                    val billing = Billing().apply {
-                        Period = DLMSJSONWriter.dateTimeToMonth(billingData[1])
-                        Commercial = "LARGE"
-                        SerialNumber = meter.serialNumber
-                        Multiplier = 1.0f
-                        PeriodFrom = previousReading.PeriodTo
-                        PeriodTo = currentRecord.clock
-                        PrevReading = previousReading.PresReading
-                        PresReading = currentRecord.imp
-                        MaxDemand = currentRecord.maxImp / 1000f
-                        DueDate = DLMSJSONWriter.formattedMonthDay(1, 0)
-                        DiscoDate = DLMSJSONWriter.formattedMonthDay(1, 1)
-                        Discount = 10.0f
-                        Interest = 10.0f
-                        Reader = "Fuji Taro"
-                        ReadDatetime = DLMSJSONWriter.getNowDate()
-                        Version = "v1.00.2"
-                    }
-
-                    // Calculate charges
-                    calculateBillingData(billing, rates)
-
-                    appendLog("Total Use: %.3f kWh".format(billing.TotalUse))
-                    appendLog("Total Amount: %.2f".format(billing.TotalAmount))
-
-                    // Save billing data for 30 days (replaces pending data approach)
-                    persistBillingData(billing, rates)
-
-                    // Save current as previous for next time
-                    savePreviousReading(meter.serialNumber, billing)
-
-                    appendLog("✅ Read Data Complete - Data saved for 30 days")
-                    NotificationManager.showSuccess("Read Data Complete - Data saved for 30 days")
-
-                    readDataPrinting.setPendingBillingData(billing)
-                    readDataPrinting.setSavedRates(rates)
-                    readDataPrinting.showPrintDialog()
-
-                } else {
-                    appendLog("No previous reading available - saving current as baseline")
-                    val baseline = Billing().apply {
-                        PeriodTo = currentRecord.clock
-                        PresReading = currentRecord.imp
-                    }
-                    savePreviousReading(meter.serialNumber, baseline)
-                    appendLog("✅ Read Data Complete - Baseline saved")
+                // Create Billing object with current and previous data
+                val billing = Billing().apply {
+                    Period = DLMSJSONWriter.dateTimeToMonth(billingData[1])
+                    Commercial = "LARGE"
+                    SerialNumber = meter.serialNumber
+                    Multiplier = 1.0f
+                    PeriodFrom = previousReading?.PeriodTo
+                    PeriodTo = currentRecord.clock
+                    PrevReading = previousReading?.PresReading
+                    PresReading = currentRecord.imp
+                    MaxDemand = currentRecord.maxImp / 1000f
+                    DueDate = DLMSJSONWriter.formattedMonthDay(1, 0)
+                    DiscoDate = DLMSJSONWriter.formattedMonthDay(1, 1)
+                    Discount = 10.0f
+                    Interest = 10.0f
+                    Reader = "Fuji Taro"
+                    ReadDatetime = DLMSJSONWriter.getNowDate()
+                    Version = "v1.00.2"
                 }
+
+                // Calculate charges
+                calculateBillingData(billing, rates)
+
+                appendLog("Total Use: %.3f kWh".format(billing.TotalUse))
+                appendLog("Total Amount: %.2f".format(billing.TotalAmount))
+
+                // Save billing data for 30 days (replaces pending data approach)
+                persistBillingData(billing, rates)
+
+                // Save current as previous for next time
+                savePreviousReading(meter.serialNumber, billing)
+
+                appendLog("✅ Read Data Complete - Data saved for 30 days")
+                NotificationManager.showSuccess("Read Data Complete - Data saved for 30 days")
+
+                readDataPrinting.setPendingBillingData(billing)
+                readDataPrinting.setSavedRates(rates)
+                readDataPrinting.showPrintDialog()
+
+
             } else {
                 appendLog("ERROR: Insufficient billing data received")
             }

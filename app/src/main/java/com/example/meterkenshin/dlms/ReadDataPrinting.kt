@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 /**
  * ReadDataPrinting - Handles all printing operations for DLMS read data
  * Extracted from DLMSViewModel to separate printing concerns
+ *
+ * UPDATED: Now shows PrinterStatusErrorDialog with real-time status checking
  */
 class ReadDataPrinting(
     private val viewModelScope: CoroutineScope,
@@ -34,6 +36,13 @@ class ReadDataPrinting(
     private val _printerErrorMessage = MutableStateFlow("")
     val printerErrorMessage: StateFlow<String> = _printerErrorMessage.asStateFlow()
 
+    // Real-time printer status for error dialog
+    private val _printerPaperStatus = MutableStateFlow(PrinterBluetoothViewModel.PaperStatus.UNKNOWN)
+    val printerPaperStatus: StateFlow<PrinterBluetoothViewModel.PaperStatus> = _printerPaperStatus.asStateFlow()
+
+    private val _printerCoverStatus = MutableStateFlow(PrinterBluetoothViewModel.CoverStatus.UNKNOWN)
+    val printerCoverStatus: StateFlow<PrinterBluetoothViewModel.CoverStatus> = _printerCoverStatus.asStateFlow()
+
     private val _pendingBillingData = MutableStateFlow<Billing?>(null)
     val pendingBillingData: StateFlow<Billing?> = _pendingBillingData.asStateFlow()
 
@@ -49,10 +58,18 @@ class ReadDataPrinting(
     }
 
     /**
-     * Set printer view model reference
+     * Set printer view model reference and collect real-time status
      */
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         this.printerViewModel = viewModel
+
+        // Collect real-time printer status for error dialog
+        viewModelScope.launch {
+            viewModel.paperStatus.collect { _printerPaperStatus.value = it }
+        }
+        viewModelScope.launch {
+            viewModel.coverStatus.collect { _printerCoverStatus.value = it }
+        }
     }
 
     /**
@@ -79,13 +96,23 @@ class ReadDataPrinting(
                 val printer = printerViewModel
                 if (printer == null) {
                     appendLog("ERROR: Printer not configured")
+                    _printerErrorMessage.value = "Printer not configured"
+                    _showPrinterErrorDialog.value = true
                     return@launch
                 }
 
                 PrinterStatusHelper.checkPrinterReadyAndExecute(
                     printerViewModel = printer,
-                    onNotConnected = { appendLog("ERROR: Printer not connected") },
-                    onNotReady = { reason -> appendLog("ERROR: Printer not ready - $reason") },
+                    onNotConnected = {
+                        appendLog("ERROR: Printer not connected")
+                        _printerErrorMessage.value = "Printer is not connected. Please connect to printer."
+                        _showPrinterErrorDialog.value = true
+                    },
+                    onNotReady = { reason ->
+                        appendLog("ERROR: Printer not ready - $reason")
+                        _printerErrorMessage.value = reason
+                        _showPrinterErrorDialog.value = true
+                    },
                     onReady = {
                         appendLog("Printer ready, preparing receipt...")
 
@@ -107,6 +134,8 @@ class ReadDataPrinting(
                 )
             } catch (e: Exception) {
                 appendLog("ERROR: Failed to print receipt - ${e.message}")
+                _printerErrorMessage.value = "Failed to print receipt: ${e.message}"
+                _showPrinterErrorDialog.value = true
             }
         }
         return printSuccess
@@ -128,14 +157,15 @@ class ReadDataPrinting(
 
     /**
      * Confirm print - checks printer then prints receipt and shows save dialog next
-     * Checks printer status before printing
+     * UPDATED: Shows PrinterStatusErrorDialog instead of just skipping on error
      */
     fun confirmPrint() {
         viewModelScope.launch {
             val printer = printerViewModel
             if (printer == null) {
                 appendLog("ERROR: Printer not configured")
-                skipPrint() // Skip to save dialog if no printer
+                _printerErrorMessage.value = "Printer not configured"
+                _showPrinterErrorDialog.value = true
                 return@launch
             }
 
@@ -143,12 +173,16 @@ class ReadDataPrinting(
             PrinterStatusHelper.checkPrinterReadyAndExecute(
                 printerViewModel = printer,
                 onNotConnected = {
-                    appendLog("ERROR: Printer not connected - skipping print")
-                    skipPrint() // Skip to save dialog
+                    appendLog("ERROR: Printer not connected")
+                    _printerErrorMessage.value = "Printer is not connected. Please connect to printer."
+                    _showPrinterErrorDialog.value = true
+                    // Don't dismiss print dialog or show save dialog
                 },
                 onNotReady = { reason ->
                     appendLog("ERROR: Printer not ready - $reason")
-                    skipPrint() // Skip to save dialog
+                    _printerErrorMessage.value = reason
+                    _showPrinterErrorDialog.value = true
+                    // Don't dismiss print dialog or show save dialog
                 },
                 onReady = {
                     // Printer ready, print the receipt
@@ -166,8 +200,8 @@ class ReadDataPrinting(
      * Re-checks status and attempts print again
      */
     fun retryPrint() {
-        _showPrinterErrorDialog.value = false
-        confirmPrint() // Try again
+        dismissPrinterErrorDialog()  // Close error dialog first
+        confirmPrint() // Try again - will re-show error dialog if still failing
     }
 
     /**
@@ -175,9 +209,16 @@ class ReadDataPrinting(
      * Closes error dialog and goes to save dialog
      */
     fun cancelPrintFromError() {
+        dismissPrinterErrorDialog()  // Close error dialog
+        dismissPrintDialog()         // Close print dialog
+        _showSaveDialog.value = true // Show save dialog
+    }
+
+    /**
+     * Dismiss printer error dialog
+     */
+    private fun dismissPrinterErrorDialog() {
         _showPrinterErrorDialog.value = false
-        dismissPrintDialog()
-        _showSaveDialog.value = true
     }
 
     /**
@@ -209,6 +250,7 @@ class ReadDataPrinting(
     fun dismissSaveDialog() {
         _showSaveDialog.value = false
     }
+
     /**
      * Clear pending billing data
      */

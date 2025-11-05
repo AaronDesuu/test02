@@ -24,21 +24,20 @@ enum class InspectionStatus(
 fun getInspectionStatus(meter: Meter): InspectionStatus {
     // Meter has readings but billing not printed (or printed outside 30-day window)
     if (meter.readDate != meter.fixedDate && (meter.readDate != null || meter.impKWh != null)) {
-        return InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
+        // Meter has been inspected (has readDate and readings)
+        // Now check billing print status
+        if (meter.billingPrintDate != null) {
+            // Calculate the difference in days
+            val timeDiffMillis = meter.billingPrintDate.time - meter.readDate!!.time
+            val daysDiff = timeDiffMillis / (1000 * 60 * 60 * 24)
 
-    }
-
-    // Meter has been inspected (has readDate and readings)
-    // Now check billing print status
-    if (meter.billingPrintDate != null) {
-        // Calculate the difference in days
-        val timeDiffMillis = meter.billingPrintDate.time - meter.readDate!!.time
-        val daysDiff = timeDiffMillis / (1000 * 60 * 60 * 24)
-
-        // Check if billing was printed within 30 days AFTER the read date
-        if (daysDiff in 0..30) {
-            return InspectionStatus.INSPECTED_BILLING_PRINTED
+            // Check if billing was printed within 30 days AFTER the read date
+            if (daysDiff in 0..30) {
+                return InspectionStatus.INSPECTED_BILLING_PRINTED
+            }
         }
+
+        return InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
     }
 
     // Meter not inspected
