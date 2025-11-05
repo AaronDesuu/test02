@@ -30,6 +30,7 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.utils.getInspectionStatus
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date

@@ -69,12 +69,15 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
+import com.example.meterkenshin.utils.InspectionStatus
+import com.example.meterkenshin.utils.getInspectionStatus
 import com.example.meterkenshin.utils.loadMeterRates
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
 
 /**
  * Reusable Meter List Component with Automatic BLE Scanning
@@ -279,9 +282,46 @@ fun MeterListComponent(
                             )
 
                             // Print Actions Dropdown
+
                             PrintActionsDropdown(
                                 onBatchReading = {
-                                    // TODO
+
+                                    val notInspectedOnlineMeters = uiState.allMeters.filter { meter ->
+                                        // Must be registered (activate == 1)
+                                        meter.activate == 1 &&
+                                                // Must be NOT_INSPECTED (using same logic as MeterCardComponent)
+                                                getInspectionStatus(meter) == InspectionStatus.NOT_INSPECTED &&
+                                                // Must be online (nearby via BLE)
+                                                meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+                                    }
+
+                                    if (notInspectedOnlineMeters.isEmpty()) {
+                                        Toast.makeText(
+                                            context,
+                                            "No uninspected online meters found",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "Starting batch reading for ${notInspectedOnlineMeters.size} online meters",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+
+                                        // Start batch processing with NOT_INSPECTED online registered meters only
+                                        batchProcessor.processBatch(
+                                            meters = notInspectedOnlineMeters,
+                                            rates = rates,
+                                            onComplete = { success, failedMeters ->
+                                                val message = if (success) {
+                                                    "All ${notInspectedOnlineMeters.size} meters processed!"
+                                                } else {
+                                                    "Processed with ${failedMeters.size} failures"
+                                                }
+                                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                            }
+                                        )
+                                    }
                                 },
                                 onBatchPrinting = {
                                     // TODO
