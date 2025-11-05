@@ -69,6 +69,8 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
+import com.example.meterkenshin.ui.viewmodel.BatchPrintManager
+import com.example.meterkenshin.ui.viewmodel.BatchPrintMode
 import com.example.meterkenshin.utils.InspectionStatus
 import com.example.meterkenshin.utils.getInspectionStatus
 import com.example.meterkenshin.utils.loadMeterRates
@@ -125,6 +127,14 @@ fun MeterListComponent(
             context = context
         )
     }
+    val batchPrintManager = remember(dlmsViewModel, meterReadingViewModel, scope, context) {
+        BatchPrintManager(
+            dlmsViewModel = dlmsViewModel,
+            meterReadingViewModel = meterReadingViewModel,
+            scope = scope,
+            context = context
+        )
+    }
 
     // Collect batch processing states
     val isProcessing by batchProcessor.isProcessing.collectAsState()
@@ -142,7 +152,20 @@ fun MeterListComponent(
     val showPrinterErrorDialog by batchProcessor.showPrinterErrorDialog.collectAsState()
     val printerErrorMessage by batchProcessor.printerErrorMessage.collectAsState()
 
+    // Batch print states
+    val isPrinting by batchPrintManager.isProcessing.collectAsState()
+    val printProcessedCount by batchPrintManager.processedCount.collectAsState()
+    val printTotalCount by batchPrintManager.totalCount.collectAsState()
+    val printCurrentMeterSerial by batchPrintManager.currentMeterSerial.collectAsState()
+    val printCurrentStep by batchPrintManager.currentStep.collectAsState()
+    val printCurrentStepDescription by batchPrintManager.currentStepDescription.collectAsState()
+    val printErrorCount by batchPrintManager.errorCount.collectAsState()
+    val showPrintPrinterErrorDialog by batchPrintManager.showPrinterErrorDialog.collectAsState()
+    val printPrinterErrorMessage by batchPrintManager.printerErrorMessage.collectAsState()
+
     val printerViewModel: PrinterBluetoothViewModel = viewModel()
+    val printerPaperStatus by printerViewModel.paperStatus.collectAsState()
+    val printerCoverStatus by printerViewModel.coverStatus.collectAsState()
 
     // Set printer reference in DLMS ViewModel
     LaunchedEffect(Unit) {
@@ -150,6 +173,15 @@ fun MeterListComponent(
         batchProcessor.setPrinterViewModel(printerViewModel)
         Log.d("MeterListComponent", "Printer ViewModel configured for batch processing")
     }
+
+    LaunchedEffect(Unit) {
+        dlmsViewModel.setPrinterViewModel(printerViewModel)
+        batchProcessor.setPrinterViewModel(printerViewModel)
+        batchPrintManager.setPrinterViewModel(printerViewModel) // ADD THIS
+        Log.d("MeterListComponent", "Printer ViewModel configured for batch operations")
+    }
+    var showBatchPrintDialog by remember { mutableStateOf(false) }
+    var batchPrintMode by remember { mutableStateOf(BatchPrintMode.ALL) }
 
     BackHandler(enabled = selectionMode) {
         meterReadingViewModel.clearSelection()
@@ -324,7 +356,7 @@ fun MeterListComponent(
                                     }
                                 },
                                 onBatchPrinting = {
-                                    // TODO
+                                    showBatchPrintDialog = true // ADD THIS
                                 },
                                 onSelectAndPrint = {
                                     // Enter selection mode
@@ -593,14 +625,11 @@ fun MeterListComponent(
                         }
                     )
                     if (showPrinterErrorDialog) {
-                        val printerPaperStatus by printerViewModel.paperStatus.collectAsState()
-                        val printerCoverStatus by printerViewModel.coverStatus.collectAsState()
-
                         PrinterStatusErrorDialog(
                             errorMessage = printerErrorMessage,
                             paperStatus = printerPaperStatus,
                             coverStatus = printerCoverStatus,
-                            printerViewModel = printerViewModel, // ADDED
+                            printerViewModel = printerViewModel,
                             onRetry = {
                                 scope.launch {
                                     currentMeterSerial?.let { serial ->
@@ -616,6 +645,80 @@ fun MeterListComponent(
                             }
                         )
                     }
+                }
+
+                // 1. Batch Print Options Dialog
+                if (showBatchPrintDialog) {
+                    BatchPrintOptionsDialog(
+                        selectedMode = batchPrintMode,
+                        onModeSelected = { mode ->
+                            batchPrintMode = mode
+                        },
+                        onConfirm = {
+                            showBatchPrintDialog = false
+
+                            // Start batch printing with selected mode
+                            batchPrintManager.processBatchPrint(
+                                meters = uiState.allMeters,
+                                printMode = batchPrintMode
+                            ) { success, failed ->
+                                val message = if (success) {
+                                    "Batch printing completed successfully!"
+                                } else {
+                                    "Batch printing completed with ${failed.size} failures"
+                                }
+                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                            }
+                        },
+                        onDismiss = {
+                            showBatchPrintDialog = false
+                        }
+                    )
+                }
+
+// 2. Batch Print Progress Dialog
+                if (isPrinting) {
+                    BatchPrintProgressDialog(
+                        processedCount = printProcessedCount,
+                        totalCount = printTotalCount,
+                        currentStep = printCurrentStep,
+                        currentStepDescription = printCurrentStepDescription,
+                        currentMeterSerial = printCurrentMeterSerial,
+                        errorCount = printErrorCount,
+                        isProcessing = isPrinting,
+                        onCancel = {
+                            batchPrintManager.cancel()
+                            Toast.makeText(
+                                context,
+                                "Batch printing cancelled",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        },
+                        onClose = {
+                            batchPrintManager.reset()
+                        }
+                    )
+                }
+
+                // 3. Batch Print Printer Error Dialog (uses existing PrinterStatusErrorDialog)
+                if (showPrintPrinterErrorDialog) {
+                    PrinterStatusErrorDialog(
+                        errorMessage = printPrinterErrorMessage,
+                        paperStatus = printerPaperStatus,
+                        coverStatus = printerCoverStatus,
+                        printerViewModel = printerViewModel,
+                        onRetry = {
+                            scope.launch {
+                                printCurrentMeterSerial?.let { serial ->
+                                    val meter = uiState.allMeters.find { it.serialNumber == serial }
+                                    meter?.let { batchPrintManager.retryPrinting(it) }
+                                }
+                            }
+                        },
+                        onCancel = {
+                            batchPrintManager.dismissPrinterError()
+                        }
+                    )
                 }
 
                 // Statistics
