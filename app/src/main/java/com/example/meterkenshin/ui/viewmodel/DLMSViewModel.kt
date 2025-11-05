@@ -29,6 +29,7 @@ import com.example.meterkenshin.data.SavedBillingData
 import com.example.meterkenshin.utils.calculateBillingData
 import com.example.meterkenshin.data.BillingDataRepository
 import com.example.meterkenshin.utils.getCurrentYearMonth
+import com.example.meterkenshin.ui.notification.NotificationManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -310,6 +311,7 @@ class DLMSViewModel : ViewModel() {
 
                     appendLog("✅ Registration Complete")
                     _registrationState.value = RegistrationState(isComplete = true)
+                    NotificationManager.showSuccess("Registration completed successfully")
 
                     withContext(Dispatchers.Main) {
                         mContext?.let { ctx ->
@@ -321,6 +323,7 @@ class DLMSViewModel : ViewModel() {
                     _currentMeter.value = updatedMeter
                 } else {
                     appendLog("ERROR: Failed to get billing data")
+
                 }
 
             } catch (e: Exception) {
@@ -328,6 +331,7 @@ class DLMSViewModel : ViewModel() {
                 _registrationState.value = RegistrationState(
                     error = e.message ?: "Registration failed"
                 )
+                NotificationManager.showError("Registration failed: ${e.message}")
             } finally {
                 // ALWAYS close connection, success or failure
                 dlmsInit.bluetoothLeService?.close()
@@ -483,12 +487,12 @@ class DLMSViewModel : ViewModel() {
                     savePreviousReading(meter.serialNumber, billing)
 
                     appendLog("✅ Read Data Complete - Data saved for 30 days")
+                    NotificationManager.showSuccess("Read Data Complete - Data saved for 30 days")
 
                     readDataPrinting.setPendingBillingData(billing)
                     readDataPrinting.setSavedRates(rates)
                     readDataPrinting.showPrintDialog()
 
-                    // NEW: Show print dialog first
                 } else {
                     appendLog("No previous reading available - saving current as baseline")
                     val baseline = Billing().apply {
@@ -505,6 +509,7 @@ class DLMSViewModel : ViewModel() {
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Read Data error", e)
+            NotificationManager.showError("Read data failed: ${e.message}")
         } finally {
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
@@ -690,6 +695,7 @@ class DLMSViewModel : ViewModel() {
                 if (success) {
                     appendLog("Success to get and save ${allLoadProfileData.size} load profile records to file")
                     appendLog("✅ Load Profile Complete")
+                    NotificationManager.showSuccess("Load profile completed successfully")
                 } else {
                     appendLog("ERROR: Failed to save load profile to CSV")
                 }
@@ -698,6 +704,7 @@ class DLMSViewModel : ViewModel() {
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Load Profile error", e)
+            NotificationManager.showError("Load profile failed: ${e.message}")
         } finally {
             // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()
@@ -803,6 +810,7 @@ class DLMSViewModel : ViewModel() {
                     if (success) {
                         appendLog("Success to get and save ${allEventData.size} event records to file")
                         appendLog("✅ Event Log Complete")
+                        NotificationManager.showSuccess("Event log completed successfully")
                     } else {
                         appendLog("ERROR: Failed to save event log to CSV")
                     }
@@ -812,6 +820,7 @@ class DLMSViewModel : ViewModel() {
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Event Log error", e)
+            NotificationManager.showError("Event log failed: ${e.message}")
         } finally {
             // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()
@@ -951,6 +960,7 @@ class DLMSViewModel : ViewModel() {
                 if (success) {
                     appendLog("Success to get and save ${records.size} billing records to file")
                     appendLog("✅ Billing Data Complete")
+                    NotificationManager.showSuccess("Billing data completed successfully")
                 } else {
                     appendLog("ERROR: Failed to save billing data to CSV")
                 }
@@ -961,6 +971,7 @@ class DLMSViewModel : ViewModel() {
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Billing Data error", e)
+            NotificationManager.showError("Billing data failed: ${e.message}")
         } finally {
             // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()
@@ -1065,11 +1076,14 @@ class DLMSViewModel : ViewModel() {
                         closeSession()
 
                         appendLog("✅ set Clock Complete")
+                        NotificationManager.showSuccess("Set clock completed successfully")
+
                     } else {
                         appendLog("ERROR: Failed to set clock - ${receive[1]}")
                     }
                 } else {
                     appendLog("✅ Clock set (response parsing incomplete)")
+                    NotificationManager.showSuccess("Set clock completed successfully")
                 }
             } else {
                 appendLog("ERROR: Failed to set clock")
@@ -1078,6 +1092,7 @@ class DLMSViewModel : ViewModel() {
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Set Clock error", e)
+            NotificationManager.showError("Set clock failed: ${e.message}")
         } finally {
             // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()

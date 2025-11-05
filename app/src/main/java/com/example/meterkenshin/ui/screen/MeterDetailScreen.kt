@@ -25,19 +25,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.meterkenshin.model.Meter
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.component.DLMSFunctionsCard
 import com.example.meterkenshin.ui.component.DLMSLogCard
 import com.example.meterkenshin.ui.component.MeterSpecificationsCard
 import com.example.meterkenshin.ui.component.MeterStatusCard
+import com.example.meterkenshin.ui.component.NotificationHost
 import com.example.meterkenshin.ui.component.PrintReceiptDialog
 import com.example.meterkenshin.ui.component.PrinterStatusErrorDialog
 import com.example.meterkenshin.ui.component.SaveJSONDialog
 import com.example.meterkenshin.ui.component.SavedBillingDataCard
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
-import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.loadMeterRates
 
@@ -143,146 +144,147 @@ fun MeterDetailScreen(
             }
         }
     }
+    NotificationHost(modifier = modifier) {
+        Column(modifier = modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+                    .padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Connection status card
+                MeterStatusCard(
+                    meter = meter,
+                    rssi = rssi,
+                    isNearby = isNearby
+                )
 
-    Column(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // 1. Connection status card
-            MeterStatusCard(
-                meter = meter,
-                rssi = rssi,
-                isNearby = isNearby
-            )
-
-            // 2. DLMS function buttons - NOW IN SEPARATE FILE
-            DLMSFunctionsCard(
-                meterActivate = activeMeter.activate,  // This will update when CSV is written
-                onRegistration = {
-                    if (meter.activate == 0) {
-                        registrationViewModel.registration(meter)
-                    } else {
-                        Log.w("MeterDetailScreen", "DLMS not yet initialized")
-                    }
-                },
-                onReadData = {
-                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                        val rates = loadMeterRates(context, fileUploadViewModel)
-                        registrationViewModel.readData(meter, rates)
-                    }
-                },
-                onLoadProfile = {
-                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                        registrationViewModel.loadProfile(meter)
-                    }
-                },
-                onEventLog = {
-                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                        registrationViewModel.eventLog(meter)
-                    }
-                },
-                onBillingData = {
-                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                        val rates = loadMeterRates(context, fileUploadViewModel)
-                        registrationViewModel.billingData(meter, rates)
-                    }
-                },
-                onSetClock = {
-                    if (isDlmsInitialized) {
-                        registrationViewModel.setClock(meter)
-                    }
-                },
-                // Disable buttons until initialized
-                isProcessing = registrationState.isRunning || !isDlmsInitialized
-            )
-
-            // 3. DLMS Log output - NOW IN SEPARATE FILE
-            DLMSLogCard(
-                logText = dlmsLog,
-                onClearLog = { registrationViewModel.clearLog() },
-                isProcessing = registrationState.isRunning
-            )
-
-
-            // Saved Billing Data Card (NEW - shows if data available)
-            savedBillingData?.let { saved ->
-                if (saved.isValid()) {
-                    SavedBillingDataCard(
-                        billing = saved.billing,
-                        daysRemaining = saved.daysRemaining(),
-                        bluetoothConnectionState = bluetoothConnectionState,
-                        printerViewModel = printerViewModel,
-                        isBluetoothEnabled = isBluetoothEnabled,
-                        onPrintReceipt = {
-                            // NEW: Print receipt from saved data
-                            registrationViewModel.printReceipt(saved.billing, saved.rates)
-                        },
-                        onSaveJSON = {
-                            registrationViewModel.saveStoredBillingToJSON()
-                        },
-                        onClearData = {
-                            registrationViewModel.clearSavedBillingData()
+                // 2. DLMS function buttons - NOW IN SEPARATE FILE
+                DLMSFunctionsCard(
+                    meterActivate = activeMeter.activate,  // This will update when CSV is written
+                    onRegistration = {
+                        if (meter.activate == 0) {
+                            registrationViewModel.registration(meter)
+                        } else {
+                            Log.w("MeterDetailScreen", "DLMS not yet initialized")
                         }
-                    )
+                    },
+                    onReadData = {
+                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                            val rates = loadMeterRates(context, fileUploadViewModel)
+                            registrationViewModel.readData(meter, rates)
+                        }
+                    },
+                    onLoadProfile = {
+                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                            registrationViewModel.loadProfile(meter)
+                        }
+                    },
+                    onEventLog = {
+                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                            registrationViewModel.eventLog(meter)
+                        }
+                    },
+                    onBillingData = {
+                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                            val rates = loadMeterRates(context, fileUploadViewModel)
+                            registrationViewModel.billingData(meter, rates)
+                        }
+                    },
+                    onSetClock = {
+                        if (isDlmsInitialized) {
+                            registrationViewModel.setClock(meter)
+                        }
+                    },
+                    // Disable buttons until initialized
+                    isProcessing = registrationState.isRunning || !isDlmsInitialized
+                )
+
+                // 3. DLMS Log output - NOW IN SEPARATE FILE
+                DLMSLogCard(
+                    logText = dlmsLog,
+                    onClearLog = { registrationViewModel.clearLog() },
+                    isProcessing = registrationState.isRunning
+                )
+
+
+                // Saved Billing Data Card (NEW - shows if data available)
+                savedBillingData?.let { saved ->
+                    if (saved.isValid()) {
+                        SavedBillingDataCard(
+                            billing = saved.billing,
+                            daysRemaining = saved.daysRemaining(),
+                            bluetoothConnectionState = bluetoothConnectionState,
+                            printerViewModel = printerViewModel,
+                            isBluetoothEnabled = isBluetoothEnabled,
+                            onPrintReceipt = {
+                                // NEW: Print receipt from saved data
+                                registrationViewModel.printReceipt(saved.billing, saved.rates)
+                            },
+                            onSaveJSON = {
+                                registrationViewModel.saveStoredBillingToJSON()
+                            },
+                            onClearData = {
+                                registrationViewModel.clearSavedBillingData()
+                            }
+                        )
+                    }
                 }
+
+                // 4. Meter specifications card
+                MeterSpecificationsCard(meter = meter)
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
 
-            // 4. Meter specifications card
-            MeterSpecificationsCard(meter = meter)
+            // Print Receipt Dialog - Shows FIRST after read data completes
+            if (showPrintDialog && pendingBillingData != null) {
+                PrintReceiptDialog(
+                    serialNumber = pendingBillingData?.SerialNumber,
+                    onConfirmPrint = {
+                        // Check printer status and print
+                        registrationViewModel.confirmPrint()
+                    },
+                    onSkipPrint = {
+                        // Skip print, move to save dialog
+                        registrationViewModel.skipPrint()
+                    }
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-        }
+            // NEW: Printer Status Error Dialog - Shows if printer has issues
+            if (showPrinterErrorDialog) {
+                PrinterStatusErrorDialog(
+                    errorMessage = printerErrorMessage,
+                    paperStatus = paperStatus,
+                    coverStatus = coverStatus,
+                    onRetry = {
+                        // Retry printing
+                        registrationViewModel.retryPrint()
+                    },
+                    onCancel = {
+                        // Cancel and go to save dialog
+                        registrationViewModel.cancelPrintFromError()
+                    }
+                )
+            }
 
-        // Print Receipt Dialog - Shows FIRST after read data completes
-        if (showPrintDialog && pendingBillingData != null) {
-            PrintReceiptDialog(
-                serialNumber = pendingBillingData?.SerialNumber,
-                onConfirmPrint = {
-                    // Check printer status and print
-                    registrationViewModel.confirmPrint()
-                },
-                onSkipPrint = {
-                    // Skip print, move to save dialog
-                    registrationViewModel.skipPrint()
-                }
-            )
-        }
-
-        // NEW: Printer Status Error Dialog - Shows if printer has issues
-        if (showPrinterErrorDialog) {
-            PrinterStatusErrorDialog(
-                errorMessage = printerErrorMessage,
-                paperStatus = paperStatus,
-                coverStatus = coverStatus,
-                onRetry = {
-                    // Retry printing
-                    registrationViewModel.retryPrint()
-                },
-                onCancel = {
-                    // Cancel and go to save dialog
-                    registrationViewModel.cancelPrintFromError()
-                }
-            )
-        }
-
-        // Save JSON Dialog - Shows SECOND after print dialog
-        if (showSaveDialog && pendingBillingData != null) {
-            SaveJSONDialog(
-                onConfirm = {
-                    // Save to JSON
-                    registrationViewModel.confirmSave()
-                },
-                onDismiss = {
-                    // Skip save, clear pending data
-                    registrationViewModel.skipSave()
-                }
-            )
+            // Save JSON Dialog - Shows SECOND after print dialog
+            if (showSaveDialog && pendingBillingData != null) {
+                SaveJSONDialog(
+                    onConfirm = {
+                        // Save to JSON
+                        registrationViewModel.confirmSave()
+                    },
+                    onDismiss = {
+                        // Skip save, clear pending data
+                        registrationViewModel.skipSave()
+                    }
+                )
+            }
         }
     }
 }
