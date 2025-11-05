@@ -66,10 +66,8 @@ class BatchPrintManager(
 
     // Real-time printer status for error dialog
     private val _printerPaperStatus = MutableStateFlow(PrinterBluetoothViewModel.PaperStatus.UNKNOWN)
-    val printerPaperStatus: StateFlow<PrinterBluetoothViewModel.PaperStatus> = _printerPaperStatus.asStateFlow()
 
     private val _printerCoverStatus = MutableStateFlow(PrinterBluetoothViewModel.CoverStatus.UNKNOWN)
-    val printerCoverStatus: StateFlow<PrinterBluetoothViewModel.CoverStatus> = _printerCoverStatus.asStateFlow()
 
     private var printerViewModel: PrinterBluetoothViewModel? = null
 
