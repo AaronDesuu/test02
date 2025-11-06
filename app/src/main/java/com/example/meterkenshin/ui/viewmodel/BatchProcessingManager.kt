@@ -35,6 +35,10 @@ class BatchProcessingManager(
         private const val OPERATION_DELAY_MS = 500L
         private const val TOTAL_STEPS = 7
     }
+    enum class UserChoice {
+        RETRY,
+        SKIP
+    }
 
     // State flows
     private val _isProcessing = MutableStateFlow(false)
@@ -59,14 +63,12 @@ class BatchProcessingManager(
 
     private val _userActionRequired = MutableStateFlow<UserActionType?>(null)
 
-    // ⭐ NEW: Step progress tracking
     private val _currentStep = MutableStateFlow(0)
     val currentStep: StateFlow<Int> = _currentStep.asStateFlow()
 
     private val _currentStepDescription = MutableStateFlow("")
     val currentStepDescription: StateFlow<String> = _currentStepDescription.asStateFlow()
 
-    // ⭐ NEW: Error count tracking
     private val _errorCount = MutableStateFlow(0)
     val errorCount: StateFlow<Int> = _errorCount.asStateFlow()
 
@@ -96,6 +98,14 @@ class BatchProcessingManager(
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         this.printerViewModel = viewModel
     }
+
+    private val _showRetryDialog = MutableStateFlow(false)
+    val showRetryDialog: StateFlow<Boolean> = _showRetryDialog.asStateFlow()
+
+    private val _retryDialogMeter = MutableStateFlow<String?>(null)
+    val retryDialogMeter: StateFlow<String?> = _retryDialogMeter.asStateFlow()
+
+    private var retryChoice: UserChoice? = null
 
     /**
      * Update print option
@@ -159,7 +169,7 @@ class BatchProcessingManager(
         scope.launch {
             try {
                 _isProcessing.value = true
-                _processedCount.value = 1
+                _processedCount.value = 0
                 _totalCount.value = meters.size
                 _failedMeters.value = emptyList()
                 _errorCount.value = 0
@@ -172,6 +182,7 @@ class BatchProcessingManager(
 
                 for ((index, meter) in meters.withIndex()) {
                     val meterNum = index + 1
+                    _processedCount.value = meterNum
                     _currentMeterSerial.value = meter.serialNumber
 
                     try {
@@ -194,10 +205,31 @@ class BatchProcessingManager(
                             // Wait for read operation
                             if (!waitForOperationComplete()) {
                                 Log.e(TAG, "Read timeout for ${meter.serialNumber}")
-                                failed.add(meter.serialNumber)
-                                _errorCount.value++
-                                updateProgressWithStep(0, "⚠️ Timeout reading ${meter.serialNumber}")
-                                continue
+
+                                // NEW: Prompt user for retry or skip
+                                val userChoice = promptRetryOrSkip(meter.serialNumber)
+
+                                if (userChoice == UserChoice.RETRY) {
+                                    // Retry the read operation
+                                    Log.i(TAG, "Retrying read for ${meter.serialNumber}")
+                                    dlmsViewModel.readData(meter, rates)
+
+                                    if (!waitForOperationComplete()) {
+                                        // Still failed after retry
+                                        Log.e(TAG, "Read failed after retry for ${meter.serialNumber}")
+                                        failed.add(meter.serialNumber)
+                                        _errorCount.value++
+                                        updateProgressWithStep(0, "⚠️ Failed to read ${meter.serialNumber}")
+                                        continue
+                                    }
+                                } else {
+                                    // User chose to skip
+                                    Log.i(TAG, "User skipped ${meter.serialNumber}")
+                                    failed.add(meter.serialNumber)
+                                    _errorCount.value++
+                                    updateProgressWithStep(0, "⏭️ Skipped ${meter.serialNumber}")
+                                    continue
+                                }
                             }
 
                             // Step 4: Finalizing read
@@ -246,7 +278,6 @@ class BatchProcessingManager(
 
                         // Step 7: Complete
                         updateProgressWithStep(7, "✅ Completed ${meter.serialNumber}")
-                        _processedCount.value += meterNum
                         Log.i(TAG, "Successfully processed ${meter.serialNumber}")
 
                     } catch (e: Exception) {
@@ -440,13 +471,35 @@ class BatchProcessingManager(
         }
     }
 
+    private suspend fun promptRetryOrSkip(serialNumber: String): UserChoice {
+        _showRetryDialog.value = true
+        _retryDialogMeter.value = serialNumber
+        retryChoice = null  // Reset
+
+        // Wait for user decision
+        while (retryChoice == null && _isProcessing.value) {
+            delay(100)
+        }
+
+        _showRetryDialog.value = false
+        return retryChoice ?: UserChoice.SKIP
+    }
+
+    fun onRetryClicked() {
+        retryChoice = UserChoice.RETRY
+    }
+
+    fun onSkipClicked() {
+        retryChoice = UserChoice.SKIP
+    }
+
     /**
      * Reset all state
      */
     fun reset() {
         _isProcessing.value = false
         _currentProgress.value = ""
-        _processedCount.value = 1
+        _processedCount.value = 0
         _totalCount.value = 0
         _failedMeters.value = emptyList()
         _awaitingUserAction.value = false

@@ -239,6 +239,7 @@ class BatchPrintManager(
                 for ((index, meter) in metersToProcess.withIndex()) {
                     _currentMeterSerial.value = meter.serialNumber
                     val meterNum = index + 1
+                    _processedCount.value = meterNum
 
                     try {
                         updateProgressWithStep(1, "[$meterNum/${metersToProcess.size}] Preparing ${meter.serialNumber}")
@@ -276,7 +277,6 @@ class BatchPrintManager(
                         delay(PRINT_DELAY_MS)
 
                         updateProgressWithStep(3, "✅ Printed ${meter.serialNumber}")
-                        _processedCount.value += meterNum
                         Log.i(TAG, "Successfully printed ${meter.serialNumber}")
 
                     } catch (e: Exception) {

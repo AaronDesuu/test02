@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.QueuePlayNext
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -28,7 +27,6 @@ import androidx.compose.ui.unit.dp
  * Print Actions Dropdown Component
  * A dropdown menu next to the search bar with printer icon and print-related actions
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrintActionsDropdown(
     onBatchReading: () -> Unit = {},

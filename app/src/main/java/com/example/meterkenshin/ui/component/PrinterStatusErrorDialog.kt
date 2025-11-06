@@ -1,12 +1,32 @@
 package com.example.meterkenshin.ui.component
 
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Bluetooth
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -129,81 +149,101 @@ fun PrinterStatusErrorDialog(
                     color = Color(0xFFF5F5F5),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // Paper Status Row
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                    if (isConnected) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Article,
-                                contentDescription = "Paper Status",
-                                tint = when (paperStatus) {
-                                    PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
-                                    PrinterBluetoothViewModel.PaperStatus.OUT -> Color(0xFFF44336)
-                                    else -> Color.Gray
-                                },
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = when (paperStatus) {
-                                    PrinterBluetoothViewModel.PaperStatus.OK -> "Paper: OK"
-                                    PrinterBluetoothViewModel.PaperStatus.OUT -> "Paper: OUT"
-                                    else -> "Paper: Checking..."
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = when (paperStatus) {
-                                    PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
-                                    PrinterBluetoothViewModel.PaperStatus.OUT -> Color(0xFFF44336)
-                                    else -> Color.Gray
-                                },
-                                fontWeight = when (paperStatus) {
-                                    PrinterBluetoothViewModel.PaperStatus.OUT -> FontWeight.Bold
-                                    else -> FontWeight.Normal
-                                }
-                            )
-                        }
+                            // Paper Status Row
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.Article,
+                                    contentDescription = "Paper Status",
+                                    tint = when (paperStatus) {
+                                        PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
+                                        PrinterBluetoothViewModel.PaperStatus.OUT -> Color(
+                                            0xFFF44336
+                                        )
 
-                        // Cover Status Row
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Icon(
-                                imageVector = if (coverStatus == PrinterBluetoothViewModel.CoverStatus.OPEN)
-                                    Icons.Default.LockOpen else Icons.Default.Lock,
-                                contentDescription = "Cover Status",
-                                tint = when (coverStatus) {
-                                    PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(0xFF4CAF50)
-                                    PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(0xFFFF9800)
-                                    else -> Color.Gray
-                                },
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = when (coverStatus) {
-                                    PrinterBluetoothViewModel.CoverStatus.CLOSED -> "Cover: Closed"
-                                    PrinterBluetoothViewModel.CoverStatus.OPEN -> "Cover: Open"
-                                    else -> "Cover: Checking..."
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = when (coverStatus) {
-                                    PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(0xFF4CAF50)
-                                    PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(0xFFFF9800)
-                                    else -> Color.Gray
-                                },
-                                fontWeight = when (coverStatus) {
-                                    PrinterBluetoothViewModel.CoverStatus.OPEN -> FontWeight.Bold
-                                    else -> FontWeight.Normal
-                                }
-                            )
+                                        else -> Color.Gray
+                                    },
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = when (paperStatus) {
+                                        PrinterBluetoothViewModel.PaperStatus.OK -> "Paper: OK"
+                                        PrinterBluetoothViewModel.PaperStatus.OUT -> "Paper: OUT"
+                                        else -> "Paper: Checking..."
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = when (paperStatus) {
+                                        PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
+                                        PrinterBluetoothViewModel.PaperStatus.OUT -> Color(
+                                            0xFFF44336
+                                        )
+
+                                        else -> Color.Gray
+                                    },
+                                    fontWeight = when (paperStatus) {
+                                        PrinterBluetoothViewModel.PaperStatus.OUT -> FontWeight.Bold
+                                        else -> FontWeight.Normal
+                                    }
+                                )
+                            }
+
+                            // Cover Status Row
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = if (coverStatus == PrinterBluetoothViewModel.CoverStatus.OPEN)
+                                        Icons.Default.LockOpen else Icons.Default.Lock,
+                                    contentDescription = "Cover Status",
+                                    tint = when (coverStatus) {
+                                        PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(
+                                            0xFF4CAF50
+                                        )
+
+                                        PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(
+                                            0xFFFF9800
+                                        )
+
+                                        else -> Color.Gray
+                                    },
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = when (coverStatus) {
+                                        PrinterBluetoothViewModel.CoverStatus.CLOSED -> "Cover: Closed"
+                                        PrinterBluetoothViewModel.CoverStatus.OPEN -> "Cover: Open"
+                                        else -> "Cover: Checking..."
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = when (coverStatus) {
+                                        PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(
+                                            0xFF4CAF50
+                                        )
+
+                                        PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(
+                                            0xFFFF9800
+                                        )
+
+                                        else -> Color.Gray
+                                    },
+                                    fontWeight = when (coverStatus) {
+                                        PrinterBluetoothViewModel.CoverStatus.OPEN -> FontWeight.Bold
+                                        else -> FontWeight.Normal
+                                    }
+                                )
+                            }
                         }
                     }
                 }

@@ -57,9 +57,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.meterkenshin.R
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.viewmodel.BatchPrintManager
@@ -165,6 +167,10 @@ fun MeterListComponent(
     val printerViewModel: PrinterBluetoothViewModel = viewModel()
     val printerPaperStatus by printerViewModel.paperStatus.collectAsState()
     val printerCoverStatus by printerViewModel.coverStatus.collectAsState()
+
+    // Add after the existing batch processor states
+    val showRetryDialog by batchProcessor.showRetryDialog.collectAsState()
+    val retryDialogMeter by batchProcessor.retryDialogMeter.collectAsState()
 
     // Set printer reference in DLMS ViewModel
     LaunchedEffect(Unit) {
@@ -660,6 +666,37 @@ fun MeterListComponent(
                             }
                         )
                     }
+                }
+
+                // Retry/Skip Dialog for failed read operations
+                if (showRetryDialog && retryDialogMeter != null) {
+                    AlertDialog(
+                        onDismissRequest = { /* Prevent dismiss */ },
+                        title = {
+                            Text(stringResource(R.string.retry_connection))
+                        },
+                        text = {
+                            Column {
+                                Text(stringResource(R.string.data_read_failed))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Meter: $retryDialogMeter",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            Button(onClick = { batchProcessor.onRetryClicked() }) {
+                                Text(stringResource(R.string.retry))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { batchProcessor.onSkipClicked() }) {
+                                Text(stringResource(R.string.skip))
+                            }
+                        }
+                    )
                 }
 
                 // 1. Batch Print Options Dialog
