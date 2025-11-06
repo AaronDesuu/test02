@@ -58,7 +58,7 @@ import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.RateDataDialog
 import com.example.meterkenshin.utils.calculateBillingData
-import com.example.meterkenshin.utils.loadRates
+import com.example.meterkenshin.utils.loadMeterRates
 
 @Composable
 fun ReceiptScreen(
@@ -101,9 +101,9 @@ fun ReceiptScreen(
     LaunchedEffect(isRateCsvUploaded) {
         try {
             if (isRateCsvUploaded) {
-                val rates = rateCsvFile?.let { loadRates(context, it.fileName) }
+                val rates = loadMeterRates(context, fileUploadViewModel)
                 rateData = rates
-                Log.d("Receipt", "Loaded ${rates?.size ?: 0} rates from ${rateCsvFile?.fileName}")
+                Log.d("Receipt", "Loaded ${rates.size} rates from ${rateCsvFile?.fileName}")
             } else {
                 rateData = null
                 Log.d("Receipt", "No rate.csv uploaded, using default rates")

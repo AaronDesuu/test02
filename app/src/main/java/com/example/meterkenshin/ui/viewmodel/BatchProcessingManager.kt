@@ -370,7 +370,7 @@ class BatchProcessingManager(
                 "isRunning=${registrationState.value.isRunning}, hasValidData=$hasValidData")
 
         // Success if we have valid data OR state shows complete
-        return hasValidData || (registrationState.value.isComplete && !registrationState.value.isRunning)
+        return hasValidData
     }
 
     /**

@@ -80,6 +80,10 @@ class DLMSViewModel : ViewModel() {
 
     private var meterReadingViewModel: MeterReadingViewModel? = null
 
+    // Add near other StateFlows
+    private val _showReadDataOptionsDialog = MutableStateFlow(false)
+    val showReadDataOptionsDialog: StateFlow<Boolean> = _showReadDataOptionsDialog.asStateFlow()
+
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         readDataPrinting.setPrinterViewModel(viewModel)
     }
@@ -251,7 +255,10 @@ class DLMSViewModel : ViewModel() {
      * Finish a DLMS operation
      */
     private fun finishOperation() {
-        _registrationState.value = _registrationState.value.copy(isRunning = false)
+        _registrationState.value = RegistrationState(
+            isRunning = false,
+            isComplete = false  // ✅ Reset completion state
+        )
     }
 
     /**
@@ -413,7 +420,20 @@ class DLMSViewModel : ViewModel() {
      * Read Data - Performs demand reset and billing data retrieval
      * Exports JSON with single billing period
      */
-    fun readData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
+    fun readData(meter: Meter, rates: FloatArray) {
+        // Check if savedBillingData exists and is valid
+        val savedData = _savedBillingData.value
+        if (savedData != null && savedData.isValid() && savedData.billing.SerialNumber == meter.serialNumber) {
+            // Prompt user: print only or do read
+            _showReadDataOptionsDialog.value = true
+            return
+        }
+
+        // No saved data, proceed with read
+        performReadData(meter, rates)
+    }
+
+    private fun performReadData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Read Data already running")
             return@launch
@@ -1262,6 +1282,25 @@ class DLMSViewModel : ViewModel() {
         } else {
             appendLog("ERROR: No valid billing data to print")
         }
+    }
+
+    fun proceedWithNewRead(meter: Meter, rates: FloatArray) {
+        _showReadDataOptionsDialog.value = false
+        performReadData(meter, rates)
+    }
+
+    fun printExistingData() {
+        _showReadDataOptionsDialog.value = false
+        val savedData = _savedBillingData.value
+        if (savedData != null && savedData.isValid()) {
+            readDataPrinting.setPendingBillingData(savedData.billing)
+            readDataPrinting.setSavedRates(savedData.rates)
+            readDataPrinting.showPrintDialog()
+        }
+    }
+
+    fun dismissReadDataDialog() {
+        _showReadDataOptionsDialog.value = false
     }
 
     override fun onCleared() {

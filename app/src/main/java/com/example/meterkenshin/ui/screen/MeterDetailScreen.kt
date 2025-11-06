@@ -14,6 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -108,6 +112,34 @@ fun MeterDetailScreen(
         discoveredDevices[it.uppercase()]
     } ?: -200
     val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+
+    // Add after existing dialog checks
+    val showReadDataOptionsDialog by registrationViewModel.showReadDataOptionsDialog.collectAsState()
+
+    if (showReadDataOptionsDialog) {
+        AlertDialog(
+            onDismissRequest = { registrationViewModel.dismissReadDataDialog() },
+            title = { Text("Billing Data Available") },
+            text = {
+                Text("This meter already has saved billing data. Do you want to print the existing receipt or perform a new read?")
+            },
+            confirmButton = {
+                Button(onClick = {
+                    val rates = loadMeterRates(context, fileUploadViewModel)
+                    registrationViewModel.proceedWithNewRead(meter, rates)
+                }) {
+                    Text("perform Read Data")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    registrationViewModel.printExistingData()
+                }) {
+                    Text("Print Only")
+                }
+            }
+        )
+    }
 
     // Pause scanning when this screen is displayed
     LaunchedEffect(Unit) {
