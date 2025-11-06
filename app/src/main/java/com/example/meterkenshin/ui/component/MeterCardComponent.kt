@@ -48,7 +48,7 @@ import java.util.Locale
  */
 @SuppressLint("DefaultLocale")
 @Composable
-fun ModernMeterCard(
+fun MeterCard(
     meter: Meter,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,

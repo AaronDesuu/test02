@@ -49,7 +49,6 @@ class BatchPrintManager(
     val currentMeterSerial: StateFlow<String?> = _currentMeterSerial.asStateFlow()
 
     private val _currentStep = MutableStateFlow(0)
-    val currentStep: StateFlow<Int> = _currentStep.asStateFlow()
 
     private val _currentStepDescription = MutableStateFlow("")
     val currentStepDescription: StateFlow<String> = _currentStepDescription.asStateFlow()
@@ -108,6 +107,16 @@ class BatchPrintManager(
         return false
     }
 
+    private val _waitingForConfirmation = MutableStateFlow(false)
+    val waitingForConfirmation: StateFlow<Boolean> = _waitingForConfirmation
+
+    private val _confirmedToPrint = MutableStateFlow(false)
+
+    fun confirmPrint() {
+        _waitingForConfirmation.value = false
+        _confirmedToPrint.value = true
+    }
+
     /**
      * Update progress with step tracking
      */
@@ -132,6 +141,8 @@ class BatchPrintManager(
         val printer = printerViewModel
         if (printer == null) {
             Log.e(TAG, "Printer ViewModel not set")
+            _printerErrorMessage.value = "Printer not configured"
+            _showPrinterErrorDialog.value = true
             return false
         }
 
@@ -141,7 +152,7 @@ class BatchPrintManager(
         PrinterStatusHelper.checkPrinterReadyAndExecute(
             printerViewModel = printer,
             onNotConnected = {
-                _printerErrorMessage.value = "Printer not connected"
+                _printerErrorMessage.value = "Printer not connected. Please connect to printer."
                 _showPrinterErrorDialog.value = true
                 Log.w(TAG, "Printer not connected")
             },
@@ -240,17 +251,28 @@ class BatchPrintManager(
                             continue
                         }
 
-                        updateProgressWithStep(2, "[$meterNum/${metersToProcess.size}] Printing ${meter.serialNumber}")
+                        // Request confirmation
+                        updateProgressWithStep(2, "[$meterNum/${metersToProcess.size}] Ready to print ${meter.serialNumber}")
+                        _waitingForConfirmation.value = true
+
+                        // Wait for user confirmation
+                        while (_waitingForConfirmation.value) {
+                            delay(500)
+                        }
+
+                        // User confirmed, now check printer status before printing
+                        _confirmedToPrint.value = false
+
+                        updateProgressWithStep(2, "[$meterNum/${metersToProcess.size}] Checking printer for ${meter.serialNumber}")
 
                         val printSuccess = printReceipt(meter)
 
                         if (!printSuccess) {
-                            // Wait for user to handle printer error
+                            // Wait for user to handle printer error dialog
                             while (_showPrinterErrorDialog.value) {
                                 delay(500)
                             }
                         }
-
                         delay(PRINT_DELAY_MS)
 
                         updateProgressWithStep(3, "✅ Printed ${meter.serialNumber}")

@@ -11,10 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -144,11 +145,12 @@ private fun BatchPrintModeOption(
 fun BatchPrintProgressDialog(
     processedCount: Int,
     totalCount: Int,
-    currentStep: Int,
     currentStepDescription: String,
     currentMeterSerial: String?,
     errorCount: Int,
     isProcessing: Boolean,
+    showConfirmButton: Boolean,
+    onConfirm: () -> Unit,
     onCancel: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -160,18 +162,10 @@ fun BatchPrintProgressDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Batch Printing",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-
-                // Cancel button (only show while processing)
-                if (isProcessing) {
-                    IconButton(onClick = onCancel) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cancel"
-                        )
+                Text("Batch Printing")
+                if (!isProcessing) {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = "Close")
                     }
                 }
             }
@@ -179,46 +173,27 @@ fun BatchPrintProgressDialog(
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Progress bar
+                // Progress indicator
                 LinearProgressIndicator(
-                    progress = {
-                        if (totalCount > 0) {
-                            processedCount.toFloat() / totalCount.toFloat()
-                        } else 0f
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 16.dp),
+                    progress = { processedCount.toFloat() / totalCount.toFloat() },
+                    modifier = Modifier.fillMaxWidth()
                 )
 
-                // Progress count
+                // Progress text
                 Text(
                     text = "Progress: $processedCount / $totalCount",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.bodyMedium
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Current step
-                Text(
-                    text = "Step $currentStep of 3",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Current meter serial number
+                // Current meter
                 if (currentMeterSerial != null) {
                     Text(
                         text = "Current: $currentMeterSerial",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
+                        fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                 }
 
                 // Step description
@@ -228,32 +203,47 @@ fun BatchPrintProgressDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                // Error count indicator
+                // Error count if any
                 if (errorCount > 0) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
+                    Text(
+                        text = "Errors: $errorCount",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                // Confirmation button
+                if (showConfirmButton && currentMeterSerial != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Warning,
-                            contentDescription = "Errors",
-                            tint = MaterialTheme.colorScheme.error,
+                            Icons.Default.Check,
+                            contentDescription = null,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Errors: $errorCount",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Text("Confirm Print: $currentMeterSerial")
                     }
                 }
             }
         },
         confirmButton = {
-            // Only show close button when processing is complete
-            if (!isProcessing) {
+            if (isProcessing) {
+                Button(
+                    onClick = onCancel,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Cancel")
+                }
+            } else {
                 Button(onClick = onClose) {
                     Text("Close")
                 }

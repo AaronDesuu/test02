@@ -142,7 +142,7 @@ fun HomeMeterList(
                         val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
                         val signalStrength = discoveredDevices[meter.bluetoothId?.uppercase() ?: ""]
 
-                        ModernMeterCard(
+                        MeterCard(
                             meter = meter,
                             onClick = { onMeterClick(meter) },
                             modifier = Modifier.fillMaxWidth(),

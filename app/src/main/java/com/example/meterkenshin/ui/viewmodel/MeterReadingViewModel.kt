@@ -131,7 +131,10 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     fun selectAllMeters() {
-        _selectedMeters.value = _uiState.value.filteredMeters.map { it.uid }.toSet()
+        _selectedMeters.value = _uiState.value.filteredMeters
+            .filter { it.activate == 1 }  // Only select registered meters
+            .map { it.uid }
+            .toSet()
     }
 
     fun clearSelection() {

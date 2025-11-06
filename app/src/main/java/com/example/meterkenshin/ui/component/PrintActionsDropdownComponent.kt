@@ -83,7 +83,7 @@ fun PrintActionsDropdown(
 
             // Select & Print
             PrintDropdownMenuItem(
-                text = "Select & Print",
+                text = "Select & Read",
                 icon = Icons.Default.SelectAll,
                 onClick = {
                     expanded = false

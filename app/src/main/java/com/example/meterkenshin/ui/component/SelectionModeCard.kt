@@ -16,7 +16,8 @@ import com.example.meterkenshin.model.Meter
 /**
  * Selection Mode UI Component
  * Displays the selection controls when user enters selection mode
- * Button Order: Process - Select All - Cancel
+ * Button Order: Select All - Process - Cancel
+ * UPDATED: Select All button now uses OutlinedButton for better visibility
  */
 @Composable
 fun SelectionModeCard(
@@ -63,17 +64,24 @@ fun SelectionModeCard(
                 )
             }
 
-            // Right side - Action buttons (Process - Select All - Cancel)
+            // Right side - Action buttons (Select All - Process - Cancel)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Select All Button
-                TextButton(
+                // Select All Button - Updated to OutlinedButton for better visibility
+                OutlinedButton(
                     onClick = onSelectAll,
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Text("Select All", style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        text = "Select All",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 // Process Button

@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.viewmodel.BatchPrintManager
+import com.example.meterkenshin.ui.viewmodel.BatchPrintMode
 import com.example.meterkenshin.ui.viewmodel.BatchProcessingManager
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -69,8 +71,6 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
-import com.example.meterkenshin.ui.viewmodel.BatchPrintManager
-import com.example.meterkenshin.ui.viewmodel.BatchPrintMode
 import com.example.meterkenshin.utils.InspectionStatus
 import com.example.meterkenshin.utils.getInspectionStatus
 import com.example.meterkenshin.utils.loadMeterRates
@@ -157,7 +157,6 @@ fun MeterListComponent(
     val printProcessedCount by batchPrintManager.processedCount.collectAsState()
     val printTotalCount by batchPrintManager.totalCount.collectAsState()
     val printCurrentMeterSerial by batchPrintManager.currentMeterSerial.collectAsState()
-    val printCurrentStep by batchPrintManager.currentStep.collectAsState()
     val printCurrentStepDescription by batchPrintManager.currentStepDescription.collectAsState()
     val printErrorCount by batchPrintManager.errorCount.collectAsState()
     val showPrintPrinterErrorDialog by batchPrintManager.showPrinterErrorDialog.collectAsState()
@@ -197,7 +196,8 @@ fun MeterListComponent(
             val fileToLoad = if (File(
                     context.getExternalFilesDir(null),
                     "app_files/$currentMeterFile"
-                ).exists()) {
+                ).exists()
+            ) {
                 currentMeterFile
             } else {
                 fallbackFile
@@ -318,14 +318,15 @@ fun MeterListComponent(
                             PrintActionsDropdown(
                                 onBatchReading = {
 
-                                    val notInspectedOnlineMeters = uiState.allMeters.filter { meter ->
-                                        // Must be registered (activate == 1)
-                                        meter.activate == 1 &&
-                                                // Must be NOT_INSPECTED (using same logic as MeterCardComponent)
-                                                getInspectionStatus(meter) == InspectionStatus.NOT_INSPECTED &&
-                                                // Must be online (nearby via BLE)
-                                                meterReadingViewModel.isMeterNearby(meter.bluetoothId)
-                                    }
+                                    val notInspectedOnlineMeters =
+                                        uiState.allMeters.filter { meter ->
+                                            // Must be registered (activate == 1)
+                                            meter.activate == 1 &&
+                                                    // Must be NOT_INSPECTED (using same logic as MeterCardComponent)
+                                                    getInspectionStatus(meter) == InspectionStatus.NOT_INSPECTED &&
+                                                    // Must be online (nearby via BLE)
+                                                    meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+                                        }
 
                                     if (notInspectedOnlineMeters.isEmpty()) {
                                         Toast.makeText(
@@ -350,7 +351,8 @@ fun MeterListComponent(
                                                 } else {
                                                     "Processed with ${failedMeters.size} failures"
                                                 }
-                                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                                                Toast.makeText(context, message, Toast.LENGTH_LONG)
+                                                    .show()
                                             }
                                         )
                                     }
@@ -361,7 +363,11 @@ fun MeterListComponent(
                                 onSelectAndPrint = {
                                     // Enter selection mode
                                     meterReadingViewModel.toggleSelectionMode()
-                                    Toast.makeText(context, "Select meters to process", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        "Select meters to process",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             )
                         }
@@ -541,7 +547,11 @@ fun MeterListComponent(
                                             ) {
                                                 Checkbox(
                                                     checked = shouldPrint,
-                                                    onCheckedChange = { batchProcessor.setPrintOption(it) }
+                                                    onCheckedChange = {
+                                                        batchProcessor.setPrintOption(
+                                                            it
+                                                        )
+                                                    }
                                                 )
                                                 Spacer(modifier = Modifier.width(12.dp))
                                                 Column {
@@ -568,7 +578,11 @@ fun MeterListComponent(
                                             ) {
                                                 Checkbox(
                                                     checked = shouldSaveJson,
-                                                    onCheckedChange = { batchProcessor.setSaveJsonOption(it) }
+                                                    onCheckedChange = {
+                                                        batchProcessor.setSaveJsonOption(
+                                                            it
+                                                        )
+                                                    }
                                                 )
                                                 Spacer(modifier = Modifier.width(12.dp))
                                                 Column {
@@ -633,7 +647,8 @@ fun MeterListComponent(
                             onRetry = {
                                 scope.launch {
                                     currentMeterSerial?.let { serial ->
-                                        val meter = uiState.allMeters.find { it.serialNumber == serial }
+                                        val meter =
+                                            uiState.allMeters.find { it.serialNumber == serial }
                                         meter?.let {
                                             batchProcessor.retryPrinting(it)
                                         }
@@ -676,16 +691,19 @@ fun MeterListComponent(
                     )
                 }
 
-// 2. Batch Print Progress Dialog
-                if (isPrinting) {
+                // 2. Batch Print Progress Dialog - HIDE when printer error dialog shows
+                if (isPrinting && !showPrintPrinterErrorDialog) {
+                    val waitingForConfirm by batchPrintManager.waitingForConfirmation.collectAsState()
+
                     BatchPrintProgressDialog(
                         processedCount = printProcessedCount,
                         totalCount = printTotalCount,
-                        currentStep = printCurrentStep,
                         currentStepDescription = printCurrentStepDescription,
                         currentMeterSerial = printCurrentMeterSerial,
                         errorCount = printErrorCount,
                         isProcessing = isPrinting,
+                        showConfirmButton = waitingForConfirm,
+                        onConfirm = { batchPrintManager.confirmPrint() },
                         onCancel = {
                             batchPrintManager.cancel()
                             Toast.makeText(
@@ -700,7 +718,7 @@ fun MeterListComponent(
                     )
                 }
 
-                // 3. Batch Print Printer Error Dialog (uses existing PrinterStatusErrorDialog)
+// 3. Batch Print Printer Error Dialog - Shows with PRIORITY over progress dialog
                 if (showPrintPrinterErrorDialog) {
                     PrinterStatusErrorDialog(
                         errorMessage = printPrinterErrorMessage,
@@ -753,9 +771,10 @@ fun MeterListComponent(
                             // Check if meter is nearby
                             val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
                             val discoveredDevices by meterReadingViewModel.discoveredDevices.collectAsState()
-                            val signalStrength = discoveredDevices[meter.bluetoothId?.uppercase() ?: ""]
+                            val signalStrength =
+                                discoveredDevices[meter.bluetoothId?.uppercase() ?: ""]
 
-                            ModernMeterCard(
+                            MeterCard(
                                 meter = meter,
                                 onClick = {
                                     if (selectionMode) {
@@ -795,9 +814,11 @@ fun MeterListComponent(
                     ) {
                         metersToShow.forEach { meter ->
                             val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
-                            val signalStrength = meterReadingViewModel.getMeterSignalStrength(meter.bluetoothId ?: "")
+                            val signalStrength = meterReadingViewModel.getMeterSignalStrength(
+                                meter.bluetoothId ?: ""
+                            )
 
-                            ModernMeterCard(
+                            MeterCard(
                                 meter = meter,
                                 onClick = { onMeterClick(meter) },
                                 modifier = Modifier.fillMaxWidth(),
@@ -864,7 +885,7 @@ fun FilterSortControlRow(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = when(sortConfig.field) {
+                    text = when (sortConfig.field) {
                         SortField.SERIAL_NUMBER -> "S/N"
                         SortField.LOCATION -> "Location"
                         SortField.LAST_MAINTENANCE_DATE -> "Due Date"
@@ -880,11 +901,13 @@ fun FilterSortControlRow(
                 SortField.entries.forEach { field ->
                     DropdownMenuItem(
                         text = {
-                            Text(when(field) {
-                                SortField.SERIAL_NUMBER -> "Serial Number"
-                                SortField.LOCATION -> "Location"
-                                SortField.LAST_MAINTENANCE_DATE -> "Last Maintenance"
-                            })
+                            Text(
+                                when (field) {
+                                    SortField.SERIAL_NUMBER -> "Serial Number"
+                                    SortField.LOCATION -> "Location"
+                                    SortField.LAST_MAINTENANCE_DATE -> "Last Maintenance"
+                                }
+                            )
                         },
                         onClick = {
                             meterReadingViewModel.setSortConfig(field, sortConfig.order)
@@ -892,7 +915,11 @@ fun FilterSortControlRow(
                         },
                         leadingIcon = {
                             if (sortConfig.field == field) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     )
