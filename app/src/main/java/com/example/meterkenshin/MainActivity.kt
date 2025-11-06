@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.widget.Toast
+import com.example.meterkenshin.ui.notification.NotificationManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == RESULT_OK) {
-            Toast.makeText(this, "Bluetooth enabled", Toast.LENGTH_SHORT).show()
+            NotificationManager.showSuccess("Bluetooth enabled")
             initializeBluetoothConnection()
             // Start BLE scanning after Bluetooth enabled
             startBLEScanningIfLoggedIn()
@@ -166,11 +166,7 @@ class MainActivity : ComponentActivity() {
                     Log.i("MainActivity", "Starting automatic BLE scan after login")
                     meterReadingViewModel.startBLEScanning()
 
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Scanning for nearby meters...",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    NotificationManager.showInfo("Scanning for nearby meters...")
                 } catch (e: Exception) {
                     Log.e("MainActivity", "Error starting BLE scan", e)
                 }
@@ -189,7 +185,7 @@ class MainActivity : ComponentActivity() {
 
     private fun initializeBluetoothConnection() {
         if (bluetoothAdapter == null) {
-            Toast.makeText(this, "Bluetooth not supported", Toast.LENGTH_SHORT).show()
+            NotificationManager.showError("Bluetooth not supported")
             return
         }
 

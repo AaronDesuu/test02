@@ -3,7 +3,7 @@ package com.example.meterkenshin.ui.component
 import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
-import android.widget.Toast
+import com.example.meterkenshin.ui.notification.NotificationManager
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
@@ -271,12 +271,11 @@ fun MeterListComponent(
                                     rates = rates,
                                     onComplete = { success, failedMeters ->
                                         meterReadingViewModel.clearSelection()
-                                        val message = if (success) {
-                                            "All ${selectedMeterList.size} meters processed!"
+                                        if (success) {
+                                            NotificationManager.showSuccess("All ${selectedMeterList.size} meters processed!")
                                         } else {
-                                            "${selectedMeterList.size - failedMeters.size}/${selectedMeterList.size} completed"
+                                            NotificationManager.showWarning("${selectedMeterList.size - failedMeters.size}/${selectedMeterList.size} completed")
                                         }
-                                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                                     }
                                 )
                             },
@@ -304,12 +303,8 @@ fun MeterListComponent(
                                 },
                                 trailingIcon = {
                                     IconButton(onClick = {
-                                        Toast.makeText(
-                                            context,
-                                            "Refreshing BLE connection...",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
                                         meterReadingViewModel.startBLEScanning()
+                                        NotificationManager.showInfo("Refreshing BLE")
                                     }) {
                                         Icon(
                                             imageVector = Icons.Default.Refresh,
@@ -337,30 +332,20 @@ fun MeterListComponent(
                                         }
 
                                     if (notInspectedOnlineMeters.isEmpty()) {
-                                        Toast.makeText(
-                                            context,
-                                            "No uninspected online meters found",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        NotificationManager.showWarning("No uninspected online meters found")
                                     } else {
-                                        Toast.makeText(
-                                            context,
-                                            "Starting batch reading for ${notInspectedOnlineMeters.size} online meters",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                                        NotificationManager.showInfo("Starting batch reading for ${notInspectedOnlineMeters.size} online meters")
 
                                         // Start batch processing with NOT_INSPECTED online registered meters only
                                         batchProcessor.processBatch(
                                             meters = notInspectedOnlineMeters,
                                             rates = rates,
                                             onComplete = { success, failedMeters ->
-                                                val message = if (success) {
-                                                    "All ${notInspectedOnlineMeters.size} meters processed!"
+                                                if (success) {
+                                                    NotificationManager.showSuccess("All ${notInspectedOnlineMeters.size} meters processed!")
                                                 } else {
-                                                    "Processed with ${failedMeters.size} failures"
+                                                    NotificationManager.showWarning("Processed with ${failedMeters.size} failures")
                                                 }
-                                                Toast.makeText(context, message, Toast.LENGTH_LONG)
-                                                    .show()
                                             }
                                         )
                                     }
@@ -371,11 +356,7 @@ fun MeterListComponent(
                                 onSelectAndPrint = {
                                     // Enter selection mode
                                     meterReadingViewModel.toggleSelectionMode()
-                                    Toast.makeText(
-                                        context,
-                                        "Select meters to process",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    NotificationManager.showInfo("Select meters to process")
                                 }
                             )
                         }
@@ -403,11 +384,7 @@ fun MeterListComponent(
                                     IconButton(
                                         onClick = {
                                             batchProcessor.cancel()
-                                            Toast.makeText(
-                                                context,
-                                                "Batch processing cancelled",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                            NotificationManager.showInfo("Batch processing cancelled")
                                         },
                                         modifier = Modifier.size(32.dp)
                                     ) {
@@ -749,12 +726,11 @@ fun MeterListComponent(
                                 meters = uiState.allMeters,
                                 printMode = batchPrintMode
                             ) { success, failed ->
-                                val message = if (success) {
-                                    "Batch printing completed successfully!"
+                                if (success) {
+                                    NotificationManager.showSuccess("Batch printing completed successfully!")
                                 } else {
-                                    "Batch printing completed with ${failed.size} failures"
+                                    NotificationManager.showWarning("Batch printing completed with ${failed.size} failures")
                                 }
-                                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                             }
                         },
                         onDismiss = {
@@ -778,11 +754,7 @@ fun MeterListComponent(
                         onConfirm = { batchPrintManager.confirmPrint() },
                         onCancel = {
                             batchPrintManager.cancel()
-                            Toast.makeText(
-                                context,
-                                "Batch printing cancelled",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            NotificationManager.showInfo("Batch printing cancelled")
                         },
                         onClose = {
                             batchPrintManager.reset()

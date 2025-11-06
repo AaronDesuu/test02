@@ -35,7 +35,6 @@ import com.example.meterkenshin.ui.component.DLMSFunctionsCard
 import com.example.meterkenshin.ui.component.DLMSLogCard
 import com.example.meterkenshin.ui.component.MeterSpecificationsCard
 import com.example.meterkenshin.ui.component.MeterStatusCard
-import com.example.meterkenshin.ui.component.NotificationHost
 import com.example.meterkenshin.ui.component.PrintReceiptDialog
 import com.example.meterkenshin.ui.component.PrinterStatusErrorDialog
 import com.example.meterkenshin.ui.component.SaveJSONDialog
@@ -170,139 +169,137 @@ fun MeterDetailScreen(
             }
         }
     }
-    NotificationHost(modifier = modifier) {
-        Column(modifier = modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 1. Connection status card
-                MeterStatusCard(
-                    meter = meter,
-                    rssi = rssi,
-                    isNearby = isNearby
-                )
+    Column(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 1. Connection status card
+            MeterStatusCard(
+                meter = meter,
+                rssi = rssi,
+                isNearby = isNearby
+            )
 
-                // 2. DLMS function buttons - NOW IN SEPARATE FILE
-                DLMSFunctionsCard(
-                    meterActivate = activeMeter.activate,  // This will update when CSV is written
-                    onRegistration = {
-                        if (meter.activate == 0) {
-                            registrationViewModel.registration(meter)
-                        } else {
-                            Log.w("MeterDetailScreen", "DLMS not yet initialized")
-                        }
-                    },
-                    onReadData = {
-                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                            val rates = loadMeterRates(context, fileUploadViewModel)
-                            registrationViewModel.readData(meter, rates)
-                        }
-                    },
-                    onLoadProfile = {
-                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                            registrationViewModel.loadProfile(meter)
-                        }
-                    },
-                    onEventLog = {
-                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                            registrationViewModel.eventLog(meter)
-                        }
-                    },
-                    onBillingData = {
-                        if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                            val rates = loadMeterRates(context, fileUploadViewModel)
-                            registrationViewModel.billingData(meter, rates)
-                        }
-                    },
-                    onSetClock = {
-                        if (isDlmsInitialized) {
-                            registrationViewModel.setClock(meter)
-                        }
-                    },
-                    // Disable buttons until initialized
-                    isProcessing = registrationState.isRunning || !isDlmsInitialized
-                )
-
-                // 3. DLMS Log output - NOW IN SEPARATE FILE
-                DLMSLogCard(
-                    logText = dlmsLog,
-                    onClearLog = { registrationViewModel.clearLog() },
-                    isProcessing = registrationState.isRunning
-                )
-
-
-                // Saved Billing Data Card (NEW - shows if data available)
-                savedBillingData?.let { saved ->
-                    if (saved.isValid()) {
-                        SavedBillingDataCard(
-                            billing = saved.billing,
-                            daysRemaining = saved.daysRemaining(),
-                            printerViewModel = printerViewModel,
-                            onPrintReceipt = {
-                                // NEW: Print receipt from saved data
-                                registrationViewModel.printReceipt(saved.billing, saved.rates)
-                            },
-                            onSaveJSON = {
-                                registrationViewModel.saveStoredBillingToJSON()
-                            },
-                            onClearData = {
-                                registrationViewModel.clearSavedBillingData()
-                            }
-                        )
+            // 2. DLMS function buttons - NOW IN SEPARATE FILE
+            DLMSFunctionsCard(
+                meterActivate = activeMeter.activate,  // This will update when CSV is written
+                onRegistration = {
+                    if (meter.activate == 0) {
+                        registrationViewModel.registration(meter)
+                    } else {
+                        Log.w("MeterDetailScreen", "DLMS not yet initialized")
                     }
+                },
+                onReadData = {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                        val rates = loadMeterRates(context, fileUploadViewModel)
+                        registrationViewModel.readData(meter, rates)
+                    }
+                },
+                onLoadProfile = {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                        registrationViewModel.loadProfile(meter)
+                    }
+                },
+                onEventLog = {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                        registrationViewModel.eventLog(meter)
+                    }
+                },
+                onBillingData = {
+                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                        val rates = loadMeterRates(context, fileUploadViewModel)
+                        registrationViewModel.billingData(meter, rates)
+                    }
+                },
+                onSetClock = {
+                    if (isDlmsInitialized) {
+                        registrationViewModel.setClock(meter)
+                    }
+                },
+                // Disable buttons until initialized
+                isProcessing = registrationState.isRunning || !isDlmsInitialized
+            )
+
+            // 3. DLMS Log output - NOW IN SEPARATE FILE
+            DLMSLogCard(
+                logText = dlmsLog,
+                onClearLog = { registrationViewModel.clearLog() },
+                isProcessing = registrationState.isRunning
+            )
+
+
+            // Saved Billing Data Card (NEW - shows if data available)
+            savedBillingData?.let { saved ->
+                if (saved.isValid()) {
+                    SavedBillingDataCard(
+                        billing = saved.billing,
+                        daysRemaining = saved.daysRemaining(),
+                        printerViewModel = printerViewModel,
+                        onPrintReceipt = {
+                            // NEW: Print receipt from saved data
+                            registrationViewModel.printReceipt(saved.billing, saved.rates)
+                        },
+                        onSaveJSON = {
+                            registrationViewModel.saveStoredBillingToJSON()
+                        },
+                        onClearData = {
+                            registrationViewModel.clearSavedBillingData()
+                        }
+                    )
                 }
-
-                // 4. Meter specifications card
-                MeterSpecificationsCard(meter = meter)
-
-                Spacer(modifier = Modifier.height(16.dp))
-                Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
 
-            // Print Receipt Dialog - Shows FIRST after read data completes
-            if (showPrintDialog && pendingBillingData != null) {
-                PrintReceiptDialog(
-                    serialNumber = pendingBillingData?.SerialNumber,
-                    onConfirmPrint = {
-                        // Check printer status and print
-                        registrationViewModel.confirmPrint()
-                    },
-                    onSkipPrint = {
-                        // Skip print, move to save dialog
-                        registrationViewModel.skipPrint()
-                    }
-                )
-            }
+            // 4. Meter specifications card
+            MeterSpecificationsCard(meter = meter)
 
-            if (showPrinterErrorDialog) {
-                PrinterStatusErrorDialog(
-                    errorMessage = printerErrorMessage,
-                    paperStatus = registrationViewModel.readDataPrinting.printerPaperStatus.collectAsState().value,
-                    coverStatus = registrationViewModel.readDataPrinting.printerCoverStatus.collectAsState().value,
-                    printerViewModel = printerViewModel,
-                    onRetry = { registrationViewModel.readDataPrinting.retryPrint() },
-                    onCancel = { registrationViewModel.readDataPrinting.cancelPrintFromError() }
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+        }
 
-            // Save JSON Dialog - Shows SECOND after print dialog
-            if (showSaveDialog && pendingBillingData != null) {
-                SaveJSONDialog(
-                    onConfirm = {
-                        // Save to JSON
-                        registrationViewModel.confirmSave()
-                    },
-                    onDismiss = {
-                        // Skip save, clear pending data
-                        registrationViewModel.skipSave()
-                    }
-                )
-            }
+        // Print Receipt Dialog - Shows FIRST after read data completes
+        if (showPrintDialog && pendingBillingData != null) {
+            PrintReceiptDialog(
+                serialNumber = pendingBillingData?.SerialNumber,
+                onConfirmPrint = {
+                    // Check printer status and print
+                    registrationViewModel.confirmPrint()
+                },
+                onSkipPrint = {
+                    // Skip print, move to save dialog
+                    registrationViewModel.skipPrint()
+                }
+            )
+        }
+
+        if (showPrinterErrorDialog) {
+            PrinterStatusErrorDialog(
+                errorMessage = printerErrorMessage,
+                paperStatus = registrationViewModel.readDataPrinting.printerPaperStatus.collectAsState().value,
+                coverStatus = registrationViewModel.readDataPrinting.printerCoverStatus.collectAsState().value,
+                printerViewModel = printerViewModel,
+                onRetry = { registrationViewModel.readDataPrinting.retryPrint() },
+                onCancel = { registrationViewModel.readDataPrinting.cancelPrintFromError() }
+            )
+        }
+
+        // Save JSON Dialog - Shows SECOND after print dialog
+        if (showSaveDialog && pendingBillingData != null) {
+            SaveJSONDialog(
+                onConfirm = {
+                    // Save to JSON
+                    registrationViewModel.confirmSave()
+                },
+                onDismiss = {
+                    // Skip save, clear pending data
+                    registrationViewModel.skipSave()
+                }
+            )
         }
     }
 }

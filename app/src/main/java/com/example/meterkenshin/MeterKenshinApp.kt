@@ -1,6 +1,7 @@
 package com.example.meterkenshin
 
 import android.annotation.SuppressLint
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -9,21 +10,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import android.util.Log
 import com.example.meterkenshin.manager.SessionManager
-import com.example.meterkenshin.ui.screen.FileUploadScreen
-import com.example.meterkenshin.ui.screen.HomeScreen
-import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.AppScreen
 import com.example.meterkenshin.ui.AppWithDrawer
+import com.example.meterkenshin.ui.component.NotificationHost
+import com.example.meterkenshin.ui.screen.FileUploadScreen
+import com.example.meterkenshin.ui.screen.HomeScreen
+import com.example.meterkenshin.ui.screen.LoginScreen
 import com.example.meterkenshin.ui.screen.MeterDetailScreen
 import com.example.meterkenshin.ui.screen.MeterReadingScreen
 import com.example.meterkenshin.ui.screen.ReceiptScreen
 import com.example.meterkenshin.ui.screen.SettingsScreen
-import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import kotlinx.coroutines.delay
 
 @SuppressLint("MissingPermission")
@@ -94,122 +95,124 @@ fun MeterKenshinApp(
     }
 
     // Wrap everything with AppWithDrawer
-    AppWithDrawer(
-        sessionManager = sessionManager,
-        currentScreen = currentAppScreen,
-        onNavigateToScreen = { screen ->
-            when (screen) {
-                AppScreen.HOME -> currentScreen = "home"
-                AppScreen.METER_READING -> currentScreen = "meter_reading"
-                AppScreen.IMPORT_DATA -> currentScreen = "file_upload"
-                AppScreen.RECEIPT_TEMPLATE -> currentScreen = "receipt"
-                AppScreen.SETTINGS -> currentScreen = "settings"
-                else -> {}
-            }
-        },
-        onLogout = {
-            // ✅ NEW: Stop BLE scanning on logout
-            try {
-                meterReadingViewModel.stopBLEScanning()
-                Log.i("MeterKenshinApp", "BLE scanning stopped on logout")
-            } catch (e: Exception) {
-                Log.e("MeterKenshinApp", "Error stopping BLE scan on logout", e)
-            }
+    NotificationHost {
+        AppWithDrawer(
+            sessionManager = sessionManager,
+            currentScreen = currentAppScreen,
+            onNavigateToScreen = { screen ->
+                when (screen) {
+                    AppScreen.HOME -> currentScreen = "home"
+                    AppScreen.METER_READING -> currentScreen = "meter_reading"
+                    AppScreen.IMPORT_DATA -> currentScreen = "file_upload"
+                    AppScreen.RECEIPT_TEMPLATE -> currentScreen = "receipt"
+                    AppScreen.SETTINGS -> currentScreen = "settings"
+                    else -> {}
+                }
+            },
+            onLogout = {
+                // ✅ NEW: Stop BLE scanning on logout
+                try {
+                    meterReadingViewModel.stopBLEScanning()
+                    Log.i("MeterKenshinApp", "BLE scanning stopped on logout")
+                } catch (e: Exception) {
+                    Log.e("MeterKenshinApp", "Error stopping BLE scan on logout", e)
+                }
 
-            // Handle logout from drawer
-            sessionManager.logout()
-            isLoggedIn = false
-            currentScreen = "login"
-        }
-    ) {
-        when {
-            !isLoggedIn || currentScreen == "login" -> {
-                LoginScreen(
-                    sessionManager = sessionManager,
-                    onLoginSuccess = {
-                        isLoggedIn = true
-                        currentScreen = "home"
-                        // Initialize file checking after successful login (preserve original)
-                        fileUploadViewModel.checkExistingFiles(context)
+                // Handle logout from drawer
+                sessionManager.logout()
+                isLoggedIn = false
+                currentScreen = "login"
+            }
+        ) {
+            when {
+                !isLoggedIn || currentScreen == "login" -> {
+                    LoginScreen(
+                        sessionManager = sessionManager,
+                        onLoginSuccess = {
+                            isLoggedIn = true
+                            currentScreen = "home"
+                            // Initialize file checking after successful login (preserve original)
+                            fileUploadViewModel.checkExistingFiles(context)
 
-                        // ✅ NEW: Start BLE scanning immediately after successful login
-                        try {
-                            Log.i("MeterKenshinApp", "Login successful - starting BLE scan")
-                            meterReadingViewModel.startBLEScanning()
-                        } catch (e: Exception) {
-                            Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
+                            // ✅ NEW: Start BLE scanning immediately after successful login
+                            try {
+                                Log.i("MeterKenshinApp", "Login successful - starting BLE scan")
+                                meterReadingViewModel.startBLEScanning()
+                            } catch (e: Exception) {
+                                Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
+                            }
                         }
-                    }
-                )
-            }
-
-            currentScreen == "home" -> {
-                HomeScreen(
-                    sessionManager = sessionManager,
-                    onLogout = {
-                        // ✅ NEW: Stop BLE scanning on logout from HomeScreen
-                        try {
-                            meterReadingViewModel.stopBLEScanning()
-                            Log.i(
-                                "MeterKenshinApp",
-                                "BLE scanning stopped on logout from HomeScreen"
-                            )
-                        } catch (e: Exception) {
-                            Log.e("MeterKenshinApp", "Error stopping BLE scan", e)
-                        }
-
-                        sessionManager.logout()
-                        isLoggedIn = false
-                        currentScreen = "login"
-                    },
-                    onNavigateToMeterReading = { currentScreen = "meter_reading" },
-                    onNavigateToMeterDetail = { meter ->
-                        selectedMeter = meter
-                        currentScreen = "meter_detail"
-                    },
-                    fileUploadViewModel = fileUploadViewModel,
-                    meterReadingViewModel = meterReadingViewModel,
-                    printerBluetoothViewModel = printerBluetoothViewModel
-                )
-            }
-
-            currentScreen == "file_upload" -> {
-                FileUploadScreen(
-                    viewModel = fileUploadViewModel
-                )
-            }
-
-            currentScreen == "receipt" -> {
-                ReceiptScreen(
-                    fileUploadViewModel = fileUploadViewModel,
-                    printerBluetoothViewModel = printerBluetoothViewModel,
-                    onNavigateToFileUpload = { currentScreen = "file_upload" }
-                )
-            }
-
-            currentScreen == "meter_reading" -> {
-                MeterReadingScreen(
-                    fileUploadViewModel = fileUploadViewModel,
-                    meterReadingViewModel = meterReadingViewModel,
-                    onNavigateToMeterDetail = { meter ->
-                        selectedMeter = meter
-                        currentScreen = "meter_detail"
-                    }
-                )
-            }
-
-            currentScreen == "meter_detail" -> {
-                selectedMeter?.let { meter ->
-                    MeterDetailScreen(
-                        meter = meter
                     )
                 }
-            }
 
-            currentScreen == "settings" -> {
-                SettingsScreen(
-                    sessionManager = sessionManager
-                )
+                currentScreen == "home" -> {
+                    HomeScreen(
+                        sessionManager = sessionManager,
+                        onLogout = {
+                            // ✅ NEW: Stop BLE scanning on logout from HomeScreen
+                            try {
+                                meterReadingViewModel.stopBLEScanning()
+                                Log.i(
+                                    "MeterKenshinApp",
+                                    "BLE scanning stopped on logout from HomeScreen"
+                                )
+                            } catch (e: Exception) {
+                                Log.e("MeterKenshinApp", "Error stopping BLE scan", e)
+                            }
+
+                            sessionManager.logout()
+                            isLoggedIn = false
+                            currentScreen = "login"
+                        },
+                        onNavigateToMeterReading = { currentScreen = "meter_reading" },
+                        onNavigateToMeterDetail = { meter ->
+                            selectedMeter = meter
+                            currentScreen = "meter_detail"
+                        },
+                        fileUploadViewModel = fileUploadViewModel,
+                        meterReadingViewModel = meterReadingViewModel,
+                        printerBluetoothViewModel = printerBluetoothViewModel
+                    )
+                }
+
+                currentScreen == "file_upload" -> {
+                    FileUploadScreen(
+                        viewModel = fileUploadViewModel
+                    )
+                }
+
+                currentScreen == "receipt" -> {
+                    ReceiptScreen(
+                        fileUploadViewModel = fileUploadViewModel,
+                        printerBluetoothViewModel = printerBluetoothViewModel,
+                        onNavigateToFileUpload = { currentScreen = "file_upload" }
+                    )
+                }
+
+                currentScreen == "meter_reading" -> {
+                    MeterReadingScreen(
+                        fileUploadViewModel = fileUploadViewModel,
+                        meterReadingViewModel = meterReadingViewModel,
+                        onNavigateToMeterDetail = { meter ->
+                            selectedMeter = meter
+                            currentScreen = "meter_detail"
+                        }
+                    )
+                }
+
+                currentScreen == "meter_detail" -> {
+                    selectedMeter?.let { meter ->
+                        MeterDetailScreen(
+                            meter = meter
+                        )
+                    }
+                }
+
+                currentScreen == "settings" -> {
+                    SettingsScreen(
+                        sessionManager = sessionManager
+                    )
+                }
             }
         }
     }
