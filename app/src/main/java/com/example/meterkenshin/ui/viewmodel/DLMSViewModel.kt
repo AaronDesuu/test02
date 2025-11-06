@@ -166,12 +166,77 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
-     * Clear saved billing data manually
+     * Clear saved billing data manually and reset meter to Not Inspected
      */
     fun clearSavedBillingData() {
         billingRepository?.clear()
         _savedBillingData.value = null
+
+        // Clear meter readDate to return to Not Inspected state
+        meter?.let { currentMeter ->
+            clearMeterReadDate(currentMeter.serialNumber)
+        }
+
         appendLog("Cleared saved billing data")
+    }
+
+    /**
+     * Clear meter's readDate and billingPrintDate to reset to Not Inspected state
+     */
+    private fun clearMeterReadDate(serialNumber: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return@launch
+                val csvDir = File(externalFilesDir, "app_files")
+                val yearMonth = getCurrentYearMonth()
+                val filename = "${yearMonth}_meter.csv"
+                val meterFile = File(csvDir, filename)
+
+                if (!meterFile.exists()) {
+                    appendLog("⚠ Warning: Meter CSV file not found")
+                    return@launch
+                }
+
+                val lines = meterFile.readLines().toMutableList()
+                val serialNoIndex = 2
+                val readDateIndex = 11
+                val billingPrintDateIndex = 12
+
+                for (i in 1 until lines.size) {
+                    val columns = lines[i].split(',').toMutableList()
+                    val csvSerialNo = columns.getOrNull(serialNoIndex)
+                        ?.trim()
+                        ?.removeSurrounding("\"")
+
+                    if (csvSerialNo == serialNumber) {
+                        // Clear readDate and billingPrintDate
+                        if (columns.size > readDateIndex) {
+                            columns[readDateIndex] = columns[4] // Set readDate = fixedDate
+                        }
+                        if (columns.size > billingPrintDateIndex) {
+                            columns[billingPrintDateIndex] = "" // Clear billingPrintDate
+                        }
+
+                        lines[i] = columns.joinToString(",")
+                        appendLog("✅ Reset meter Read Data: $serialNumber")
+                        break
+                    }
+                }
+
+                meterFile.writeText(lines.joinToString("\n"))
+
+                // Reload meters to update UI
+                withContext(Dispatchers.Main) {
+                    mContext?.let { ctx ->
+                        meterReadingViewModel?.reloadMeters(ctx)
+                    }
+                }
+
+            } catch (e: Exception) {
+                appendLog("ERROR: Failed to reset meter state: ${e.message}")
+                Log.e(TAG, "clearMeterReadDate error", e)
+            }
+        }
     }
 
     /**

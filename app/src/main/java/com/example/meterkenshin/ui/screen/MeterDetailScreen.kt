@@ -60,10 +60,6 @@ fun MeterDetailScreen(
     // Track DLMS initialization state
     var isDlmsInitialized by remember { mutableStateOf(false) }
 
-    // Collect printer states for error dialog
-    val bluetoothConnectionState by printerViewModel.connectionState.collectAsState()
-    val isBluetoothEnabled by printerViewModel.isBluetoothEnabled.collectAsState()
-
     // Collect printer error dialog state
     val showPrinterErrorDialog by registrationViewModel.showPrinterErrorDialog.collectAsState()
     val printerErrorMessage by registrationViewModel.printerErrorMessage.collectAsState()
@@ -214,9 +210,7 @@ fun MeterDetailScreen(
                         SavedBillingDataCard(
                             billing = saved.billing,
                             daysRemaining = saved.daysRemaining(),
-                            bluetoothConnectionState = bluetoothConnectionState,
                             printerViewModel = printerViewModel,
-                            isBluetoothEnabled = isBluetoothEnabled,
                             onPrintReceipt = {
                                 // NEW: Print receipt from saved data
                                 registrationViewModel.printReceipt(saved.billing, saved.rates)

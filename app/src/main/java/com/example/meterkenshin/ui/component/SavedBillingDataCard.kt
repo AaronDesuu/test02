@@ -12,10 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Billing
-import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import kotlinx.coroutines.delay
@@ -38,8 +39,6 @@ fun SavedBillingDataCard(
     billing: Billing?,
     daysRemaining: Int,
     printerViewModel: PrinterBluetoothViewModel,
-    bluetoothConnectionState: BluetoothPrinterManager.ConnectionState?,
-    isBluetoothEnabled: Boolean,
     onPrintReceipt: () -> Unit,
     onSaveJSON: () -> Unit,
     onClearData: () -> Unit,
@@ -62,8 +61,8 @@ fun SavedBillingDataCard(
     val coverStatus by printerViewModel.coverStatus.collectAsState()
 
     // Check if printer is ready using helper
-    val isPrinterReady = PrinterStatusHelper.isPrinterConnected(printerViewModel)
-    val canPrint = isPrinterReady && isBluetoothEnabled && isPrintButtonEnabled
+    PrinterStatusHelper.isPrinterConnected(printerViewModel)
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     // Function to attempt printing using PrinterStatusHelper
     fun attemptPrint() {
@@ -202,7 +201,7 @@ fun SavedBillingDataCard(
 
                 // Clear button
                 OutlinedButton(
-                    onClick = onClearData,
+                    onClick = { showDeleteConfirmDialog = true }, // Changed from onClearData
                     modifier = Modifier.weight(0.6f)
                 ) {
                     Icon(
@@ -210,6 +209,38 @@ fun SavedBillingDataCard(
                         contentDescription = null,
                         tint = Color.Red,
                         modifier = Modifier.size(18.dp)
+                    )
+                }
+
+// Add dialog at the end of the composable (before closing braces)
+                if (showDeleteConfirmDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showDeleteConfirmDialog = false },
+                        title = { Text(stringResource(R.string.delete_billing_data_title)) },
+                        text = { Text(stringResource(R.string.delete_billing_data_message)) },
+                        confirmButton = {
+                            Button(
+                                onClick = {
+                                    showDeleteConfirmDialog = false
+                                    onClearData()
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Delete")
+                            }
+                        },
+                        dismissButton = {
+                            Button(
+                                onClick = { showDeleteConfirmDialog = false },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary
+                                )
+                            ) {
+                                Text("Cancel")
+                            }
+                        }
                     )
                 }
             }

@@ -289,7 +289,7 @@
     <string name="receipt_sample_receipt">SAMPLE RECEIPT</string>
     <string name="receipt_company_address">           H.V Dela Costa St Salcedo Village Makati 1227,\n          Metro Manila Philippines</string>
     <string name="receipt_company_name">        Electric Philippines Inc.</string>
-    <string name="receipt_company_phone">                TEL:000-000-0000</string>
+    <string name="receipt_company_phone">                TEL:000–000–0000</string>
     <string name="receipt_payment_note">NOTE:Please pay this electric bill on or before DUE DATE otherwise,\n     we will be forced to discontinue serving your electric needs.</string>
     <string name="receipt_disclaimer">This is not an Official Receipt. Payment of this bill does not mean \npayment of previous delinquencies if any.</string>
     <string name="receipt_present_statement">             **PLEASE PRESENT THIS STATEMENT UPON PAYMENT**</string>
@@ -481,11 +481,11 @@
     <string name="bluetooth_permission_explanation">This app needs Bluetooth permissions to connect to the Woosim printer for receipt printing</string>
 
     <!-- Bluetooth Status Messages -->
-    <string name="bluetooth_initializing">Initializing Bluetooth connection...</string>
-    <string name="bluetooth_connecting_woosim">Connecting to Woosim printer...</string>
+    <string name="bluetooth_initializing">Initializing Bluetooth connection…</string>
+    <string name="bluetooth_connecting_woosim">Connecting to Woosim printer…</string>
     <string name="bluetooth_connected_woosim">Connected to Woosim printer</string>
     <string name="bluetooth_connection_failed">Failed to connect to printer</string>
-    <string name="bluetooth_reconnecting">Reconnecting to printer...</string>
+    <string name="bluetooth_reconnecting">Reconnecting to printer…</string>
     <string name="bluetooth_auto_connect_failed">Auto-connect failed after multiple attempts</string>
 
     <!-- MAC Address Related -->
@@ -501,10 +501,10 @@
     <string name="connection_state_error">Connection Error</string>
 
     <!-- Auto-connect Messages -->
-    <string name="auto_connect_starting">Starting automatic connection...</string>
+    <string name="auto_connect_starting">Starting automatic connection…</string>
     <string name="auto_connect_attempt">Connection attempt %1$d of %2$d</string>
     <string name="auto_connect_success">Automatically connected to printer</string>
-    <string name="auto_connect_scanning">Scanning for Woosim devices...</string>
+    <string name="auto_connect_scanning">Scanning for Woosim devices…</string>
     <string name="auto_connect_no_devices">No Woosim devices found</string>
 
     <!-- Printer Configuration -->
@@ -524,7 +524,6 @@
     <string name="nav_receipt_template">Receipt Template</string>
     <string name="navigation_drawer">Navigation Drawer</string>
     <string name="open_drawer">Open navigation drawer</string>
-    <string name="close_drawer">Close navigation drawer</string>
 
     <!-- User Profile in Drawer -->
     <string name="user_profile">User Profile</string>
@@ -597,106 +596,106 @@
     <string name="ble_location_permission_required">Location permission required for BLE scanning</string>
     <string name="auto_connect_failed">auto connect failed</string>
 
-        <!-- DLMS Communication Strings -->
-        <string name="dlms_initialization_error">Failed to initialize DLMS communication</string>
-        <string name="communication_timeout">Communication timeout - no response from meter</string>
-        <string name="connected_to_meter">Successfully connected to meter</string>
-        <string name="connection_failed">Failed to connect to meter</string>
-        <string name="disconnected">Disconnected from meter</string>
+    <!-- DLMS Communication Strings -->
+    <string name="dlms_initialization_error">Failed to initialize DLMS communication</string>
+    <string name="communication_timeout">Communication timeout - no response from meter</string>
+    <string name="connected_to_meter">Successfully connected to meter</string>
+    <string name="connection_failed">Failed to connect to meter</string>
+    <string name="disconnected">Disconnected from meter</string>
 
-        <!-- Electric Meter Reading Strings -->
-        <string name="meter_no_bluetooth">This meter does not have Bluetooth capability</string>
-        <string name="meter_not_connected">No meter connected. Please connect to a meter first.</string>
-        <string name="reading_meter_data">Reading meter data...</string>
-        <string name="electric_meter_data_read_complete">Electric meter data reading completed successfully</string>
-        <string name="data_read_failed">Failed to read data from meter</string>
-        <string name="data_read_successful">Meter data read successfully</string>
+    <!-- Electric Meter Reading Strings -->
+    <string name="meter_no_bluetooth">This meter does not have Bluetooth capability</string>
+    <string name="meter_not_connected">No meter connected. Please connect to a meter first.</string>
+    <string name="reading_meter_data">Reading meter data…</string>
+    <string name="electric_meter_data_read_complete">Electric meter data reading completed successfully</string>
+    <string name="data_read_failed">Failed to read data from meter</string>
+    <string name="data_read_successful">Meter data read successfully</string>
 
-        <!-- Electric Meter Data Field Names -->
-        <string name="meter_activate">Activation Status</string>
-        <string name="meter_fixed_date">Fixed Date</string>
-        <string name="meter_import_kwh">Import Energy (kWh)</string>
-        <string name="meter_export_kwh">Export Energy (kWh)</string>
-        <string name="meter_import_max_demand">Import Max Demand (kW)</string>
-        <string name="meter_export_max_demand">Export Max Demand (kW)</string>
-        <string name="meter_min_voltage">Minimum Voltage (V)</string>
-        <string name="meter_alert">Alert Status</string>
-        <string name="meter_read_date">Read Date</string>
+    <!-- Electric Meter Data Field Names -->
+    <string name="meter_activate">Activation Status</string>
+    <string name="meter_fixed_date">Fixed Date</string>
+    <string name="meter_import_kwh">Import Energy (kWh)</string>
+    <string name="meter_export_kwh">Export Energy (kWh)</string>
+    <string name="meter_import_max_demand">Import Max Demand (kW)</string>
+    <string name="meter_export_max_demand">Export Max Demand (kW)</string>
+    <string name="meter_min_voltage">Minimum Voltage (V)</string>
+    <string name="meter_alert">Alert Status</string>
+    <string name="meter_read_date">Read Date</string>
 
 
-        <!-- Progress and Status -->
-        <string name="reading_progress">Reading Progress: %1$d/%2$d</string>
-        <string name="all_readings_complete">All meter readings completed</string>
-        <string name="readings_incomplete">Some readings are incomplete</string>
-        <string name="no_data_available">No data available</string>
+    <!-- Progress and Status -->
+    <string name="reading_progress">Reading Progress: %1$d/%2$d</string>
+    <string name="all_readings_complete">All meter readings completed</string>
+    <string name="readings_incomplete">Some readings are incomplete</string>
+    <string name="no_data_available">No data available</string>
 
-        <!-- Button Labels -->
+    <!-- Button Labels -->
 
-        <string name="disconnect_meter">Disconnect</string>
-        <string name="read_meter_data">Read Meter Data</string>
-        <string name="retry_connection">Retry Connection</string>
-        <string name="clear_error">Clear Error</string>
+    <string name="disconnect_meter">Disconnect</string>
+    <string name="read_meter_data">Read Meter Data</string>
+    <string name="retry_connection">Retry Connection</string>
+    <string name="clear_error">Clear Error</string>
 
-        <!-- Admin Functions -->
-        <string name="admin_mode_active">Admin mode active</string>
-        <string name="admin_access_required">Admin access required for this operation</string>
-        <string name="admin_session_established">Admin session established</string>
+    <!-- Admin Functions -->
+    <string name="admin_mode_active">Admin mode active</string>
+    <string name="admin_access_required">Admin access required for this operation</string>
+    <string name="admin_session_established">Admin session established</string>
 
-        <!-- Error Messages -->
-        <string name="error_session_establish">Failed to establish DLMS session</string>
-        <string name="error_session_release">Failed to release DLMS session</string>
-        <string name="error_data_access">Error accessing meter data</string>
-        <string name="error_invalid_response">Invalid response from meter</string>
-        <string name="error_connection_lost">Connection to meter lost</string>
-        <string name="error_timeout">Operation timed out</string>
+    <!-- Error Messages -->
+    <string name="error_session_establish">Failed to establish DLMS session</string>
+    <string name="error_session_release">Failed to release DLMS session</string>
+    <string name="error_data_access">Error accessing meter data</string>
+    <string name="error_invalid_response">Invalid response from meter</string>
+    <string name="error_connection_lost">Connection to meter lost</string>
+    <string name="error_timeout">Operation timed out</string>
 
-        <!-- Meter Status Display -->
-        <string name="meter_status_active">Active</string>
-        <string name="meter_status_inactive">Inactive</string>
-        <string name="meter_status_reading">Reading...</string>
-        <string name="meter_status_error">Error</string>
+    <!-- Meter Status Display -->
+    <string name="meter_status_active">Active</string>
+    <string name="meter_status_inactive">Inactive</string>
+    <string name="meter_status_reading">Reading…</string>
+    <string name="meter_status_error">Error</string>
 
-        <!-- Data Validation -->
-        <string name="invalid_bluetooth_id">Invalid Bluetooth ID</string>
-        <string name="meter_not_found">Meter not found</string>
-        <string name="data_validation_failed">Data validation failed</string>
+    <!-- Data Validation -->
+    <string name="invalid_bluetooth_id">Invalid Bluetooth ID</string>
+    <string name="meter_not_found">Meter not found</string>
+    <string name="data_validation_failed">Data validation failed</string>
 
-        <!-- Units and Formatting -->
-        <string name="unit_kwh">kWh</string>
-        <string name="unit_kw">kW</string>
-        <string name="unit_volt">V</string>
-        <string name="format_energy_reading">%.3f %s</string>
-        <string name="format_power_reading">%.2f %s</string>
-        <string name="format_voltage_reading">%.1f %s</string>
+    <!-- Units and Formatting -->
+    <string name="unit_kwh">kWh</string>
+    <string name="unit_kw">kW</string>
+    <string name="unit_volt">V</string>
+    <string name="format_energy_reading">%.3f %s</string>
+    <string name="format_power_reading">%.2f %s</string>
+    <string name="format_voltage_reading">%.1f %s</string>
 
-        <!-- Date/Time Formatting -->
-        <string name="date_not_available">Date not available</string>
-        <string name="last_reading">Last reading: %s</string>
-        <string name="installation_date">Installation: %s</string>
+    <!-- Date/Time Formatting -->
+    <string name="date_not_available">Date not available</string>
+    <string name="last_reading">Last reading: %s</string>
+    <string name="installation_date">Installation: %s</string>
 
-        <!-- Search and Filter -->
+    <!-- Search and Filter -->
 
-        <string name="filter_by_status">Filter by status</string>
-        <string name="filter_by_type">Filter by type</string>
-        <string name="clear_filters">Clear filters</string>
+    <string name="filter_by_status">Filter by status</string>
+    <string name="filter_by_type">Filter by type</string>
+    <string name="clear_filters">Clear filters</string>
 
-        <!-- Statistics -->
-        <string name="bluetooth_enabled_meters">Bluetooth enabled: %d</string>
-        <string name="meters_with_readings">With readings: %d</string>
+    <!-- Statistics -->
+    <string name="bluetooth_enabled_meters">Bluetooth enabled: %d</string>
+    <string name="meters_with_readings">With readings: %d</string>
 
-        <!-- Loading States -->
-        <string name="loading_meter_data">Loading meter data...</string>
-        <string name="processing_request">Processing request...</string>
+    <!-- Loading States -->
+    <string name="loading_meter_data">Loading meter data…</string>
+    <string name="processing_request">Processing request…</string>
 
-        <!-- Success Messages -->
-        <string name="meter_connected_successfully">Meter connected successfully</string>
-        <string name="data_read_complete">Data reading completed</string>
-        <string name="session_established_successfully">DLMS session established successfully</string>
+    <!-- Success Messages -->
+    <string name="meter_connected_successfully">Meter connected successfully</string>
+    <string name="data_read_complete">Data reading completed</string>
+    <string name="session_established_successfully">DLMS session established successfully</string>
 
-        <!-- Configuration -->
-        <string name="admin_rank_set">Admin rank configured</string>
-        <string name="dlms_configured">DLMS communication configured</string>
-        <string name="bluetooth_service_ready">Bluetooth service ready</string>
+    <!-- Configuration -->
+    <string name="admin_rank_set">Admin rank configured</string>
+    <string name="dlms_configured">DLMS communication configured</string>
+    <string name="bluetooth_service_ready">Bluetooth service ready</string>
     <string name="meter_csv_missing">meter csv missing</string>
     <string name="title_meter">title meter</string>
 
@@ -712,5 +711,8 @@
     <string name="test">test</string>
     <string name="uid">Meter UID: %1$s</string>
     <string name="status">status</string>
+
+    <string name="delete_billing_data_title">Delete Billing Data</string>
+    <string name="delete_billing_data_message">Are you sure you want to delete the billing data?</string>
 
 </resources>
