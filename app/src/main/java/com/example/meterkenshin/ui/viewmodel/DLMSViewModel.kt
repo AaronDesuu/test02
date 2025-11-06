@@ -433,7 +433,7 @@ class DLMSViewModel : ViewModel() {
         performReadData(meter, rates)
     }
 
-    private fun performReadData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
+    fun performReadData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Read Data already running")
             return@launch

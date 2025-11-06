@@ -171,6 +171,8 @@ fun MeterListComponent(
     // Add after the existing batch processor states
     val showRetryDialog by batchProcessor.showRetryDialog.collectAsState()
     val retryDialogMeter by batchProcessor.retryDialogMeter.collectAsState()
+    val showUseExistingDialog by batchProcessor.showUseExistingDialog.collectAsState()
+    val useExistingDialogMeter by batchProcessor.useExistingDialogMeter.collectAsState()
 
     // Set printer reference in DLMS ViewModel
     LaunchedEffect(Unit) {
@@ -694,6 +696,39 @@ fun MeterListComponent(
                         dismissButton = {
                             TextButton(onClick = { batchProcessor.onSkipClicked() }) {
                                 Text(stringResource(R.string.skip))
+                            }
+                        }
+                    )
+                }
+
+// ⭐ NEW DIALOG - Use Existing Data or Read New
+                if (showUseExistingDialog && useExistingDialogMeter != null) {
+                    AlertDialog(
+                        onDismissRequest = { /* Prevent dismiss */ },
+                        title = {
+                            Text("Billing Data Available")
+                        },
+                        text = {
+                            Column {
+                                Text("This meter already has saved billing data.")
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Meter: $useExistingDialogMeter",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Do you want to use the existing data or perform a new read?")
+                            }
+                        },
+                        confirmButton = {
+                            Button(onClick = { batchProcessor.onReadNewClicked() }) {
+                                Text("Read Again")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { batchProcessor.onUseExistingClicked() }) {
+                                Text("Use Existing")
                             }
                         }
                     )

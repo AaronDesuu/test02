@@ -37,6 +37,8 @@ class BatchProcessingManager(
     }
     enum class UserChoice {
         RETRY,
+        USE_EXISTING,
+        READ_NEW,
         SKIP
     }
 
@@ -106,6 +108,14 @@ class BatchProcessingManager(
     val retryDialogMeter: StateFlow<String?> = _retryDialogMeter.asStateFlow()
 
     private var retryChoice: UserChoice? = null
+
+    private val _showUseExistingDialog = MutableStateFlow(false)
+    val showUseExistingDialog: StateFlow<Boolean> = _showUseExistingDialog.asStateFlow()
+
+    private val _useExistingDialogMeter = MutableStateFlow<String?>(null)
+    val useExistingDialogMeter: StateFlow<String?> = _useExistingDialogMeter.asStateFlow()
+
+    private var useExistingChoice: UserChoice? = null
 
     /**
      * Update print option
@@ -197,40 +207,49 @@ class BatchProcessingManager(
                         val hasValidData = hasValidBillingData(meter)
 
                         if (!hasValidData) {
-                            // Step 3: Read meter data
-                            updateProgressWithStep(3, "Reading meter data...")
-                            Log.i(TAG, "Reading data for ${meter.serialNumber}")
-                            dlmsViewModel.readData(meter, rates)
+                            val userChoice = promptUseExistingOrReadNew(meter.serialNumber)
 
-                            // Wait for read operation
-                            if (!waitForOperationComplete()) {
-                                Log.e(TAG, "Read timeout for ${meter.serialNumber}")
+                            if (userChoice == UserChoice.USE_EXISTING) {
+                                Log.i(TAG, "Using existing data for ${meter.serialNumber}")
+                                // Skip to print/save steps directly
+                                updateProgressWithStep(3, "Using existing billing data...")
+                            } else {
+                                // User chose to read again
+                                updateProgressWithStep(3, "Reading meter data...")
+                                Log.i(TAG, "Reading data for ${meter.serialNumber}")
+                                dlmsViewModel.performReadData(meter, rates)
 
-                                // NEW: Prompt user for retry or skip
-                                val userChoice = promptRetryOrSkip(meter.serialNumber)
+                                if (!waitForOperationComplete()) {
+                                    Log.e(TAG, "Read timeout for ${meter.serialNumber}")
 
-                                if (userChoice == UserChoice.RETRY) {
-                                    // Retry the read operation
-                                    Log.i(TAG, "Retrying read for ${meter.serialNumber}")
-                                    dlmsViewModel.readData(meter, rates)
+                                    // NEW: Prompt user for retry or skip
+                                    val userChoice = promptRetryOrSkip(meter.serialNumber)
 
-                                    if (!waitForOperationComplete()) {
-                                        // Still failed after retry
-                                        Log.e(TAG, "Read failed after retry for ${meter.serialNumber}")
+                                    if (userChoice == UserChoice.RETRY) {
+                                        // Retry the read operation
+                                        Log.i(TAG, "Retrying read for ${meter.serialNumber}")
+                                        dlmsViewModel.readData(meter, rates)
+
+                                        if (!waitForOperationComplete()) {
+                                            // Still failed after retry
+                                            Log.e(TAG, "Read failed after retry for ${meter.serialNumber}")
+                                            failed.add(meter.serialNumber)
+                                            _errorCount.value++
+                                            updateProgressWithStep(0, "⚠️ Failed to read ${meter.serialNumber}")
+                                            continue
+                                        }
+                                    } else {
+                                        // User chose to skip
+                                        Log.i(TAG, "User skipped ${meter.serialNumber}")
                                         failed.add(meter.serialNumber)
                                         _errorCount.value++
-                                        updateProgressWithStep(0, "⚠️ Failed to read ${meter.serialNumber}")
+                                        updateProgressWithStep(0, "⏭️ Skipped ${meter.serialNumber}")
                                         continue
                                     }
-                                } else {
-                                    // User chose to skip
-                                    Log.i(TAG, "User skipped ${meter.serialNumber}")
-                                    failed.add(meter.serialNumber)
-                                    _errorCount.value++
-                                    updateProgressWithStep(0, "⏭️ Skipped ${meter.serialNumber}")
-                                    continue
                                 }
                             }
+
+                            // Step 3: Read meter data
 
                             // Step 4: Finalizing read
                             updateProgressWithStep(4, "Finalizing data read...")
@@ -491,6 +510,28 @@ class BatchProcessingManager(
 
     fun onSkipClicked() {
         retryChoice = UserChoice.SKIP
+    }
+
+    private suspend fun promptUseExistingOrReadNew(serialNumber: String): UserChoice {
+        _showUseExistingDialog.value = true
+        _useExistingDialogMeter.value = serialNumber
+        useExistingChoice = null
+
+        // Wait for user decision
+        while (useExistingChoice == null && _isProcessing.value) {
+            delay(100)
+        }
+
+        _showUseExistingDialog.value = false
+        return useExistingChoice ?: UserChoice.SKIP
+    }
+
+    fun onUseExistingClicked() {
+        useExistingChoice = UserChoice.USE_EXISTING
+    }
+
+    fun onReadNewClicked() {
+        useExistingChoice = UserChoice.READ_NEW
     }
 
     /**
