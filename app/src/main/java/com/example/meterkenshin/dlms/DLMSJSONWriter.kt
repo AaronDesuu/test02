@@ -1,7 +1,7 @@
 package com.example.meterkenshin.dlms
 
 import android.annotation.SuppressLint
-import android.content.Context
+import android.os.Environment
 import android.util.Log
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.BillingRecord
@@ -20,13 +20,38 @@ import java.util.Locale
 object DLMSJSONWriter {
     private const val TAG = "DLMSJSONWriter"
 
+
+    /**
+     * Get or create the Downloads/kenshinApp/json directory
+     */
+    private fun getJSONDirectory(): File? {
+        return try {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val kenshinAppDir = File(downloadsDir, "kenshinApp")
+            val jsonDir = File(kenshinAppDir, "json")
+
+            if (!jsonDir.exists()) {
+                val created = jsonDir.mkdirs()
+                if (!created) {
+                    Log.e(TAG, "Failed to create directory: ${jsonDir.absolutePath}")
+                    return null
+                }
+            }
+
+            Log.d(TAG, "JSON directory: ${jsonDir.absolutePath}")
+            jsonDir
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating JSON directory: ${e.message}", e)
+            null
+        }
+    }
+
     /**
      * Save billing data to JSON file (similar to project01)
      * Uses existing Billing class from model
      */
     @SuppressLint("DefaultLocale")
     fun saveBillingToJSON(
-        context: Context?,
         serialNumber: String?,
         records: List<BillingRecord>,
         rates: FloatArray
@@ -42,9 +67,9 @@ object DLMSJSONWriter {
                 return false
             }
 
-            val externalDir = context?.getExternalFilesDir(null)
+            val externalDir = getJSONDirectory()
             if (externalDir == null) {
-                Log.e(TAG, "External storage not available")
+                Log.e(TAG, "JSON directory not available")
                 return false
             }
 
@@ -113,7 +138,6 @@ object DLMSJSONWriter {
      * This matches project01's MSG_READER JSON export
      */
     fun saveSingleBillingToJSON(
-        context: Context?,
         serialNumber: String?,
         billing: Billing
     ): Boolean {
@@ -123,9 +147,9 @@ object DLMSJSONWriter {
                 return false
             }
 
-            val externalDir = context?.getExternalFilesDir(null)
+            val externalDir = getJSONDirectory()
             if (externalDir == null) {
-                Log.e(TAG, "External storage not available")
+                Log.e(TAG, "JSON directory not available")
                 return false
             }
 

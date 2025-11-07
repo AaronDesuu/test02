@@ -606,7 +606,6 @@ class DLMSViewModel : ViewModel() {
             viewModelScope.launch {
                 appendLog("Saving stored billing data to JSON...")
                 val success = DLMSJSONWriter.saveSingleBillingToJSON(
-                    context = mContext,
                     serialNumber = savedData.billing.SerialNumber,
                     billing = savedData.billing
                 )
@@ -633,7 +632,6 @@ class DLMSViewModel : ViewModel() {
             viewModelScope.launch {
                 appendLog("Saving billing data to JSON...")
                 val success = DLMSJSONWriter.saveSingleBillingToJSON(
-                    context = mContext,
                     serialNumber = billing.SerialNumber,
                     billing = billing
                 )
