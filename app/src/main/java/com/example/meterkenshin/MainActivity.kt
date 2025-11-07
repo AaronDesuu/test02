@@ -8,7 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import com.example.meterkenshin.ui.notification.NotificationManager
+import com.example.meterkenshin.ui.manager.NotificationManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge

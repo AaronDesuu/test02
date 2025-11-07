@@ -25,6 +25,7 @@ import com.example.meterkenshin.ui.screen.SettingsScreen
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.ui.screen.ExportScreen
 import kotlinx.coroutines.delay
 
 @SuppressLint("MissingPermission")
@@ -49,10 +50,10 @@ fun MeterKenshinApp(
             "home" -> AppScreen.HOME
             "meter_reading" -> AppScreen.METER_READING
             "file_upload" -> AppScreen.IMPORT_DATA
+            "export_data" -> AppScreen.EXPORT_DATA
             "receipt" -> AppScreen.RECEIPT_TEMPLATE
             "meter_detail" -> AppScreen.METER_DETAIL
             "settings" -> AppScreen.SETTINGS
-            "meter_card_test" -> AppScreen.UNKNOWN
             else -> AppScreen.HOME
         }
     }
@@ -61,8 +62,7 @@ fun MeterKenshinApp(
     BackHandler(enabled = isLoggedIn && currentScreen != "home") {
         currentScreen = when (currentScreen) {
             "meter_detail" -> "meter_reading"
-            "meter_card_test" -> "home"
-            "file_upload", "receipt", "meter_reading", "settings" -> "home"
+            "file_upload", "receipt", "meter_reading", "settings", "export_data" -> "home"
             else -> "home"
         }
     }
@@ -104,6 +104,7 @@ fun MeterKenshinApp(
                     AppScreen.HOME -> currentScreen = "home"
                     AppScreen.METER_READING -> currentScreen = "meter_reading"
                     AppScreen.IMPORT_DATA -> currentScreen = "file_upload"
+                    AppScreen.EXPORT_DATA -> currentScreen = "export_data"
                     AppScreen.RECEIPT_TEMPLATE -> currentScreen = "receipt"
                     AppScreen.SETTINGS -> currentScreen = "settings"
                     else -> {}
@@ -212,6 +213,10 @@ fun MeterKenshinApp(
                     SettingsScreen(
                         sessionManager = sessionManager
                     )
+                }
+
+                currentScreen == "export_data" -> {
+                    ExportScreen()
                 }
             }
         }

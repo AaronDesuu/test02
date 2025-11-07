@@ -21,7 +21,7 @@ import com.example.meterkenshin.dlms.ReadDataPrinting
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.ui.notification.NotificationManager
+import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.utils.calculateBillingData
 import com.example.meterkenshin.utils.getCurrentYearMonth
 import com.google.gson.Gson

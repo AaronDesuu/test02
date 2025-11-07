@@ -1,9 +1,12 @@
-package com.example.meterkenshin.ui.viewmodel
+package com.example.meterkenshin.ui.manager
 
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
+import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.InspectionStatus
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import com.example.meterkenshin.utils.getInspectionStatus

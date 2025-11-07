@@ -3,7 +3,7 @@ package com.example.meterkenshin.ui.component
 import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
-import com.example.meterkenshin.ui.notification.NotificationManager
+import com.example.meterkenshin.ui.manager.NotificationManager
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
@@ -64,9 +64,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.ui.viewmodel.BatchPrintManager
-import com.example.meterkenshin.ui.viewmodel.BatchPrintMode
-import com.example.meterkenshin.ui.viewmodel.BatchProcessingManager
+import com.example.meterkenshin.ui.manager.BatchPrintManager
+import com.example.meterkenshin.ui.manager.BatchPrintMode
+import com.example.meterkenshin.ui.manager.BatchProcessingManager
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel

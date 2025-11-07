@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.notification
+package com.example.meterkenshin.ui.manager
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

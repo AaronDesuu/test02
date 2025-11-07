@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.viewmodel
+package com.example.meterkenshin.ui.manager
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -6,6 +6,9 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
+import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -385,7 +388,8 @@ class BatchProcessingManager(
         // ⭐ FIX: Check if we have valid billing data instead of just state
         val hasValidData = dlmsViewModel.savedBillingData.value?.isValid() == true
 
-        Log.d(TAG, "Operation complete check: isComplete=${registrationState.value.isComplete}, " +
+        Log.d(
+            TAG, "Operation complete check: isComplete=${registrationState.value.isComplete}, " +
                 "isRunning=${registrationState.value.isRunning}, hasValidData=$hasValidData")
 
         // Success if we have valid data OR state shows complete

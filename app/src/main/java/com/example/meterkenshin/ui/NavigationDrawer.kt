@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Receipt
@@ -73,10 +74,10 @@ enum class AppScreen(val titleRes: Int) {
     HOME(R.string.home_title),
     METER_READING(R.string.meter_reading_title),
     IMPORT_DATA(R.string.file_upload_title),
+    EXPORT_DATA(R.string.export_data_title),
     RECEIPT_TEMPLATE(R.string.receipt_template_title),
     METER_DETAIL(R.string.meter_detail_title),
     SETTINGS(R.string.settings_title),
-    UNKNOWN(R.string.test),
 
 }
 
@@ -226,6 +227,15 @@ private fun DrawerContentWithTest(
                         onCloseDrawer()
                     },
                     screen = AppScreen.IMPORT_DATA
+                ),
+                DrawerNavigationItem(
+                    title = stringResource(R.string.nav_export_data),
+                    icon = Icons.Default.Download,
+                    action = {
+                        onNavigationItemClick(AppScreen.EXPORT_DATA)
+                        onCloseDrawer()
+                    },
+                    screen = AppScreen.EXPORT_DATA
                 ),
                 DrawerNavigationItem(
                     title = stringResource(R.string.nav_receipt_template),

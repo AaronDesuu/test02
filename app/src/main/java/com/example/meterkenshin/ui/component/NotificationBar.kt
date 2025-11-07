@@ -33,8 +33,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.example.meterkenshin.ui.notification.Notification
-import com.example.meterkenshin.ui.notification.NotificationType
+import com.example.meterkenshin.ui.manager.Notification
+import com.example.meterkenshin.ui.manager.NotificationType
 import kotlinx.coroutines.delay
 
 /**
