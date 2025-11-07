@@ -12,6 +12,11 @@ data class ExportResult(
     val exportedCount: Int = 0,
     val errorMessage: String? = null
 )
+data class FileGroup(
+    val name: String,
+    val files: List<File>
+)
+
 
 class ExportManager(private val context: Context) {
     private val TAG = "ExportManager"
@@ -31,6 +36,32 @@ class ExportManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Error getting available files", e)
             emptyList()
+        }
+    }
+
+    fun getGroupedFiles(): List<FileGroup> {
+        val allFiles = getAvailableFiles()
+
+        val lpFiles = mutableListOf<File>()
+        val evFiles = mutableListOf<File>()
+        val bdFiles = mutableListOf<File>()
+        val otherFiles = mutableListOf<File>()
+
+        allFiles.forEach { file ->
+            val fileName = file.name.uppercase()
+            when {
+                fileName.contains("LP") -> lpFiles.add(file)
+                fileName.contains("EV") -> evFiles.add(file)
+                fileName.contains("BD") -> bdFiles.add(file)
+                else -> otherFiles.add(file)
+            }
+        }
+
+        return buildList {
+            if (lpFiles.isNotEmpty()) add(FileGroup("Load Profile", lpFiles))
+            if (evFiles.isNotEmpty()) add(FileGroup("Event Log", evFiles))
+            if (bdFiles.isNotEmpty()) add(FileGroup("Billing Data", bdFiles))
+            if (otherFiles.isNotEmpty()) add(FileGroup("Other", otherFiles))
         }
     }
 

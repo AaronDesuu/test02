@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.ui.manager.ExportManager
+import com.example.meterkenshin.ui.manager.FileGroup
 import com.example.meterkenshin.ui.manager.NotificationManager
 
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,14 +25,40 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
     private val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting.asStateFlow()
 
+    // Add to ExportViewModel
+    private val _fileGroups = MutableStateFlow<List<FileGroup>>(emptyList())
+
+    // Add search functionality
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _filteredGroups = MutableStateFlow<List<FileGroup>>(emptyList())
+    val filteredGroups: StateFlow<List<FileGroup>> = _filteredGroups.asStateFlow()
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+        filterFiles()
+    }
+
+    private fun filterFiles() {
+        val query = _searchQuery.value.lowercase()
+        _filteredGroups.value = if (query.isEmpty()) {
+            _fileGroups.value
+        } else {
+            _fileGroups.value.map { group ->
+                FileGroup(
+                    name = group.name,
+                    files = group.files.filter { it.name.lowercase().contains(query) }
+                )
+            }.filter { it.files.isNotEmpty() }
+        }
+    }
+
     fun loadFiles() {
         viewModelScope.launch {
-            try {
-                val filesList = exportManager.getAvailableFiles()
-                _files.value = filesList
-            } catch (e: Exception) {
-                NotificationManager.showError("Failed to load files: ${e.message}")
-            }
+            _fileGroups.value = exportManager.getGroupedFiles()
+            _files.value = exportManager.getAvailableFiles()
+            filterFiles() // Initialize filtered groups
         }
     }
 
