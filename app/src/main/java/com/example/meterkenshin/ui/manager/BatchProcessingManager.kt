@@ -148,11 +148,26 @@ class BatchProcessingManager(
     /**
      * Check if meter has valid saved billing data
      */
+    /**
+     * Check if meter has valid saved billing data
+     * Updated to handle empty readDate from registration correctly
+     */
     private fun hasValidBillingData(meter: Meter): Boolean {
+        // Check 1: Temporary savedBillingData (in-memory)
         val savedData = dlmsViewModel.savedBillingData.value
-        return savedData != null &&
-                savedData.billing.SerialNumber == meter.serialNumber &&
-                savedData.isValid()
+        if (savedData != null &&
+            savedData.billing.SerialNumber == meter.serialNumber &&
+            savedData.isValid()) {
+            return true
+        }
+
+        // Check 2: Persistent CSV data
+        // readDate must NOT be null AND NOT be empty string
+        if (meter.readDate != null && meter.impKWh != null) {
+            return true
+        }
+
+        return false
     }
 
     /**
