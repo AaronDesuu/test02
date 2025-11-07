@@ -903,19 +903,111 @@ fun FilterSortControlRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Filter Button
-        OutlinedButton(
-            onClick = { showFilterMenu = true },
-            modifier = Modifier.weight(1f)
-        ) {
-            Icon(
-                imageVector = Icons.Default.FilterList,
-                contentDescription = "Filter",
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(4.dp))
-            Text("Filter")
-        }
+        // Filter Button with Dropdown
+        Box(modifier = Modifier.weight(1f)) {
+            OutlinedButton(
+                onClick = { showFilterMenu = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.FilterList,
+                    contentDescription = "Filter",
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text("Filter")
+            }
 
+            DropdownMenu(
+                expanded = showFilterMenu,
+                onDismissRequest = { showFilterMenu = false }
+            ) {
+                // Inspection Status Section
+                Text(
+                    text = "Inspection Status",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    fontWeight = FontWeight.Bold
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Not Inspected") },
+                    onClick = {
+                        meterReadingViewModel.filterNotInspected()
+                        showFilterMenu = false
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Inspected") },
+                    onClick = {
+                        meterReadingViewModel.filterInspected()
+                        showFilterMenu = false
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Billing Not Printed") },
+                    onClick = {
+                        meterReadingViewModel.filterBillingNotPrinted()
+                        showFilterMenu = false
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Billing Printed") },
+                    onClick = {
+                        meterReadingViewModel.filterBillingPrinted()
+                        showFilterMenu = false
+                    }
+                )
+
+                androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // Connection Status Section
+                Text(
+                    text = "Connection Status",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    fontWeight = FontWeight.Bold
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Online") },
+                    onClick = {
+                        meterReadingViewModel.filterOnline()
+                        showFilterMenu = false
+                    }
+                )
+
+                DropdownMenuItem(
+                    text = { Text("Offline") },
+                    onClick = {
+                        meterReadingViewModel.filterOffline()
+                        showFilterMenu = false
+                    }
+                )
+
+                androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+                // Clear Filters
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            "Clear Filters",
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    onClick = {
+                        meterReadingViewModel.clearFilters()
+                        showFilterMenu = false
+                    }
+                )
+            }
+        }
         // Sort Dropdown Button
         Box(modifier = Modifier.weight(1.5f)) {
             OutlinedButton(
@@ -930,7 +1022,7 @@ fun FilterSortControlRow(
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = when (sortConfig.field) {
-                        SortField.SERIAL_NUMBER -> "S/N"
+                        SortField.SERIAL_NUMBER -> "Serial Number"
                         SortField.LOCATION -> "Location"
                         SortField.LAST_MAINTENANCE_DATE -> "Due Date"
                     },
@@ -987,19 +1079,5 @@ fun FilterSortControlRow(
                 modifier = Modifier.size(18.dp)
             )
         }
-    }
-
-    // Filter Dialog (placeholder for now)
-    if (showFilterMenu) {
-        AlertDialog(
-            onDismissRequest = { showFilterMenu = false },
-            title = { Text("Filter Options") },
-            text = { Text("Filter functionality coming soon!") },
-            confirmButton = {
-                TextButton(onClick = { showFilterMenu = false }) {
-                    Text("Close")
-                }
-            }
-        )
     }
 }

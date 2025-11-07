@@ -22,6 +22,7 @@ import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.MeterStatus
 import com.example.meterkenshin.model.MeterType
+import com.example.meterkenshin.utils.FilterUtils
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -752,6 +753,40 @@ class MeterReadingViewModel : ViewModel() {
         } catch (e: Exception) {
             Log.e(TAG, "Error adding billingPrintDate column: ${e.message}", e)
         }
+    }
+
+    fun filterNotInspected() {
+        val filtered = FilterUtils.filterNotInspected(_uiState.value.allMeters)
+        _uiState.update { it.copy(filteredMeters = filtered) }
+    }
+
+    fun filterInspected() {
+        val filtered = FilterUtils.filterInspected(_uiState.value.allMeters)
+        _uiState.update { it.copy(filteredMeters = filtered) }
+    }
+
+    fun filterBillingNotPrinted() {
+        val filtered = FilterUtils.filterBillingNotPrinted(_uiState.value.allMeters)
+        _uiState.update { it.copy(filteredMeters = filtered) }
+    }
+
+    fun filterBillingPrinted() {
+        val filtered = FilterUtils.filterBillingPrinted(_uiState.value.allMeters)
+        _uiState.update { it.copy(filteredMeters = filtered) }
+    }
+
+    fun filterOnline() {
+        val filtered = FilterUtils.filterOnline(_uiState.value.allMeters, this)
+        _uiState.update { it.copy(filteredMeters = filtered) }
+    }
+
+    fun filterOffline() {
+        val filtered = FilterUtils.filterOffline(_uiState.value.allMeters, this)
+        _uiState.update { it.copy(filteredMeters = filtered) }
+    }
+
+    fun clearFilters() {
+        _uiState.update { it.copy(filteredMeters = it.allMeters) }
     }
 
     override fun onCleared() {

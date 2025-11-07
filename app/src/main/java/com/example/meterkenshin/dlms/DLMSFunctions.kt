@@ -121,7 +121,7 @@ class DLMSFunctions(
                 val expMaxDemand = String.format("%.3f", dlmsInitializer.dlms?.Float(1000.0, receive[7]) ?: 0.0)
                 val minVolt = String.format("%.2f", dlmsInitializer.dlms?.Float(100.0, receive[8]) ?: 0.0)
                 val alert = receive[9]
-                val readDate = receive[1]
+                val readDate = ""
 
                 // Get meter info
                 val currentMeter = meter

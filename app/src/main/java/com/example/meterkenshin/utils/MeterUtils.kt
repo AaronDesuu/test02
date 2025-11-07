@@ -22,13 +22,18 @@ enum class InspectionStatus(
  * EXTRACTED from MeterCardComponent to be universally usable (non-Composable)
  */
 fun getInspectionStatus(meter: Meter): InspectionStatus {
-    // Meter has readings but billing not printed (or printed outside 30-day window)
-    if (meter.readDate != meter.fixedDate && (meter.readDate != null || meter.impKWh != null)) {
-        // Meter has been inspected (has readDate and readings)
-        // Now check billing print status
+    // Case 1: No readDate means meter has never been inspected
+    if (meter.readDate == null) {
+        return InspectionStatus.NOT_INSPECTED
+    }
+
+    // Case 2: readDate exists (meter has been inspected at least once)
+    // Check if this is a valid inspection (not just registration placeholder)
+    if (meter.impKWh != null) {
+        // Meter has been inspected - now check billing print status
         if (meter.billingPrintDate != null) {
             // Calculate the difference in days
-            val timeDiffMillis = meter.billingPrintDate.time - meter.readDate!!.time
+            val timeDiffMillis = meter.billingPrintDate.time - meter.readDate.time
             val daysDiff = timeDiffMillis / (1000 * 60 * 60 * 24)
 
             // Check if billing was printed within 30 days AFTER the read date
@@ -37,10 +42,11 @@ fun getInspectionStatus(meter: Meter): InspectionStatus {
             }
         }
 
+        // Has readDate and impKWh but no valid billingPrintDate
         return InspectionStatus.INSPECTED_BILLING_NOT_PRINTED
     }
 
-    // Meter not inspected
+    // Case 3: Has readDate but no impKWh (shouldn't happen with proper flow)
     return InspectionStatus.NOT_INSPECTED
 }
 

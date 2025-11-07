@@ -541,15 +541,27 @@ class DLMSViewModel : ViewModel() {
 
                 val previousReading = loadPreviousReading(meter.serialNumber)
 
+                val effectivePrevReading = if (previousReading == null) {
+                    loadFixedDateFromCSV(meter.serialNumber)
+                } else {
+                    previousReading.PresReading
+                }
+
+                val effectivePeriodFrom = if (previousReading == null) {
+                    loadFixedDateFromCSV(meter.serialNumber) // Get fixedDate as first PeriodFrom
+                } else {
+                    previousReading.PeriodTo
+                }
+
                 // Create Billing object with current and previous data
                 val billing = Billing().apply {
                     Period = DLMSJSONWriter.dateTimeToMonth(billingData[1])
                     Commercial = "LARGE"
                     SerialNumber = meter.serialNumber
                     Multiplier = 1.0f
-                    PeriodFrom = previousReading?.PeriodTo
+                    PeriodFrom = effectivePeriodFrom
                     PeriodTo = currentRecord.clock
-                    PrevReading = previousReading?.PresReading
+                    PrevReading = (effectivePrevReading ?: 0f) as Float
                     PresReading = currentRecord.imp
                     MaxDemand = currentRecord.maxImp / 1000f
                     DueDate = DLMSJSONWriter.formattedMonthDay(1, 0)
@@ -1299,6 +1311,41 @@ class DLMSViewModel : ViewModel() {
 
     fun dismissReadDataDialog() {
         _showReadDataOptionsDialog.value = false
+    }
+
+    /**
+     * Load fixedDate from CSV as baseline for first reading
+     */
+    private fun loadFixedDateFromCSV(serialNumber: String): String? {
+        return try {
+            val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return null
+            val csvDir = File(externalFilesDir, "app_files")
+            val yearMonth = getCurrentYearMonth()
+            val filename = "${yearMonth}_meter.csv"
+            val meterFile = File(csvDir, filename)
+
+            if (!meterFile.exists()) return null
+
+            val lines = meterFile.readLines()
+            val fixedDateIndex = 4 // Column 5 in CSV (0-indexed)
+            val serialNoIndex = 2
+
+            for (line in lines) {
+                if (line.startsWith("UID,")) continue
+                val columns = line.split(',')
+                val csvSerialNo = columns.getOrNull(serialNoIndex)
+                    ?.trim()?.removeSurrounding("\"")
+
+                if (csvSerialNo == serialNumber) {
+                    return columns.getOrNull(fixedDateIndex)
+                        ?.trim()?.removeSurrounding("\"")
+                }
+            }
+            null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading fixedDate: ${e.message}")
+            null
+        }
     }
 
     override fun onCleared() {
