@@ -3,6 +3,7 @@ package com.example.meterkenshin.ui.screen
 import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -48,6 +49,7 @@ import com.example.meterkenshin.utils.loadMeterRates
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
  */
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("MissingPermission")
 @Composable
 fun MeterDetailScreen(
@@ -95,9 +97,7 @@ fun MeterDetailScreen(
             // ADDED: Set printer view model reference
             registrationViewModel.setPrinterViewModel(printerViewModel)
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registrationViewModel.initializeDLMS(context, meter)
-            }
+            registrationViewModel.initializeDLMS(context, meter)
             isDlmsInitialized = true
             Log.i("MeterDetailScreen", "DLMS initialization complete")
         } catch (e: Exception) {
