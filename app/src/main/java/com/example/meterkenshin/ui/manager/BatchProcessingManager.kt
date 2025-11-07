@@ -241,9 +241,9 @@ class BatchProcessingManager(
                                     Log.e(TAG, "Read timeout for ${meter.serialNumber}")
 
                                     // NEW: Prompt user for retry or skip
-                                    val userChoice = promptRetryOrSkip(meter.serialNumber)
+                                    val retryChoice = promptRetryOrSkip(meter.serialNumber)
 
-                                    if (userChoice == UserChoice.RETRY) {
+                                    if (retryChoice == UserChoice.RETRY) {
                                         // Retry the read operation
                                         Log.i(TAG, "Retrying read for ${meter.serialNumber}")
                                         dlmsViewModel.readData(meter, rates)
