@@ -18,6 +18,7 @@ import com.example.meterkenshin.dlms.DLMSInit
 import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.dlms.ReadDataPrinting
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.model.Meter
@@ -95,8 +96,18 @@ class DLMSViewModel : ViewModel() {
     val printerErrorMessage: StateFlow<String> get() = readDataPrinting.printerErrorMessage
     val pendingBillingData: StateFlow<Billing?> get() = readDataPrinting.pendingBillingData
 
-    fun confirmPrint() = readDataPrinting.confirmPrint()
-    fun skipPrint() = readDataPrinting.skipPrint()
+    fun confirmPrint() {
+        mContext?.let { context ->
+            readDataPrinting.confirmPrint(context)
+        }
+    }
+
+    fun skipPrint() {
+        mContext?.let { context ->
+            readDataPrinting.skipPrint(context)
+        }
+    }
+
     fun printReceipt(billing: Billing, rates: FloatArray? = null) =
         readDataPrinting.printReceipt(billing, rates)
 
@@ -123,6 +134,7 @@ class DLMSViewModel : ViewModel() {
         dlmsFunctions.setMeter(meter)
         sessionManager = DLMSSessionManager(dlmsInit)
         billingRepository = BillingDataRepository(context)
+        readDataPrinting.setContext(context)
 
         readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
             updateMeterBillingPrintDate(serialNumber)
@@ -561,7 +573,7 @@ class DLMSViewModel : ViewModel() {
                     Multiplier = 1.0f
                     PeriodFrom = effectivePeriodFrom
                     PeriodTo = currentRecord.clock
-                    PrevReading = (effectivePrevReading ?: 0f) as Float
+                    PrevReading = effectivePrevReading?.toString()?.toFloatOrNull() ?: 0f
                     PresReading = currentRecord.imp
                     MaxDemand = currentRecord.maxImp / 1000f
                     DueDate = DLMSJSONWriter.formattedMonthDay(1, 0)
@@ -590,7 +602,9 @@ class DLMSViewModel : ViewModel() {
 
                 readDataPrinting.setPendingBillingData(billing)
                 readDataPrinting.setSavedRates(rates)
-                readDataPrinting.showPrintDialog()
+                mContext?.let { context ->
+                    readDataPrinting.showPrintDialog(context)
+                }
 
 
             } else {
@@ -613,6 +627,12 @@ class DLMSViewModel : ViewModel() {
      * Can be called anytime within 30 days
      */
     fun saveStoredBillingToJSON() {
+        // Check if JSON saving is enabled
+        if (mContext?.let { AppPreferences.isJsonSavingEnabled(it) } == false) {
+            appendLog("JSON saving is disabled in settings")
+            return
+        }
+
         val savedData = _savedBillingData.value
         if (savedData != null && savedData.isValid()) {
             viewModelScope.launch {
@@ -639,6 +659,11 @@ class DLMSViewModel : ViewModel() {
      * Called after user confirms via dialog
      */
     private fun saveReadDataToJSON() {
+        // Check if JSON saving is enabled
+        if (mContext?.let { AppPreferences.isJsonSavingEnabled(it) } == false) {
+            appendLog("JSON saving is disabled in settings")
+            return
+        }
         val billing = readDataPrinting.pendingBillingData.value
         if (billing != null) {
             viewModelScope.launch {
@@ -1288,7 +1313,9 @@ class DLMSViewModel : ViewModel() {
             readDataPrinting.setPendingBillingData(savedData.billing)
             readDataPrinting.setSavedRates(savedData.rates)
             // For batch processing, auto-confirm print
-            readDataPrinting.confirmPrint()
+            mContext?.let { context ->
+                readDataPrinting.confirmPrint(context)
+            }
         } else {
             appendLog("ERROR: No valid billing data to print")
         }
@@ -1305,7 +1332,9 @@ class DLMSViewModel : ViewModel() {
         if (savedData != null && savedData.isValid()) {
             readDataPrinting.setPendingBillingData(savedData.billing)
             readDataPrinting.setSavedRates(savedData.rates)
-            readDataPrinting.showPrintDialog()
+            mContext?.let { context ->
+                readDataPrinting.showPrintDialog(context)
+            }
         }
     }
 

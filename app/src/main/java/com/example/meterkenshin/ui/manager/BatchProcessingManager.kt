@@ -293,17 +293,21 @@ class BatchProcessingManager(
                         if (_shouldPrint.value || _shouldSaveJson.value) {
                             updateProgressWithStep(6, "Executing selected actions...")
 
+                            // Check printing preference before attempting to print
                             if (_shouldPrint.value) {
-                                Log.i(TAG, "Printing receipt for ${meter.serialNumber}")
-                                val printSuccess = printReceipt(meter)
+                                    if (AppPreferences.isPrintingEnabled(context)) {
+                                        Log.i(TAG, "Printing receipt for ${meter.serialNumber}")
+                                        val printSuccess = printReceipt(meter)
 
-                                if (!printSuccess) {
-                                    // Wait for user to handle printer error
-                                    while (_showPrinterErrorDialog.value) {
-                                        delay(500)
+                                        if (!printSuccess) {
+                                            while (_showPrinterErrorDialog.value) {
+                                                delay(500)
+                                            }
+                                        }
+                                        delay(PRINT_DELAY_MS)
+                                    } else {
+                                        Log.i(TAG, "Printing disabled in settings, skipping print for ${meter.serialNumber}")
                                     }
-                                }
-                                delay(PRINT_DELAY_MS)
                             }
 
                             if (_shouldSaveJson.value) {

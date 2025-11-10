@@ -1,6 +1,5 @@
 package com.example.meterkenshin.ui.component
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -29,10 +28,11 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun PrintActionsDropdown(
+    modifier: Modifier = Modifier,
     onBatchReading: () -> Unit = {},
     onBatchPrinting: () -> Unit = {},
     onSelectAndPrint: () -> Unit = {},
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+    isPrintingEnabled: Boolean = true,
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -70,14 +70,16 @@ fun PrintActionsDropdown(
             )
 
             // Batch Printing
-            PrintDropdownMenuItem(
-                text = "Batch Printing",
-                icon = Icons.Default.Print,
-                onClick = {
-                    expanded = false
-                    onBatchPrinting()
-                }
-            )
+            if (isPrintingEnabled) {
+                PrintDropdownMenuItem(
+                    text = "Batch Printing",
+                    icon = Icons.Default.Print,
+                    onClick = {
+                        expanded = false
+                        onBatchPrinting()
+                    }
+                )
+            }
 
             // Select & Print
             PrintDropdownMenuItem(

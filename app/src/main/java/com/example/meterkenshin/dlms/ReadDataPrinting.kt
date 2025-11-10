@@ -1,7 +1,9 @@
 package com.example.meterkenshin.dlms
 
+import android.content.Context
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.component.printReceipt as sendReceiptToPrinter
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.PrinterStatusHelper
@@ -49,6 +51,15 @@ class ReadDataPrinting(
     private var printerViewModel: PrinterBluetoothViewModel? = null
     private var onPrintSuccess: ((serialNumber: String) -> Unit)? = null
     private var savedRates: FloatArray? = null
+
+    /**
+     * Store context reference for internal use
+     */
+    private var contextRef: Context? = null
+
+    fun setContext(context: Context) {
+        this.contextRef = context
+    }
 
     /**
      * Set callback for successful print (called by DLMSViewModel)
@@ -157,10 +168,24 @@ class ReadDataPrinting(
 
     /**
      * Confirm print - checks printer then prints receipt and shows save dialog next
-     * UPDATED: Shows PrinterStatusErrorDialog instead of just skipping on error
+     * UPDATED: Only shows save dialog if JSON saving is enabled
      */
-    fun confirmPrint() {
+    fun confirmPrint(context: Context) {
         viewModelScope.launch {
+            // Check if printing is enabled
+            if (!AppPreferences.isPrintingEnabled(context)) {
+                appendLog("Printing disabled in settings")
+                dismissPrintDialog()
+
+                // Check if JSON saving enabled
+                if (AppPreferences.isJsonSavingEnabled(context)) {
+                    _showSaveDialog.value = true
+                } else {
+                    clearPendingBillingData()
+                }
+                return@launch
+            }
+
             val printer = printerViewModel
             if (printer == null) {
                 appendLog("ERROR: Printer not configured")
@@ -169,27 +194,29 @@ class ReadDataPrinting(
                 return@launch
             }
 
-            // Check printer status before attempting to print
             PrinterStatusHelper.checkPrinterReadyAndExecute(
                 printerViewModel = printer,
                 onNotConnected = {
                     appendLog("ERROR: Printer not connected")
                     _printerErrorMessage.value = "Printer is not connected. Please connect to printer."
                     _showPrinterErrorDialog.value = true
-                    // Don't dismiss print dialog or show save dialog
                 },
                 onNotReady = { reason ->
                     appendLog("ERROR: Printer not ready - $reason")
                     _printerErrorMessage.value = reason
                     _showPrinterErrorDialog.value = true
-                    // Don't dismiss print dialog or show save dialog
                 },
                 onReady = {
-                    // Printer ready, print the receipt
                     printPendingReceipt()
                     dismissPrintDialog()
-                    // Show save dialog after print
-                    _showSaveDialog.value = true
+
+                    // Show save dialog ONLY IF JSON saving is enabled
+                    if (AppPreferences.isJsonSavingEnabled(context)) {
+                        _showSaveDialog.value = true
+                    } else {
+                        clearPendingBillingData()
+                        appendLog("Receipt printed. JSON saving disabled in settings.")
+                    }
                 }
             )
         }
@@ -201,17 +228,25 @@ class ReadDataPrinting(
      */
     fun retryPrint() {
         dismissPrinterErrorDialog()  // Close error dialog first
-        confirmPrint() // Try again - will re-show error dialog if still failing
+        contextRef?.let { confirmPrint(it) } // Use stored context
     }
 
     /**
      * Cancel print from error dialog
      * Closes error dialog and goes to save dialog
      */
-    fun cancelPrintFromError() {
+    fun cancelPrintFromError(context: Context) {
         dismissPrinterErrorDialog()  // Close error dialog
         dismissPrintDialog()         // Close print dialog
-        _showSaveDialog.value = true // Show save dialog
+
+        // Check if JSON saving is enabled before showing save dialog
+        if (AppPreferences.isJsonSavingEnabled(context)) {
+            _showSaveDialog.value = true
+        } else {
+            // JSON saving disabled, just clear pending data
+            clearPendingBillingData()
+            appendLog("Skipped print and JSON saving (JSON saving disabled in settings)")
+        }
     }
 
     /**
@@ -224,9 +259,25 @@ class ReadDataPrinting(
     /**
      * Show print dialog after read data completes
      */
-    fun showPrintDialog() {
-        _showPrintDialog.value = true
+    fun showPrintDialog(context: Context) {
+        // Check if printing is enabled before showing dialog
+        if (AppPreferences.isPrintingEnabled(context)) {
+            _showPrintDialog.value = true
+        } else {
+            // Printing disabled, skip directly to save dialog
+            appendLog("Printing disabled in settings, skipping print dialog")
+
+            // Check if JSON saving is also enabled before showing save dialog
+            if (AppPreferences.isJsonSavingEnabled(context)) {
+                _showSaveDialog.value = true
+            } else {
+                // Both disabled, just clear pending data
+                clearPendingBillingData()
+                appendLog("Both printing and JSON saving disabled")
+            }
+        }
     }
+
 
     /**
      * Hide print dialog
@@ -238,10 +289,15 @@ class ReadDataPrinting(
     /**
      * Skip print - goes directly to save dialog
      */
-    fun skipPrint() {
+    fun skipPrint(context: Context) {
         dismissPrintDialog()
-        // Show save dialog
-        _showSaveDialog.value = true
+        // Check if JSON saving is enabled before showing save dialog
+        if (AppPreferences.isJsonSavingEnabled(context)) {
+            _showSaveDialog.value = true
+        } else {
+            clearPendingBillingData()
+            appendLog("Skipped print and JSON saving (JSON saving disabled in settings)")
+        }
     }
 
     /**

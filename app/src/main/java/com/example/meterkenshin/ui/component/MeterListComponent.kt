@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
@@ -58,12 +59,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.BatchPrintManager
 import com.example.meterkenshin.ui.manager.BatchPrintMode
 import com.example.meterkenshin.ui.manager.BatchProcessingManager
@@ -357,7 +360,8 @@ fun MeterListComponent(
                                     // Enter selection mode
                                     meterReadingViewModel.toggleSelectionMode()
                                     NotificationManager.showInfo("Select meters to process")
-                                }
+                                },
+                                isPrintingEnabled = AppPreferences.isPrintingEnabled(context),
                             )
                         }
                     }
@@ -522,70 +526,124 @@ fun MeterListComponent(
                                                 modifier = Modifier.padding(bottom = 12.dp)
                                             )
 
-                                            // Checkbox: Print Receipt
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable { batchProcessor.setPrintOption(!shouldPrint) }
-                                                    .padding(vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Checkbox(
-                                                    checked = shouldPrint,
-                                                    onCheckedChange = {
-                                                        batchProcessor.setPrintOption(
-                                                            it
+                                            // Checkbox: Print Receipt - Only show if printing enabled in settings
+                                            if (AppPreferences.isPrintingEnabled(context)) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { batchProcessor.setPrintOption(!shouldPrint) }
+                                                        .padding(vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Checkbox(
+                                                        checked = shouldPrint,
+                                                        onCheckedChange = {
+                                                            batchProcessor.setPrintOption(it)
+                                                        }
+                                                    )
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Column {
+                                                        Text(
+                                                            text = "Print Receipt",
+                                                            style = MaterialTheme.typography.bodyLarge,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                        Text(
+                                                            text = "Print physical receipt",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                                         )
                                                     }
-                                                )
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Column {
-                                                    Text(
-                                                        text = "Print Receipt",
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
+                                                }
+                                            } else {
+                                                // Optional: Show info that printing is disabled
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Info,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(20.dp)
                                                     )
+                                                    Spacer(modifier = Modifier.width(12.dp))
                                                     Text(
-                                                        text = "Print physical receipt",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        text = "Receipt printing is disabled in Settings",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        fontStyle = FontStyle.Italic
                                                     )
                                                 }
                                             }
 
-                                            // Checkbox: Save JSON
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable { batchProcessor.setSaveJsonOption(!shouldSaveJson) }
-                                                    .padding(vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Checkbox(
-                                                    checked = shouldSaveJson,
-                                                    onCheckedChange = {
-                                                        batchProcessor.setSaveJsonOption(
-                                                            it
+                                            // Checkbox: Save JSON - Only show if JSON saving is enabled in settings
+                                            if (AppPreferences.isJsonSavingEnabled(context)) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .clickable { batchProcessor.setSaveJsonOption(!shouldSaveJson) }
+                                                        .padding(vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Checkbox(
+                                                        checked = shouldSaveJson,
+                                                        onCheckedChange = {
+                                                            batchProcessor.setSaveJsonOption(it)
+                                                        }
+                                                    )
+                                                    Spacer(modifier = Modifier.width(12.dp))
+                                                    Column {
+                                                        Text(
+                                                            text = "Save JSON",
+                                                            style = MaterialTheme.typography.bodyLarge,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                        Text(
+                                                            text = "Save billing data to file",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                                         )
                                                     }
-                                                )
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Column {
-                                                    Text(
-                                                        text = "Save JSON",
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
+                                                }
+                                            } else {
+                                                // Show info that JSON saving is disabled
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Info,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(20.dp)
                                                     )
+                                                    Spacer(modifier = Modifier.width(12.dp))
                                                     Text(
-                                                        text = "Save billing data to file",
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        text = "JSON saving is disabled in Settings",
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        fontStyle = FontStyle.Italic
                                                     )
                                                 }
                                             }
 
                                             // Warning if nothing selected
-                                            if (!shouldPrint && !shouldSaveJson) {
+                                            val printingEnabled = AppPreferences.isPrintingEnabled(context)
+                                            val jsonEnabled = AppPreferences.isJsonSavingEnabled(context)
+
+                                            val nothingSelected = when {
+                                                printingEnabled && jsonEnabled -> !shouldPrint && !shouldSaveJson
+                                                printingEnabled && !jsonEnabled -> !shouldPrint
+                                                !printingEnabled && jsonEnabled -> !shouldSaveJson
+                                                else -> false  // Both disabled, nothing to select
+                                            }
+
+                                            if (nothingSelected) {
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 Text(
                                                     text = "⚠️ No action selected - meter will be skipped",

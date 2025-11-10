@@ -262,16 +262,14 @@ fun MeterDetailScreen(
             Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
         }
 
-        // Print Receipt Dialog - Shows FIRST after read data completes
+        // Print Receipt Dialog callback
         if (showPrintDialog && pendingBillingData != null) {
             PrintReceiptDialog(
                 serialNumber = pendingBillingData?.SerialNumber,
                 onConfirmPrint = {
-                    // Check printer status and print
                     registrationViewModel.confirmPrint()
                 },
                 onSkipPrint = {
-                    // Skip print, move to save dialog
                     registrationViewModel.skipPrint()
                 }
             )
@@ -284,7 +282,9 @@ fun MeterDetailScreen(
                 coverStatus = registrationViewModel.readDataPrinting.printerCoverStatus.collectAsState().value,
                 printerViewModel = printerViewModel,
                 onRetry = { registrationViewModel.readDataPrinting.retryPrint() },
-                onCancel = { registrationViewModel.readDataPrinting.cancelPrintFromError() }
+                onCancel = {
+                    registrationViewModel.readDataPrinting.cancelPrintFromError(context)
+                }
             )
         }
 

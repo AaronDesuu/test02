@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.BuildConfig
 import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.ui.manager.AppPreferences
 
 @Composable
 fun SettingsScreen(
@@ -47,6 +48,18 @@ fun SettingsScreen(
                     loginTime = it.loginTime.toString()
                 )
             }
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
+            thickness = DividerDefaults.Thickness,
+            color = DividerDefaults.color
+        )
+
+        // Data Management Section
+        SettingsSection(title = "Data Management") {
+            JsonSavingToggleCard(context = context)
+            PrintingToggleCard(context = context)
         }
 
         HorizontalDivider(
@@ -421,4 +434,114 @@ fun HelpDialog(onDismiss: () -> Unit) {
             }
         }
     )
+}
+
+@Composable
+fun JsonSavingToggleCard(context: Context) {
+    var isEnabled by remember {
+        mutableStateOf(AppPreferences.isJsonSavingEnabled(context))
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    isEnabled = !isEnabled
+                    AppPreferences.setJsonSavingEnabled(context, isEnabled)
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Save,
+                contentDescription = null,
+                tint = if (isEnabled) Color(0xFF4CAF50) else Color.Gray
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "JSON Saving",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = if (isEnabled) "Enabled - Billing data will be saved as JSON"
+                    else "Disabled - No JSON files will be created",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = {
+                    isEnabled = it
+                    AppPreferences.setJsonSavingEnabled(context, it)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun PrintingToggleCard(context: Context) {
+    var isEnabled by remember {
+        mutableStateOf(AppPreferences.isPrintingEnabled(context))
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    isEnabled = !isEnabled
+                    AppPreferences.setPrintingEnabled(context, isEnabled)
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Print,
+                contentDescription = null,
+                tint = if (isEnabled) Color(0xFF2196F3) else Color.Gray
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Receipt Printing",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = if (isEnabled) "Enabled - Print dialogs will be shown"
+                    else "Disabled - Printing will be skipped automatically",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Switch(
+                checked = isEnabled,
+                onCheckedChange = {
+                    isEnabled = it
+                    AppPreferences.setPrintingEnabled(context, it)
+                }
+            )
+        }
+    }
 }
