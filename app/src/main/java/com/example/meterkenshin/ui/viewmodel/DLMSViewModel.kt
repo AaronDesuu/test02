@@ -227,7 +227,7 @@ class DLMSViewModel : ViewModel() {
                     if (csvSerialNo == serialNumber) {
                         // Clear readDate and billingPrintDate
                         if (columns.size > readDateIndex) {
-                            columns[readDateIndex] = columns[4] // Set readDate = fixedDate
+                            columns[readDateIndex] = "" // Clear readDate
                         }
                         if (columns.size > billingPrintDateIndex) {
                             columns[billingPrintDateIndex] = "" // Clear billingPrintDate

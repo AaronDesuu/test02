@@ -4,7 +4,7 @@ import android.bluetooth.BluetoothDevice
 
 /**
  * Device List for managing discovered BLE devices
- * Ported from project01 Java implementation
+ *
  */
 @Suppress("FunctionName")
 class DeviceList {
@@ -46,15 +46,13 @@ class DeviceList {
     /**
      * Inner class for holding device scan information
      */
-    inner class ScanDevice {
-        private var mDev: BluetoothDevice? = null
-        private var mRssi: Int = -200
+    inner class ScanDevice(dev: BluetoothDevice, rssi: Int) {
+        private var mDev: BluetoothDevice? = dev
+        private var mRssi: Int = rssi
         private var mChk: Boolean = false
 
-        constructor(dev: BluetoothDevice, rssi: Int) {
-            mDev = dev
+        init {
             mChk = false
-            mRssi = rssi
         }
 
         fun Device(): BluetoothDevice? = mDev

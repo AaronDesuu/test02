@@ -267,19 +267,48 @@ class BatchProcessingManager(
                                 }
                             }
 
-                            // Step 3: Read meter data
 
-                            // Step 4: Finalizing read
+                            // Step 3: Finalizing read
                             updateProgressWithStep(4, "Finalizing data read...")
                             delay(2000)
                             Log.i(TAG, "DLMS finalization delay complete for ${meter.serialNumber}")
                             delay(OPERATION_DELAY_MS)
                         } else {
-                            // Skip to step 4 if data already exists
-                            updateProgressWithStep(4, "Using existing data...")
+                            // ✅ ADD THIS ELSE BLOCK for meters WITHOUT existing data
+                            updateProgressWithStep(3, "Reading meter data...")
+                            Log.i(TAG, "Reading data for ${meter.serialNumber} (no existing data)")
+                            dlmsViewModel.performReadData(meter, rates)
+
+                            if (!waitForOperationComplete()) {
+                                Log.e(TAG, "Read timeout for ${meter.serialNumber}")
+
+                                // Prompt user for retry or skip
+                                val retryChoice = promptRetryOrSkip(meter.serialNumber)
+
+                                if (retryChoice == UserChoice.RETRY) {
+                                    Log.i(TAG, "Retrying read for ${meter.serialNumber}")
+                                    dlmsViewModel.performReadData(meter, rates)  // Fixed from readData
+
+                                    if (!waitForOperationComplete()) {
+                                        Log.e(TAG, "Read failed after retry for ${meter.serialNumber}")
+                                        failed.add(meter.serialNumber)
+                                        _errorCount.value++
+                                        updateProgressWithStep(0, "⚠️ Failed to read ${meter.serialNumber}")
+                                        continue
+                                    }
+                                } else {
+                                    Log.i(TAG, "User skipped ${meter.serialNumber}")
+                                    failed.add(meter.serialNumber)
+                                    _errorCount.value++
+                                    updateProgressWithStep(0, "⏭️ Skipped ${meter.serialNumber}")
+                                    continue
+                                }
+                            }
                         }
 
-                        // Step 5: Await user action
+                        updateProgressWithStep(4, "Finalizing data read...")
+
+                        // Step 4: Await user action
                         updateProgressWithStep(5, "Awaiting user confirmation...")
                         if (!waitForUserAction()) {
                             Log.e(TAG, "User action timeout for ${meter.serialNumber}")
@@ -289,7 +318,7 @@ class BatchProcessingManager(
                             continue
                         }
 
-                        // Step 6: Execute actions
+                        // Step 5: Execute actions
                         if (_shouldPrint.value || _shouldSaveJson.value) {
                             updateProgressWithStep(6, "Executing selected actions...")
 
@@ -304,6 +333,7 @@ class BatchProcessingManager(
                                                 delay(500)
                                             }
                                         }
+
                                         delay(PRINT_DELAY_MS)
                                     } else {
                                         Log.i(TAG, "Printing disabled in settings, skipping print for ${meter.serialNumber}")
@@ -317,7 +347,7 @@ class BatchProcessingManager(
                             }
                         }
 
-                        // Step 7: Complete
+                        // Step 6: Complete
                         updateProgressWithStep(7, "✅ Completed ${meter.serialNumber}")
                         Log.i(TAG, "Successfully processed ${meter.serialNumber}")
 

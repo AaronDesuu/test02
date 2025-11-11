@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,6 +27,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
@@ -35,12 +36,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.ui.manager.AppPreferences
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 
 /**
  * Batch Processing Progress Dialog
  * Shows real-time progress with integrated user choices:
  * - Use Existing Data or Read New (when billing data exists)
  * - Print/Save options after read completes
+ * - Printer error handling with retry capability
  * Respects AppPreferences settings for printing and JSON saving
  */
 @Composable
@@ -57,14 +60,36 @@ fun BatchProcessingDialog(
     useExistingDialogMeter: String?,
     shouldPrint: Boolean,
     shouldSaveJson: Boolean,
+    // Printer error handling
+    showPrinterErrorDialog: Boolean,
+    printerErrorMessage: String,
+    printerViewModel: PrinterBluetoothViewModel? = null,
     onUseExistingClicked: () -> Unit,
     onReadNewClicked: () -> Unit,
     onPrintOptionChanged: (Boolean) -> Unit,
     onSaveJsonOptionChanged: (Boolean) -> Unit,
     onConfirmUserAction: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    dismissPrinterError: () -> Unit,
+    retryPrinting: () -> Unit
 ) {
-    if (isProcessing) {
+    // Show printer error dialog when triggered - takes priority over batch progress
+    if (showPrinterErrorDialog && printerViewModel != null) {
+        val paperStatus by printerViewModel.paperStatus.collectAsState()
+        val coverStatus by printerViewModel.coverStatus.collectAsState()
+
+        PrinterStatusErrorDialog(
+            errorMessage = printerErrorMessage,
+            paperStatus = paperStatus,
+            coverStatus = coverStatus,
+            printerViewModel = printerViewModel,
+            onRetry = retryPrinting,
+            onCancel = dismissPrinterError
+        )
+    }
+
+    // Main batch processing dialog - hide when printer error shows
+    if (isProcessing && !showPrinterErrorDialog) {
         AlertDialog(
             onDismissRequest = { /* Prevent dismiss */ },
             title = {
@@ -107,42 +132,41 @@ fun BatchProcessingDialog(
                     )
 
                     // Progress Text
-                    Text(
-                        text = "Progress: $processedCount / $totalCount Meter(s)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Progress: $processedCount / $totalCount",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        if (errorCount > 0) {
+                            Text(
+                                text = "⚠️ Errors: $errorCount",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
 
                     // Current Step Description
                     Text(
                         text = currentStepDescription,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
                     )
 
-                    // Current Meter Serial
+                    // Current Meter Being Processed
                     if (currentMeterSerial != null) {
                         Text(
-                            text = "Current Meter: $currentMeterSerial",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    // Error Count (if any)
-                    if (errorCount > 0) {
-                        Text(
-                            text = "⚠️ Errors: $errorCount",
+                            text = "Meter: $currentMeterSerial",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Medium
+                            fontStyle = FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
-                    // Use Existing Data or Read New Choice
+                    // Use Existing Data Dialog (when meter has billing data)
                     if (showUseExistingDialog && useExistingDialogMeter != null) {
                         Spacer(modifier = Modifier.height(4.dp))
                         UseExistingDataCard(
@@ -276,12 +300,21 @@ private fun PrintSaveOptionsCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Choose Actions",
+                text = "✅ Read Complete",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
 
-            // Print Receipt Option - Only show if printing is enabled
+            Text(
+                text = "Choose actions to perform:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Print option (only show if enabled in preferences)
             if (printingEnabled) {
                 Row(
                     modifier = Modifier
@@ -297,41 +330,19 @@ private fun PrintSaveOptionsCard(
                     Column {
                         Text(
                             text = "Print Receipt",
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "Print thermal receipt for this meter",
+                            text = "Print billing receipt using thermal printer",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-            } else {
-                // Show info that printing is disabled
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "Printing is disabled in Settings",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontStyle = FontStyle.Italic
-                    )
-                }
             }
 
-            // Save JSON Option - Only show if JSON saving is enabled
+            // Save JSON option (only show if enabled in preferences)
             if (jsonEnabled) {
                 Row(
                     modifier = Modifier
@@ -347,7 +358,7 @@ private fun PrintSaveOptionsCard(
                     Column {
                         Text(
                             text = "Save JSON",
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
@@ -357,49 +368,11 @@ private fun PrintSaveOptionsCard(
                         )
                     }
                 }
-            } else {
-                // Show info that JSON saving is disabled
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = "JSON saving is disabled in Settings",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontStyle = FontStyle.Italic
-                    )
-                }
             }
 
-            // Warning if nothing selected (considering what's enabled)
-            val nothingSelected = when {
-                printingEnabled && jsonEnabled -> !shouldPrint && !shouldSaveJson
-                printingEnabled && !jsonEnabled -> !shouldPrint
-                !printingEnabled && jsonEnabled -> !shouldSaveJson
-                else -> false  // Both disabled, nothing to select
-            }
+            Spacer(modifier = Modifier.height(8.dp))
 
-            if (nothingSelected) {
-                Text(
-                    text = "⚠️ No action selected - meter will be skipped",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Continue button
+            // Confirm button
             Button(
                 onClick = onConfirm,
                 modifier = Modifier.fillMaxWidth()
@@ -407,16 +380,10 @@ private fun PrintSaveOptionsCard(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    if (printingEnabled || jsonEnabled) {
-                        if (shouldPrint || shouldSaveJson) "Continue" else "Skip"
-                    } else {
-                        "Skip" // Both disabled
-                    }
-                )
+                Text("Confirm & Continue")
             }
         }
     }

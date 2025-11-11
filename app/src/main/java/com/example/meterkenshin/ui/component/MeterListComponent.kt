@@ -82,6 +82,7 @@ import java.util.Locale
  * Handles all meter list functionality including CSV loading, search, and display
  * BLE scanning starts automatically when user is logged in
  */
+@Suppress("KotlinConstantConditions")
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("MissingPermission")
 @Composable
@@ -144,6 +145,8 @@ fun MeterListComponent(
     val errorCount by batchProcessor.errorCount.collectAsState()
     val selectionMode by meterReadingViewModel.selectionMode.collectAsState()
     val selectedMeters by meterReadingViewModel.selectedMeters.collectAsState()
+    val showProcessingPrinterError by batchProcessor.showPrinterErrorDialog.collectAsState() // RENAME THIS
+    val processingPrinterErrorMessage by batchProcessor.printerErrorMessage.collectAsState() // RENAME THIS
 
     // Batch print states
     val isPrinting by batchPrintManager.isProcessing.collectAsState()
@@ -152,12 +155,13 @@ fun MeterListComponent(
     val printCurrentMeterSerial by batchPrintManager.currentMeterSerial.collectAsState()
     val printCurrentStepDescription by batchPrintManager.currentStepDescription.collectAsState()
     val printErrorCount by batchPrintManager.errorCount.collectAsState()
-    val showPrintPrinterErrorDialog by batchPrintManager.showPrinterErrorDialog.collectAsState()
-    val printPrinterErrorMessage by batchPrintManager.printerErrorMessage.collectAsState()
+    val showPrinterErrorDialog by batchPrintManager.showPrinterErrorDialog.collectAsState()
+    val printerErrorMessage by batchPrintManager.printerErrorMessage.collectAsState()
 
     val printerViewModel: PrinterBluetoothViewModel = viewModel()
     val printerPaperStatus by printerViewModel.paperStatus.collectAsState()
     val printerCoverStatus by printerViewModel.coverStatus.collectAsState()
+
 
     // Add after the existing batch processor states
     val showRetryDialog by batchProcessor.showRetryDialog.collectAsState()
@@ -355,29 +359,48 @@ fun MeterListComponent(
                     }
                 }
 
-                BatchProcessingDialog(
-                    context = context,
-                    isProcessing = isProcessing,
-                    processedCount = processedCount,
-                    totalCount = totalCount,
-                    currentStepDescription = currentStepDescription,
-                    currentMeterSerial = currentMeterSerial,
-                    errorCount = errorCount,
-                    awaitingUserAction = awaitingUserAction,
-                    showUseExistingDialog = showUseExistingDialog,
-                    useExistingDialogMeter = useExistingDialogMeter,
-                    shouldPrint = shouldPrint,
-                    shouldSaveJson = shouldSaveJson,
-                    onUseExistingClicked = { batchProcessor.onUseExistingClicked() },
-                    onReadNewClicked = { batchProcessor.onReadNewClicked() },
-                    onPrintOptionChanged = { batchProcessor.setPrintOption(it) },
-                    onSaveJsonOptionChanged = { batchProcessor.setSaveJsonOption(it) },
-                    onConfirmUserAction = { batchProcessor.confirmUserAction() },
-                    onCancel = {
-                        batchProcessor.cancel()
-                        NotificationManager.showInfo("Batch processing cancelled")
-                    }
-                )
+                // Use extracted BatchProcessingDialog component
+                if (isProcessing) {
+                    BatchProcessingDialog(
+                        context = context,
+                        isProcessing = isProcessing,
+                        processedCount = processedCount,
+                        totalCount = totalCount,
+                        currentStepDescription = currentStepDescription,
+                        currentMeterSerial = currentMeterSerial,
+                        errorCount = errorCount,
+                        awaitingUserAction = awaitingUserAction,
+                        showUseExistingDialog = showUseExistingDialog,
+                        useExistingDialogMeter = useExistingDialogMeter,
+                        shouldPrint = shouldPrint,
+                        shouldSaveJson = shouldSaveJson,
+                        // NEW: Printer error handling
+                        showPrinterErrorDialog = showProcessingPrinterError,
+                        printerErrorMessage = processingPrinterErrorMessage,
+                        printerViewModel = printerViewModel,
+                        onUseExistingClicked = { batchProcessor.onUseExistingClicked() },
+                        onReadNewClicked = { batchProcessor.onReadNewClicked() },
+                        onPrintOptionChanged = { batchProcessor.setPrintOption(it) },
+                        onSaveJsonOptionChanged = { batchProcessor.setSaveJsonOption(it) },
+                        onConfirmUserAction = { batchProcessor.confirmUserAction() },
+                        onCancel = {
+                            batchProcessor.cancel()
+                            NotificationManager.showInfo("Batch processing cancelled")
+                        },
+                        // NEW: Printer error callbacks
+                        dismissPrinterError = {
+                            batchProcessor.dismissPrinterError()
+                        },
+                        retryPrinting = {
+                            scope.launch {
+                                currentMeterSerial?.let { serial ->
+                                    val meter = uiState.allMeters.find { it.serialNumber == serial }
+                                    meter?.let { batchProcessor.retryPrinting(it) }
+                                }
+                            }
+                        }
+                    )
+                }
 
                 // Retry/Skip Dialog for failed read operations
                 if (showRetryDialog && retryDialogMeter != null) {
@@ -440,7 +463,7 @@ fun MeterListComponent(
                 }
 
                 // 2. Batch Print Progress Dialog - HIDE when printer error dialog shows
-                if (isPrinting && !showPrintPrinterErrorDialog) {
+                if (isPrinting && !showPrinterErrorDialog) {
                     val waitingForConfirm by batchPrintManager.waitingForConfirmation.collectAsState()
 
                     BatchPrintProgressDialog(
@@ -463,9 +486,9 @@ fun MeterListComponent(
                 }
 
 // 3. Batch Print Printer Error Dialog - Shows with PRIORITY over progress dialog
-                if (showPrintPrinterErrorDialog) {
+                if (showPrinterErrorDialog) {
                     PrinterStatusErrorDialog(
-                        errorMessage = printPrinterErrorMessage,
+                        errorMessage = printerErrorMessage,
                         paperStatus = printerPaperStatus,
                         coverStatus = printerCoverStatus,
                         printerViewModel = printerViewModel,
