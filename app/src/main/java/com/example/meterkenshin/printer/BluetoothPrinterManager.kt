@@ -117,8 +117,14 @@ class BluetoothPrinterManager(context: Context) {
             WoosimBluetoothService.STATE_CONNECTED -> {
                 _connectionState.value = ConnectionState.CONNECTED
                 val printerConfig = printerCsvParser.getActivePrinterConfig()
+                // change this later
+//                val printerInfo = if (printerConfig != null) {
+//                    "Model:  ${printerConfig.printerModel ?: "Unknown"}"
+//                } else {
+//                    "Model: Unknown"
+//                }
                 val printerInfo = if (printerConfig != null) {
-                    "Model:  ${printerConfig.printerModel ?: "Unknown"}"
+                    "Model:  ${printerConfig.printerModel ?: "WSP-i350"}"
                 } else {
                     "Model: Unknown"
                 }

@@ -35,15 +35,6 @@ class PrinterCsvParser(private val context: Context) {
         val printerModel: String? = null
     )
 
-
-    /**
-     * Get the printer MAC address from the CSV file (deprecated, use getActivePrinterMacAddress)
-     */
-    @Deprecated("Use getActivePrinterMacAddress() instead")
-    fun getPrinterMacAddress(): String? {
-        return getActivePrinterMacAddress()
-    }
-
     /**
      * Check if printer.csv file exists
      */
@@ -100,7 +91,7 @@ class PrinterCsvParser(private val context: Context) {
     /**
      * Get all printer configurations (if CSV contains multiple printers)
      */
-    fun getAllPrinterConfigs(): List<PrinterConfig> {
+    private fun getAllPrinterConfigs(): List<PrinterConfig> {
         val configs = mutableListOf<PrinterConfig>()
 
         try {
