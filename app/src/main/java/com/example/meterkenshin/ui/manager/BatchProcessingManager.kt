@@ -224,7 +224,7 @@ class BatchProcessingManager(
                         updateProgressWithStep(2, "Checking for existing data...")
                         val hasValidData = hasValidBillingData(meter)
 
-                        if (!hasValidData) {
+                        if (hasValidData) {
                             val userChoice = promptUseExistingOrReadNew(meter.serialNumber)
 
                             if (userChoice == UserChoice.USE_EXISTING) {

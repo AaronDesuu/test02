@@ -3,10 +3,8 @@ package com.example.meterkenshin.ui.component
 import android.annotation.SuppressLint
 import android.os.Build
 import android.util.Log
-import com.example.meterkenshin.ui.manager.NotificationManager
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,22 +24,15 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -59,7 +50,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -70,6 +60,7 @@ import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.BatchPrintManager
 import com.example.meterkenshin.ui.manager.BatchPrintMode
 import com.example.meterkenshin.ui.manager.BatchProcessingManager
+import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
@@ -149,13 +140,10 @@ fun MeterListComponent(
     val currentMeterSerial by batchProcessor.currentMeterSerial.collectAsState()
     val shouldPrint by batchProcessor.shouldPrint.collectAsState()
     val shouldSaveJson by batchProcessor.shouldSaveJson.collectAsState()
-    val currentStep by batchProcessor.currentStep.collectAsState()
     val currentStepDescription by batchProcessor.currentStepDescription.collectAsState()
     val errorCount by batchProcessor.errorCount.collectAsState()
     val selectionMode by meterReadingViewModel.selectionMode.collectAsState()
     val selectedMeters by meterReadingViewModel.selectedMeters.collectAsState()
-    val showPrinterErrorDialog by batchProcessor.showPrinterErrorDialog.collectAsState()
-    val printerErrorMessage by batchProcessor.printerErrorMessage.collectAsState()
 
     // Batch print states
     val isPrinting by batchPrintManager.isProcessing.collectAsState()
@@ -367,343 +355,29 @@ fun MeterListComponent(
                     }
                 }
 
-
-                if (isProcessing) {
-                    AlertDialog(
-                        onDismissRequest = { /* Prevent dismiss */ },
-                        title = {
-                            // ⭐ Title with X button on the right (only during user action)
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Batch Processing",
-                                    style = MaterialTheme.typography.headlineSmall
-                                )
-
-                                // ⭐ X button on top-right corner (only show during awaiting user action)
-                                if (awaitingUserAction) {
-                                    IconButton(
-                                        onClick = {
-                                            batchProcessor.cancel()
-                                            NotificationManager.showInfo("Batch processing cancelled")
-                                        },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Cancel batch processing",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        text = {
-                            Column(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                // ⭐ Meter Progress Bar
-                                LinearProgressIndicator(
-                                    progress = {
-                                        if (totalCount > 0) processedCount.toFloat() / totalCount else 0f
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 8.dp)
-                                )
-
-                                // ⭐ Meter counter centered with errors on the right
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // Centered meter count
-                                    Text(
-                                        text = "Meters: $processedCount / $totalCount",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    // ⭐ Error indicator on the right of meter count
-                                    if (errorCount > 0) {
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Warning,
-                                                contentDescription = "Errors",
-                                                tint = MaterialTheme.colorScheme.error,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text(
-                                                text = "$errorCount",
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                color = MaterialTheme.colorScheme.error,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // ⭐ Step Progress Section with current meter
-                                Card(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(bottom = 16.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp)
-                                    ) {
-                                        // Step counter and current meter
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Step $currentStep of 7",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
-
-                                            // Show current meter being processed
-                                            if (currentMeterSerial != null) {
-                                                Text(
-                                                    text = "Meter: $currentMeterSerial",
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = MaterialTheme.colorScheme.primary,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        // Step progress bar
-                                        LinearProgressIndicator(
-                                            progress = { currentStep.toFloat() / 7f },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(bottom = 8.dp)
-                                        )
-
-                                        // Step description
-                                        Text(
-                                            text = currentStepDescription,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                    }
-                                }
-
-                                // ⭐ User Action Section (checkboxes)
-                                if (awaitingUserAction && currentMeterSerial != null) {
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                                        )
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(16.dp)
-                                        ) {
-                                            // Title (X button now at top)
-                                            Text(
-                                                text = "Options for: $currentMeterSerial",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                modifier = Modifier.padding(bottom = 12.dp)
-                                            )
-
-                                            // Checkbox: Print Receipt - Only show if printing enabled in settings
-                                            if (AppPreferences.isPrintingEnabled(context)) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clickable { batchProcessor.setPrintOption(!shouldPrint) }
-                                                        .padding(vertical = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Checkbox(
-                                                        checked = shouldPrint,
-                                                        onCheckedChange = {
-                                                            batchProcessor.setPrintOption(it)
-                                                        }
-                                                    )
-                                                    Spacer(modifier = Modifier.width(12.dp))
-                                                    Column {
-                                                        Text(
-                                                            text = "Print Receipt",
-                                                            style = MaterialTheme.typography.bodyLarge,
-                                                            fontWeight = FontWeight.Medium
-                                                        )
-                                                        Text(
-                                                            text = "Print physical receipt",
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    }
-                                                }
-                                            } else {
-                                                // Optional: Show info that printing is disabled
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Info,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(12.dp))
-                                                    Text(
-                                                        text = "Receipt printing is disabled in Settings",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        fontStyle = FontStyle.Italic
-                                                    )
-                                                }
-                                            }
-
-                                            // Checkbox: Save JSON - Only show if JSON saving is enabled in settings
-                                            if (AppPreferences.isJsonSavingEnabled(context)) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clickable { batchProcessor.setSaveJsonOption(!shouldSaveJson) }
-                                                        .padding(vertical = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Checkbox(
-                                                        checked = shouldSaveJson,
-                                                        onCheckedChange = {
-                                                            batchProcessor.setSaveJsonOption(it)
-                                                        }
-                                                    )
-                                                    Spacer(modifier = Modifier.width(12.dp))
-                                                    Column {
-                                                        Text(
-                                                            text = "Save JSON",
-                                                            style = MaterialTheme.typography.bodyLarge,
-                                                            fontWeight = FontWeight.Medium
-                                                        )
-                                                        Text(
-                                                            text = "Save billing data to file",
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    }
-                                                }
-                                            } else {
-                                                // Show info that JSON saving is disabled
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(vertical = 8.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Info,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(12.dp))
-                                                    Text(
-                                                        text = "JSON saving is disabled in Settings",
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        fontStyle = FontStyle.Italic
-                                                    )
-                                                }
-                                            }
-
-                                            // Warning if nothing selected
-                                            val printingEnabled = AppPreferences.isPrintingEnabled(context)
-                                            val jsonEnabled = AppPreferences.isJsonSavingEnabled(context)
-
-                                            val nothingSelected = when {
-                                                printingEnabled && jsonEnabled -> !shouldPrint && !shouldSaveJson
-                                                printingEnabled && !jsonEnabled -> !shouldPrint
-                                                !printingEnabled && jsonEnabled -> !shouldSaveJson
-                                                else -> false  // Both disabled, nothing to select
-                                            }
-
-                                            if (nothingSelected) {
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    text = "⚠️ No action selected - meter will be skipped",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.error
-                                                )
-                                            }
-
-                                            Spacer(modifier = Modifier.height(12.dp))
-
-                                            // Continue button
-                                            Button(
-                                                onClick = { batchProcessor.confirmUserAction() },
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(if (shouldPrint || shouldSaveJson) "Continue" else "Skip")
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        confirmButton = {
-                            // Only show Cancel button when NOT awaiting user action
-                            if (!awaitingUserAction) {
-                                TextButton(onClick = { batchProcessor.cancel() }) {
-                                    Text("Cancel")
-                                }
-                            }
-                        }
-                    )
-                    if (showPrinterErrorDialog) {
-                        PrinterStatusErrorDialog(
-                            errorMessage = printerErrorMessage,
-                            paperStatus = printerPaperStatus,
-                            coverStatus = printerCoverStatus,
-                            printerViewModel = printerViewModel,
-                            onRetry = {
-                                scope.launch {
-                                    currentMeterSerial?.let { serial ->
-                                        val meter =
-                                            uiState.allMeters.find { it.serialNumber == serial }
-                                        meter?.let {
-                                            batchProcessor.retryPrinting(it)
-                                        }
-                                    }
-                                }
-                            },
-                            onCancel = {
-                                batchProcessor.dismissPrinterError()
-                            }
-                        )
+                BatchProcessingDialog(
+                    context = context,
+                    isProcessing = isProcessing,
+                    processedCount = processedCount,
+                    totalCount = totalCount,
+                    currentStepDescription = currentStepDescription,
+                    currentMeterSerial = currentMeterSerial,
+                    errorCount = errorCount,
+                    awaitingUserAction = awaitingUserAction,
+                    showUseExistingDialog = showUseExistingDialog,
+                    useExistingDialogMeter = useExistingDialogMeter,
+                    shouldPrint = shouldPrint,
+                    shouldSaveJson = shouldSaveJson,
+                    onUseExistingClicked = { batchProcessor.onUseExistingClicked() },
+                    onReadNewClicked = { batchProcessor.onReadNewClicked() },
+                    onPrintOptionChanged = { batchProcessor.setPrintOption(it) },
+                    onSaveJsonOptionChanged = { batchProcessor.setSaveJsonOption(it) },
+                    onConfirmUserAction = { batchProcessor.confirmUserAction() },
+                    onCancel = {
+                        batchProcessor.cancel()
+                        NotificationManager.showInfo("Batch processing cancelled")
                     }
-                }
+                )
 
                 // Retry/Skip Dialog for failed read operations
                 if (showRetryDialog && retryDialogMeter != null) {
@@ -736,38 +410,6 @@ fun MeterListComponent(
                     )
                 }
 
-// ⭐ NEW DIALOG - Use Existing Data or Read New
-                if (showUseExistingDialog && useExistingDialogMeter != null) {
-                    AlertDialog(
-                        onDismissRequest = { /* Prevent dismiss */ },
-                        title = {
-                            Text("Billing Data Available")
-                        },
-                        text = {
-                            Column {
-                                Text("This meter already has saved billing data.")
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Meter: $useExistingDialogMeter",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text("Do you want to use the existing data or perform a new read?")
-                            }
-                        },
-                        confirmButton = {
-                            Button(onClick = { batchProcessor.onReadNewClicked() }) {
-                                Text("Read Again")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { batchProcessor.onUseExistingClicked() }) {
-                                Text("Use Existing")
-                            }
-                        }
-                    )
-                }
 
                 // 1. Batch Print Options Dialog
                 if (showBatchPrintDialog) {

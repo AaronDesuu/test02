@@ -46,15 +46,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
+import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.component.BluetoothStatusComponent
-import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.ui.component.HomeMeterList
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
-import com.example.meterkenshin.ui.component.HomeMeterList
+import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 
 @Composable
 fun HomeScreen(
@@ -135,16 +136,18 @@ fun HomeScreen(
             }
 
             // Printer Configuration (Bluetooth Status)
-            item {
-                BluetoothStatusComponent(
-                    connectionState = bluetoothConnectionState,
-                    isBluetoothEnabled = isBluetoothEnabled,
-                    connectedDevice = connectedDevice,
-                    statusMessage = bluetoothStatusMessage,
-                    paperStatus = paperStatus,
-                    coverStatus = coverStatus,
-                    printerBluetoothViewModel = printerBluetoothViewModel
-                )
+            if (AppPreferences.isPrintingEnabled(context)) {
+                item {
+                    BluetoothStatusComponent(
+                        connectionState = bluetoothConnectionState,
+                        isBluetoothEnabled = isBluetoothEnabled,
+                        connectedDevice = connectedDevice,
+                        statusMessage = bluetoothStatusMessage,
+                        paperStatus = paperStatus,
+                        coverStatus = coverStatus,
+                        printerBluetoothViewModel = printerBluetoothViewModel
+                    )
+                }
             }
 
             // Recent Readings
