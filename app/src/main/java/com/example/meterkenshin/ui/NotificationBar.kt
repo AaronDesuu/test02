@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween

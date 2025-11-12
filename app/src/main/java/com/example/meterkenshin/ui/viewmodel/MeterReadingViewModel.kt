@@ -23,6 +23,7 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.MeterStatus
 import com.example.meterkenshin.model.MeterType
 import com.example.meterkenshin.utils.FilterUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.FileReader
@@ -142,6 +144,7 @@ class MeterReadingViewModel : ViewModel() {
         _selectedMeters.value = emptySet()
         _selectionMode.value = false
     }
+
     // Modified callback - only captures first RSSI per cycle
     private val mLeScanCallback = BluetoothAdapter.LeScanCallback { device, rssi, _ ->
         val knownMacAddresses = _uiState.value.allMeters
@@ -162,6 +165,7 @@ class MeterReadingViewModel : ViewModel() {
             _nearbyMeterCount.value = currentDevices.size
 
             updateMeterNearbyStatus(deviceMac, rssi)
+            updateMeterLastCommunication(deviceMac)
         }
     }
 
@@ -612,6 +616,7 @@ class MeterReadingViewModel : ViewModel() {
 
             // First, check if CSV needs billingPrintDate column and add it if missing
             ensureBillingPrintDateColumn(meterFile)
+            ensureLastCommunicationColumn(meterFile)
 
             val meters = mutableListOf<Meter>()
             val reader = BufferedReader(FileReader(meterFile))
@@ -645,6 +650,7 @@ class MeterReadingViewModel : ViewModel() {
                                 alert = columns[10].toDoubleOrNull(),
                                 readDate = parseDate(columns[11]),
                                 billingPrintDate = if (columns.size >= 13) parseDate(columns[12]) else null,
+                                lastCommunication = if (columns.size >= 14) parseDate(columns[13]) else null,
 
                                 location = "Location $lineNumber",
                                 type = MeterType.Type01,
@@ -752,6 +758,112 @@ class MeterReadingViewModel : ViewModel() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error adding billingPrintDate column: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Ensure the CSV file has lastCommunication column (column 14)
+     * If not present, add it to the header and all rows with empty values
+     */
+    private fun ensureLastCommunicationColumn(file: File) {
+        try {
+            val lines = file.readLines().toMutableList()
+            if (lines.isEmpty()) return
+
+            // Check header (first line)
+            val headerColumns = lines[0].split(',')
+
+            // If header already has 14+ columns, assume lastCommunication exists
+            if (headerColumns.size >= 14) return
+
+            Log.d(TAG, "Adding lastCommunication column to CSV (column was missing)")
+
+            // Add lastCommunication to header
+            lines[0] = lines[0] + ",lastCommunication"
+
+            // Add empty lastCommunication to all data rows
+            for (i in 1 until lines.size) {
+                lines[i] = lines[i] + ","
+            }
+
+            // Write back to file
+            file.writeText(lines.joinToString("\n"))
+            Log.d(TAG, "Successfully added lastCommunication column to meter CSV")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error adding lastCommunication column: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Update lastCommunication timestamp when meter discovered via BLE
+     */
+    private fun updateMeterLastCommunication(bluetoothMac: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val context = mContext ?: return@launch
+                val externalFilesDir = context.getExternalFilesDir(null) ?: return@launch
+                val csvDir = File(externalFilesDir, "app_files")
+                val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
+                val filename = "${yearMonth}_meter.csv"
+                val meterFile = File(csvDir, filename)
+
+                if (!meterFile.exists()) return@launch
+
+                val lines = meterFile.readLines().toMutableList()
+                if (lines.isEmpty()) return@launch
+
+                // Ensure column exists
+                if (!lines[0].contains("lastCommunication")) {
+                    lines[0] = lines[0] + ",lastCommunication"
+                    for (i in 1 until lines.size) {
+                        lines[i] = lines[i] + ","
+                    }
+                }
+
+                val lastCommIndex = lines[0].split(',').indexOf("lastCommunication")
+                val bluetoothIdIndex = 3
+                val currentTimestamp = SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault()).format(Date())
+
+                var wasUpdated = false
+
+                // Find meter by Bluetooth MAC and update
+                for (i in 1 until lines.size) {
+                    val columns = lines[i].split(',').toMutableList()
+                    val csvMac = columns.getOrNull(bluetoothIdIndex)
+                        ?.trim()
+                        ?.removeSurrounding("\"")
+                        ?.uppercase()
+
+                    if (csvMac == bluetoothMac) {
+                        while (columns.size <= lastCommIndex) {
+                            columns.add("")
+                        }
+                        columns[lastCommIndex] = currentTimestamp
+                        lines[i] = columns.joinToString(",")
+                        wasUpdated = true
+                        break
+                    }
+                }
+
+                if (wasUpdated) {
+                    meterFile.writeText(lines.joinToString("\n"))
+                    // Update UI on main thread
+                    withContext(Dispatchers.Main) {
+                        val updatedMeters = loadMeterDataFromFile(context, filename)
+                        if (updatedMeters is MeterLoadResult.Success) {
+                            _uiState.update {
+                                it.copy(
+                                    allMeters = updatedMeters.meters,
+                                    filteredMeters = filterMeters(updatedMeters.meters, _searchQuery.value)
+                                )
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error updating lastCommunication", e)
+            }
         }
     }
 

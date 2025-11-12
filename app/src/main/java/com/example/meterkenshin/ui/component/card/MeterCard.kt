@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui.component.card
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
@@ -256,7 +256,7 @@ fun MeterCard(
                     // Use impKWh as max demand if impMaxDemandKW is not available
                     meter.impKWh?.let {
                         String.format("%07.1f kW", it)
-                    } ?: "0000000.0 kW"
+                    } ?: "00000.0 kW"
                 }
 
                 Text(

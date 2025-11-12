@@ -23,6 +23,7 @@ data class Meter(
     val installationDate: Date?,
     val bluetoothId: String? = null,
     val billingPrintDate: Date? = null,
+    val lastCommunication: Date? = null,
 
     // DLMS credentials (add these)
     val account: String = "Admin",

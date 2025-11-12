@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui.component.dialog
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement

@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui.component.card
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

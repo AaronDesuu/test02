@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui.component.card
 
 import android.annotation.SuppressLint
 import android.widget.Toast
@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Billing
+import com.example.meterkenshin.ui.component.dialog.PrinterStatusErrorDialog
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import kotlinx.coroutines.delay

@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui.component.dialog
 
 import android.content.Context
 import androidx.compose.foundation.clickable

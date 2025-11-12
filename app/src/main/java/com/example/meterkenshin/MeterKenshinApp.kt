@@ -14,7 +14,7 @@ import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.AppScreen
 import com.example.meterkenshin.ui.AppWithDrawer
-import com.example.meterkenshin.ui.component.NotificationHost
+import com.example.meterkenshin.ui.NotificationHost
 import com.example.meterkenshin.ui.screen.FileUploadScreen
 import com.example.meterkenshin.ui.screen.HomeScreen
 import com.example.meterkenshin.ui.screen.LoginScreen

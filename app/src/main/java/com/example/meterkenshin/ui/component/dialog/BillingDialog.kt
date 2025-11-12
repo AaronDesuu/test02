@@ -1,4 +1,4 @@
-package com.example.meterkenshin.ui.component
+package com.example.meterkenshin.ui.component.dialog
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Print

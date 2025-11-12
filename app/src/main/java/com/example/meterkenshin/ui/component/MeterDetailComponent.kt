@@ -28,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.MeterSpecifications
 import com.example.meterkenshin.model.Meter
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 /**
@@ -188,10 +191,28 @@ fun MeterStatusCard(
                 value = meter.location.ifBlank { "-" }
             )
 
-            // Last Communication (placeholder - can be updated with actual data)
+            // Last Communication
+            val lastCommText = meter.lastCommunication?.let { lastComm ->
+                val now = Date()
+                val diffMillis = now.time - lastComm.time
+                val diffMinutes = diffMillis / (1000 * 60)
+                val diffHours = diffMinutes / 60
+                val diffDays = diffHours / 24
+
+                when {
+                    diffMinutes < 1 -> "Just now"
+                    diffMinutes < 60 -> "$diffMinutes min${if (diffMinutes > 1L) "s" else ""} ago"
+                    diffHours < 24 -> "$diffHours hour${if (diffHours > 1L) "s" else ""} ago"
+                    diffDays < 7 -> "$diffDays day${if (diffDays > 1L) "s" else ""} ago"
+                    else -> {
+                        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(lastComm)
+                    }
+                }
+            } ?: "Never"
+
             SpecificationRow(
                 label = "Last Communication",
-                value = if (isNearby) "Just now" else "-"
+                value = lastCommText
             )
         }
     }
