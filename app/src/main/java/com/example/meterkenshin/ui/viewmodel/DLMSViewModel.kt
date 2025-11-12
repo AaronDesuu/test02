@@ -201,6 +201,7 @@ class DLMSViewModel : ViewModel() {
 
     /**
      * Clear meter's readDate and billingPrintDate to reset to Not Inspected state
+     * FIXED: Also clear all meter reading data to prevent BillingDataAvailable trigger
      */
     private fun clearMeterReadDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -218,8 +219,16 @@ class DLMSViewModel : ViewModel() {
 
                 val lines = meterFile.readLines().toMutableList()
                 val serialNoIndex = 2
-                val readDateIndex = 11
-                val billingPrintDateIndex = 12
+
+                // CSV column indices
+                val impKWhIndex = 5           // Clear meter reading data
+                val expKWhIndex = 6           // Clear meter reading data
+                val impMaxDemandKWIndex = 7   // Clear meter reading data
+                val expMaxDemandKWIndex = 8   // Clear meter reading data
+                val minVoltVIndex = 9         // Clear meter reading data
+                val alertIndex = 10           // Clear meter reading data
+                val readDateIndex = 11        // Clear readDate
+                val billingPrintDateIndex = 12 // Clear billingPrintDate
 
                 for (i in 1 until lines.size) {
                     val columns = lines[i].split(',').toMutableList()
@@ -228,7 +237,25 @@ class DLMSViewModel : ViewModel() {
                         ?.removeSurrounding("\"")
 
                     if (csvSerialNo == serialNumber) {
-                        // Clear readDate and billingPrintDate
+                        // Clear ALL meter reading data AND status fields
+                        if (columns.size > impKWhIndex) {
+                            columns[impKWhIndex] = "" // Clear impKWh
+                        }
+                        if (columns.size > expKWhIndex) {
+                            columns[expKWhIndex] = "" // Clear expKWh
+                        }
+                        if (columns.size > impMaxDemandKWIndex) {
+                            columns[impMaxDemandKWIndex] = "" // Clear impMaxDemandKW
+                        }
+                        if (columns.size > expMaxDemandKWIndex) {
+                            columns[expMaxDemandKWIndex] = "" // Clear expMaxDemandKW
+                        }
+                        if (columns.size > minVoltVIndex) {
+                            columns[minVoltVIndex] = "" // Clear minVoltV
+                        }
+                        if (columns.size > alertIndex) {
+                            columns[alertIndex] = "" // Clear alert
+                        }
                         if (columns.size > readDateIndex) {
                             columns[readDateIndex] = "" // Clear readDate
                         }
@@ -237,23 +264,17 @@ class DLMSViewModel : ViewModel() {
                         }
 
                         lines[i] = columns.joinToString(",")
-                        appendLog("✅ Reset meter Read Data: $serialNumber")
+                        appendLog("✅ Reset meter to Not Inspected: cleared all reading data for $serialNumber")
                         break
                     }
                 }
 
                 meterFile.writeText(lines.joinToString("\n"))
-
-                // Reload meters to update UI
-                withContext(Dispatchers.Main) {
-                    mContext?.let { ctx ->
-                        meterReadingViewModel?.reloadMeters(ctx)
-                    }
-                }
+                appendLog("✅ CSV updated successfully")
 
             } catch (e: Exception) {
-                appendLog("ERROR: Failed to reset meter state: ${e.message}")
-                Log.e(TAG, "clearMeterReadDate error", e)
+                appendLog("❌ Error clearing meter data: ${e.message}")
+                Log.e(TAG, "Error clearing meter read date", e)
             }
         }
     }
