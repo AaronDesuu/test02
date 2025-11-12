@@ -166,9 +166,12 @@ class DLMSViewModel : ViewModel() {
      */
     private fun loadSavedBillingData() {
         val data = billingRepository?.loadBillingData()
+        Log.d(TAG, "loadSavedBillingData: data = ${data != null}, isValid = ${data?.isValid()}")
         if (data != null) {
             _savedBillingData.value = data
             appendLog("Loaded billing data (${data.daysRemaining()} days remaining)")
+        } else {
+            Log.d(TAG, "No saved billing data found in SharedPreferences")
         }
     }
 
@@ -178,9 +181,9 @@ class DLMSViewModel : ViewModel() {
     private fun persistBillingData(billing: Billing, rates: FloatArray) {
         val savedData = billingRepository?.saveBillingData(billing, rates)
         _savedBillingData.value = savedData
+        Log.d(TAG, "✅ StateFlow updated: savedBillingData = ${_savedBillingData.value != null}, isValid = ${savedData?.isValid()}")
         appendLog("Billing data saved for 30 days")
     }
-
     /**
      * Clear saved billing data manually and reset meter to Not Inspected
      */
