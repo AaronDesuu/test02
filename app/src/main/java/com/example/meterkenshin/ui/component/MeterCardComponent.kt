@@ -42,9 +42,6 @@ import java.util.Locale
 
 /**
  * Universal Modern Meter Card Component with MeterReadingViewModel Integration
- * This component works with MeterReadingViewModel and can be reused across screens
- * Updated to match the PNG design with three status states at bottom
- * MODIFIED: Added "Meter not Registered" status for activate=0 with pale/transparent card
  */
 @SuppressLint("DefaultLocale")
 @Composable
@@ -153,8 +150,10 @@ fun MeterCard(
 
                         // Energy consumption from CSV Imp [kWh] column 5
                         val usageText = meter.impKWh?.let {
-                            "${String.format("%.1f", it)}kWh"
-                        } ?: "0kWh"
+                            // Truncate to one decimal place without rounding
+                            val truncatedValue = (it * 10).toInt() / 10.0
+                            "$truncatedValue kWh"
+                        } ?: "0.0 kWh"
 
                         // Last read date from CSV column 11 (readDate/lastMaintenanceDate)
                         meter.readDate?.let { lastDate ->
@@ -256,12 +255,12 @@ fun MeterCard(
                 } ?: run {
                     // Use impKWh as max demand if impMaxDemandKW is not available
                     meter.impKWh?.let {
-                        String.format("%07.1f kWh", it)
-                    } ?: "0000000.0 kWh"
+                        String.format("%07.1f kW", it)
+                    } ?: "0000000.0 kW"
                 }
 
                 Text(
-                    text = maxDemandText,
+                    text = "Max $maxDemandText",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
