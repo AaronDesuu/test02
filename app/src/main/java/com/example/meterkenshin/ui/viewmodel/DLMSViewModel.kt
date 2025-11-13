@@ -8,7 +8,6 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.data.BillingDataCSVRepository
-import com.example.meterkenshin.data.BillingDataSummary
 import com.example.meterkenshin.data.RegistrationState
 import com.example.meterkenshin.data.SavedBillingData
 import com.example.meterkenshin.dlms.DLMS
@@ -19,10 +18,10 @@ import com.example.meterkenshin.dlms.DLMSInit
 import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.dlms.DLMSSessionManager
 import com.example.meterkenshin.dlms.ReadDataPrinting
-import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.utils.calculateBillingData
 import com.example.meterkenshin.utils.getCurrentYearMonth
@@ -207,27 +206,6 @@ class DLMSViewModel : ViewModel() {
      */
     fun setTemporarySavedBillingData(data: SavedBillingData) {
         _savedBillingData.value = data
-    }
-
-    /**
-     * Check if billing data exists for a meter
-     */
-    fun hasBillingData(serialNumber: String): Boolean {
-        return billingRepository?.hasBillingData(serialNumber) ?: false
-    }
-
-    /**
-     * Get billing data summary for a meter
-     */
-    fun getBillingDataSummary(serialNumber: String): BillingDataSummary? {
-        return billingRepository?.getBillingDataSummary(serialNumber)
-    }
-
-    /**
-     * Load all billing records for a meter (historical data)
-     */
-    fun loadAllBillingRecords(serialNumber: String): List<SavedBillingData> {
-        return billingRepository?.loadAllBillingRecords(serialNumber) ?: emptyList()
     }
 
     /**
