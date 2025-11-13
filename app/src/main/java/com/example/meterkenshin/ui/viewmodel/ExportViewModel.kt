@@ -112,4 +112,55 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
             }
         }
     }
+
+    // New delete methods
+    fun deleteFile(fileName: String) {
+        viewModelScope.launch {
+            try {
+                val result = exportManager.deleteFile(fileName)
+                if (result.success) {
+                    // Remove from selection if it was selected
+                    val current = _selectedFiles.value.toMutableSet()
+                    current.remove(fileName)
+                    _selectedFiles.value = current
+
+                    // Reload files
+                    loadFiles()
+                    NotificationManager.showSuccess("File '$fileName' deleted successfully")
+                } else {
+                    NotificationManager.showError("Failed to delete file: ${result.errorMessage}")
+                }
+            } catch (e: Exception) {
+                NotificationManager.showError("Error deleting file: ${e.message}")
+            }
+        }
+    }
+
+    fun deleteSelectedFiles() {
+        viewModelScope.launch {
+            if (_selectedFiles.value.isEmpty()) {
+                NotificationManager.showWarning("No files selected")
+                return@launch
+            }
+
+            try {
+                val selectedFileNames = _selectedFiles.value.toList()
+                val result = exportManager.deleteFiles(selectedFileNames)
+
+                if (result.success) {
+                    _selectedFiles.value = emptySet()
+                    loadFiles()
+                    NotificationManager.showSuccess(
+                        "Successfully deleted ${result.exportedCount} file(s)"
+                    )
+                } else {
+                    NotificationManager.showError(
+                        "Failed to delete files: ${result.errorMessage}"
+                    )
+                }
+            } catch (e: Exception) {
+                NotificationManager.showError("Error deleting files: ${e.message}")
+            }
+        }
+    }
 }

@@ -4,8 +4,6 @@ import android.content.Context
 import android.os.Environment
 import android.util.Log
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 
 data class ExportResult(
     val success: Boolean,
@@ -16,7 +14,6 @@ data class FileGroup(
     val name: String,
     val files: List<File>
 )
-
 
 class ExportManager(private val context: Context) {
     private val TAG = "ExportManager"
@@ -59,77 +56,107 @@ class ExportManager(private val context: Context) {
 
         return buildList {
             if (lpFiles.isNotEmpty()) add(FileGroup("Load Profile", lpFiles))
-            if (evFiles.isNotEmpty()) add(FileGroup("Event Log", evFiles))
+            if (evFiles.isNotEmpty()) add(FileGroup("Event", evFiles))
             if (bdFiles.isNotEmpty()) add(FileGroup("Billing Data", bdFiles))
             if (otherFiles.isNotEmpty()) add(FileGroup("Other", otherFiles))
         }
     }
 
     /**
-     * Export selected files to Download/kenshinApp directory
+     * Export files to the download directory
      */
     fun exportFiles(files: List<File>): ExportResult {
         return try {
-            // Get Downloads directory
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOWNLOADS
-            )
+            val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val appExportDir = File(downloadDir, "kenshinApp")
 
-            // Create kenshinApp subdirectory
-            val kenshinAppDir = File(downloadsDir, "kenshinApp")
-            if (!kenshinAppDir.exists()) {
-                val created = kenshinAppDir.mkdirs()
-                if (!created) {
-                    return ExportResult(
-                        success = false,
-                        errorMessage = "Failed to create export directory"
-                    )
-                }
-                Log.d(TAG, "Created directory: ${kenshinAppDir.absolutePath}")
+            if (!appExportDir.exists() && !appExportDir.mkdirs()) {
+                return ExportResult(false, 0, "Failed to create export directory")
             }
 
-            // Copy files
             var exportedCount = 0
-            files.forEach { sourceFile ->
+            val errors = mutableListOf<String>()
+
+            for (file in files) {
                 try {
-                    val destinationFile = File(kenshinAppDir, sourceFile.name)
-                    copyFile(sourceFile, destinationFile)
+                    val destinationFile = File(appExportDir, file.name)
+                    file.copyTo(destinationFile, overwrite = true)
                     exportedCount++
-                    Log.d(TAG, "Exported: ${sourceFile.name}")
+                    Log.d(TAG, "Exported: ${file.name}")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to export ${sourceFile.name}", e)
-                    // Continue with other files
+                    errors.add("Failed to export ${file.name}: ${e.message}")
+                    Log.e(TAG, "Error exporting ${file.name}", e)
                 }
             }
 
-            if (exportedCount == 0) {
-                ExportResult(
-                    success = false,
-                    errorMessage = "No files were exported"
-                )
+            if (errors.isEmpty()) {
+                ExportResult(true, exportedCount)
             } else {
-                ExportResult(
-                    success = true,
-                    exportedCount = exportedCount
-                )
+                ExportResult(false, exportedCount, errors.joinToString("; "))
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Export operation failed", e)
-            ExportResult(
-                success = false,
-                errorMessage = e.message ?: "Unknown error"
-            )
+            Log.e(TAG, "Error during export", e)
+            ExportResult(false, 0, e.message)
         }
     }
 
     /**
-     * Copy file from source to destination
+     * Delete a single file by name
      */
-    private fun copyFile(source: File, destination: File) {
-        FileInputStream(source).use { input ->
-            FileOutputStream(destination).use { output ->
-                input.copyTo(output)
+    fun deleteFile(fileName: String): ExportResult {
+        return try {
+            val filesDir = context.getExternalFilesDir(null) ?: context.filesDir
+            val file = File(filesDir, fileName)
+
+            if (!file.exists()) {
+                return ExportResult(false, 0, "File not found")
             }
+
+            val deleted = file.delete()
+            if (deleted) {
+                Log.d(TAG, "Deleted file: $fileName")
+                ExportResult(true, 1)
+            } else {
+                ExportResult(false, 0, "Failed to delete file")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting file: $fileName", e)
+            ExportResult(false, 0, e.message)
+        }
+    }
+
+    /**
+     * Delete multiple files by name
+     */
+    fun deleteFiles(fileNames: List<String>): ExportResult {
+        return try {
+            val filesDir = context.getExternalFilesDir(null) ?: context.filesDir
+            var deletedCount = 0
+            val errors = mutableListOf<String>()
+
+            for (fileName in fileNames) {
+                try {
+                    val file = File(filesDir, fileName)
+                    if (file.exists() && file.delete()) {
+                        deletedCount++
+                        Log.d(TAG, "Deleted file: $fileName")
+                    } else {
+                        errors.add("Failed to delete $fileName")
+                    }
+                } catch (e: Exception) {
+                    errors.add("Error deleting $fileName: ${e.message}")
+                    Log.e(TAG, "Error deleting file: $fileName", e)
+                }
+            }
+
+            if (errors.isEmpty()) {
+                ExportResult(true, deletedCount)
+            } else {
+                ExportResult(false, deletedCount, errors.joinToString("; "))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during batch delete", e)
+            ExportResult(false, 0, e.message)
         }
     }
 }

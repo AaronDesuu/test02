@@ -15,11 +15,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -27,13 +28,18 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -49,6 +55,11 @@ fun ExportScreen(
     val isExporting by viewModel.isExporting.collectAsState()
     val fileGroups by viewModel.filteredGroups.collectAsState() // Use filtered groups
     val searchQuery by viewModel.searchQuery.collectAsState()
+
+    // Confirmation dialog states
+    var showDeleteFileDialog by remember { mutableStateOf(false) }
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+    var fileToDelete by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.loadFiles()
@@ -154,56 +165,34 @@ fun ExportScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "No files available to export",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.outline
-                    )
-                }
-            }
-        } else if (fileGroups.isEmpty() && searchQuery.isNotEmpty()) {
-            // No search results
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.outline
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "No files match your search",
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.outline
                     )
                 }
             }
         } else {
             LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.weight(1f)
             ) {
                 fileGroups.forEach { group ->
                     // Group Header
-                    item(key = "header_${group.name}") {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer
-                            )
-                        ) {
-                            Text(
-                                text = group.name,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(12.dp)
-                            )
+                    if (group.files.isNotEmpty()) {
+                        item(key = "header_${group.name}") {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                )
+                            ) {
+                                Text(
+                                    text = group.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
                         }
                     }
 
@@ -219,6 +208,10 @@ fun ExportScreen(
                             onCheckedChange = { checked ->
                                 viewModel.toggleFileSelection(file.name, checked)
                             },
+                            onDeleteClick = {
+                                fileToDelete = file.name
+                                showDeleteFileDialog = true
+                            },
                             enabled = !isExporting
                         )
                     }
@@ -228,28 +221,128 @@ fun ExportScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Export Button
-        Button(
-            onClick = { viewModel.exportSelectedFiles() },
+        // Bottom Action Buttons
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            enabled = selectedFiles.isNotEmpty() && !isExporting
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            if (isExporting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    color = MaterialTheme.colorScheme.onPrimary
+            // Delete Selected Button
+            OutlinedButton(
+                onClick = { showDeleteSelectedDialog = true },
+                modifier = Modifier.weight(1f),
+                enabled = selectedFiles.isNotEmpty() && !isExporting,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                ),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.error
                 )
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Exporting...")
-            } else {
-                Icon(Icons.Default.FileDownload, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Export ${selectedFiles.size} File(s)")
+                Text("Delete ${selectedFiles.size} File(s)")
+            }
+
+            // Export Button
+            Button(
+                onClick = { viewModel.exportSelectedFiles() },
+                modifier = Modifier.weight(1f),
+                enabled = selectedFiles.isNotEmpty() && !isExporting
+            ) {
+                if (isExporting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Exporting...")
+                } else {
+                    Icon(Icons.Default.FileDownload, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Export ${selectedFiles.size} File(s)")
+                }
             }
         }
     }
-}
 
+    // Delete Single File Confirmation Dialog
+    if (showDeleteFileDialog && fileToDelete != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteFileDialog = false
+                fileToDelete = null
+            },
+            title = {
+                Text("Delete File")
+            },
+            text = {
+                Text("Are you sure you want to delete '${fileToDelete}'? This action cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        fileToDelete?.let { viewModel.deleteFile(it) }
+                        showDeleteFileDialog = false
+                        fileToDelete = null
+                    }
+                ) {
+                    Text(
+                        "Delete",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteFileDialog = false
+                        fileToDelete = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Delete Selected Files Confirmation Dialog
+    if (showDeleteSelectedDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteSelectedDialog = false
+            },
+            title = {
+                Text("Delete Selected Files")
+            },
+            text = {
+                Text("Are you sure you want to delete ${selectedFiles.size} selected file(s)? This action cannot be undone.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteSelectedFiles()
+                        showDeleteSelectedDialog = false
+                    }
+                ) {
+                    Text(
+                        "Delete",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteSelectedDialog = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
 
 @Composable
 fun FileItem(
@@ -257,16 +350,18 @@ fun FileItem(
     fileSize: Long,
     isSelected: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    onDeleteClick: () -> Unit,
     enabled: Boolean
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
+            containerColor = if (isSelected)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Row(
@@ -275,47 +370,50 @@ fun FileItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Checkbox
             Checkbox(
                 checked = isSelected,
                 onCheckedChange = onCheckedChange,
                 enabled = enabled
             )
+
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
+
+            // File Info
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(
                     text = fileName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onSecondaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = formatFileSize(fileSize),
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isSelected) {
-                        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            if (isSelected) {
+
+            // Delete Button
+            IconButton(
+                onClick = onDeleteClick,
+                enabled = enabled
+            ) {
                 Icon(
-                    imageVector = Icons.Default.CheckCircle,
-                    contentDescription = "Selected",
-                    tint = MaterialTheme.colorScheme.primary
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete file",
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
         }
     }
 }
 
-fun formatFileSize(bytes: Long): String {
+private fun formatFileSize(bytes: Long): String {
     return when {
         bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "%.2f KB".format(bytes / 1024.0)
-        else -> "%.2f MB".format(bytes / (1024.0 * 1024.0))
+        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+        else -> "${bytes / (1024 * 1024)} MB"
     }
 }
