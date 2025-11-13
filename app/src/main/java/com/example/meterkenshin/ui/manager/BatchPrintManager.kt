@@ -133,16 +133,29 @@ class BatchPrintManager(
 
     /**
      * Print receipt for meter using saved billing data
+     * ✅ FIXED: Loads from per-meter CSV if not in memory
      */
     private suspend fun printReceipt(meter: Meter): Boolean {
-        val savedData = dlmsViewModel.savedBillingData.value
+        // First check if billing data is already loaded for this meter
+        val currentSavedData = dlmsViewModel.savedBillingData.value
 
-        if (savedData == null || !savedData.isValid()) {
-            Log.e(TAG, "No valid billing data available for printing: ${meter.serialNumber}")
-            return false
+        // If not loaded or wrong meter, load from CSV
+        if (currentSavedData == null || currentSavedData.billing.SerialNumber != meter.serialNumber) {
+            Log.i(TAG, "Loading billing data from CSV for ${meter.serialNumber}")
+
+            val billingData = dlmsViewModel.loadBillingDataForMeter(meter.serialNumber)
+
+            if (billingData == null) {
+                Log.e(TAG, "No billing data found in CSV for ${meter.serialNumber}")
+                return false
+            }
+
+            // Set it in DLMSViewModel for printing
+            dlmsViewModel.setTemporarySavedBillingData(billingData)
+            Log.i(TAG, "Successfully loaded billing data from CSV for ${meter.serialNumber}")
         }
 
-        Log.i(TAG, "Checking printer status for ${savedData.billing.SerialNumber}")
+        Log.i(TAG, "Checking printer status for ${meter.serialNumber}")
 
         val printer = printerViewModel
         if (printer == null) {
@@ -154,7 +167,6 @@ class BatchPrintManager(
 
         var printSuccess = false
 
-        // Check printer status using PrinterStatusHelper
         PrinterStatusHelper.checkPrinterReadyAndExecute(
             printerViewModel = printer,
             onNotConnected = {
@@ -168,7 +180,6 @@ class BatchPrintManager(
                 Log.w(TAG, "Printer not ready: $reason")
             },
             onReady = {
-                // Printer ready, print
                 dlmsViewModel.triggerPrintFromBatch()
                 printSuccess = true
             }

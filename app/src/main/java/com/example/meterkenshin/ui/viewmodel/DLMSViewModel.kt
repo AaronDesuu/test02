@@ -7,7 +7,8 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meterkenshin.data.BillingDataRepository
+import com.example.meterkenshin.data.BillingDataCSVRepository
+import com.example.meterkenshin.data.BillingDataSummary
 import com.example.meterkenshin.data.RegistrationState
 import com.example.meterkenshin.data.SavedBillingData
 import com.example.meterkenshin.dlms.DLMS
@@ -60,7 +61,7 @@ class DLMSViewModel : ViewModel() {
     private val _savedBillingData = MutableStateFlow<SavedBillingData?>(null)
     val savedBillingData: StateFlow<SavedBillingData?> = _savedBillingData.asStateFlow()
 
-    private var billingRepository: BillingDataRepository? = null
+    private var billingRepository: BillingDataCSVRepository? = null
 
     val readDataPrinting = ReadDataPrinting(viewModelScope) { appendLog(it) }
 
@@ -126,7 +127,7 @@ class DLMSViewModel : ViewModel() {
      */
     fun initializeForPrinting(context: Context) {
         mContext = context
-        billingRepository = BillingDataRepository(context)
+        billingRepository = BillingDataCSVRepository(context)
         readDataPrinting.setContext(context)
 
         readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
@@ -146,7 +147,7 @@ class DLMSViewModel : ViewModel() {
         dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, mContext) { appendLog(it) }
         dlmsFunctions.setMeter(meter)
         sessionManager = DLMSSessionManager(dlmsInit)
-        billingRepository = BillingDataRepository(context)
+        billingRepository = BillingDataCSVRepository(context)
         readDataPrinting.setContext(context)
 
         readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
@@ -178,33 +179,85 @@ class DLMSViewModel : ViewModel() {
      * Call this in initializeDLMS()
      */
     private fun loadSavedBillingData() {
-        val data = billingRepository?.loadBillingData()
-        Log.d(TAG, "loadSavedBillingData: data = ${data != null}, isValid = ${data?.isValid()}")
+        val serialNumber = meter?.serialNumber
+        if (serialNumber.isNullOrEmpty()) {
+            Log.d(TAG, "No meter serial number available")
+            return
+        }
+
+        val data = billingRepository?.loadBillingData(serialNumber)
+        Log.d(TAG, "loadSavedBillingData: data = ${data != null} for $serialNumber")
         if (data != null) {
             _savedBillingData.value = data
-            appendLog("Loaded billing data (${data.daysRemaining()} days remaining)")
+            appendLog("Loaded billing data for $serialNumber")
         } else {
-            Log.d(TAG, "No saved billing data found in SharedPreferences")
+            Log.d(TAG, "No billing data found in CSV for $serialNumber")
         }
+    }
+
+    /**
+     * Load billing data for specific serial number (used by BatchPrintManager)
+     */
+    fun loadBillingDataForMeter(serialNumber: String): SavedBillingData? {
+        return billingRepository?.loadBillingData(serialNumber)
+    }
+
+    /**
+     * Set temporary saved billing data (for batch printing)
+     */
+    fun setTemporarySavedBillingData(data: SavedBillingData) {
+        _savedBillingData.value = data
+    }
+
+    /**
+     * Check if billing data exists for a meter
+     */
+    fun hasBillingData(serialNumber: String): Boolean {
+        return billingRepository?.hasBillingData(serialNumber) ?: false
+    }
+
+    /**
+     * Get billing data summary for a meter
+     */
+    fun getBillingDataSummary(serialNumber: String): BillingDataSummary? {
+        return billingRepository?.getBillingDataSummary(serialNumber)
+    }
+
+    /**
+     * Load all billing records for a meter (historical data)
+     */
+    fun loadAllBillingRecords(serialNumber: String): List<SavedBillingData> {
+        return billingRepository?.loadAllBillingRecords(serialNumber) ?: emptyList()
     }
 
     /**
      * Save billing data to SharedPreferences with timestamp
      */
     private fun persistBillingData(billing: Billing, rates: FloatArray) {
-        val savedData = billingRepository?.saveBillingData(billing, rates)
-        _savedBillingData.value = savedData
-        Log.d(TAG, "✅ StateFlow updated: savedBillingData = ${_savedBillingData.value != null}, isValid = ${savedData?.isValid()}")
-        appendLog("Billing data saved for 30 days")
+        val success = billingRepository?.saveBillingData(billing, rates)
+
+        if (success == true) {
+            val serialNumber = billing.SerialNumber
+            if (!serialNumber.isNullOrEmpty()) {
+                val savedData = billingRepository?.loadBillingData(serialNumber)
+                _savedBillingData.value = savedData
+                Log.d(TAG, "✅ Billing data saved to CSV for $serialNumber")
+                appendLog("Billing data saved to CSV")  // ← Changed message
+            }
+        }
     }
     /**
      * Clear saved billing data manually and reset meter to Not Inspected
      */
     fun clearSavedBillingData() {
-        billingRepository?.clear()
+        val serialNumber = meter?.serialNumber
+
+        if (!serialNumber.isNullOrEmpty()) {
+            billingRepository?.clearBillingData(serialNumber)  // ← Changed method
+        }
+
         _savedBillingData.value = null
 
-        // Clear meter readDate to return to Not Inspected state
         meter?.let { currentMeter ->
             clearMeterReadDate(currentMeter.serialNumber)
         }
