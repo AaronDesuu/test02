@@ -88,6 +88,9 @@ class BatchPrintManager(
         }
     }
 
+    init {
+        dlmsViewModel.initializeForPrinting(context)
+    }
     /**
      * Check if meter has valid billing data (either from savedBillingData OR from CSV)
      * ✅ FIXED: Now checks BOTH temporary savedBillingData AND persistent CSV data

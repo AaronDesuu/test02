@@ -122,6 +122,19 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
+     * Initialize components needed for printing without Bluetooth connection
+     */
+    fun initializeForPrinting(context: Context) {
+        mContext = context
+        billingRepository = BillingDataRepository(context)
+        readDataPrinting.setContext(context)
+
+        readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
+            updateMeterBillingPrintDate(serialNumber)
+        }
+    }
+
+    /**
      * Initialize DLMS - delegates to DLMSInit
      */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
