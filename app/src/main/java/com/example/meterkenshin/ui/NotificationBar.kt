@@ -39,14 +39,15 @@ import kotlinx.coroutines.delay
 
 /**
  * Universal Notification Bar Component
- * Displays app-wide notifications at bottom of screen
+ * Displays app-wide notifications at top or bottom of screen based on fromTop parameter
  * Usage: Add NotificationBar() to your screen's root Box/Scaffold
  */
 @Composable
 fun NotificationBar(
+    modifier: Modifier = Modifier,
     notification: Notification?,
     onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
+    fromTop: Boolean = false,
 ) {
     var visible by remember(notification) { mutableStateOf(notification != null) }
 
@@ -64,16 +65,16 @@ fun NotificationBar(
     AnimatedVisibility(
         visible = visible && notification != null,
         enter = slideInVertically(
-            initialOffsetY = { it }, // Slide from bottom
+            initialOffsetY = { if (fromTop) -it else it },
             animationSpec = tween(300)
         ) + fadeIn(animationSpec = tween(300)),
         exit = slideOutVertically(
-            targetOffsetY = { it }, // Slide to bottom
+            targetOffsetY = { if (fromTop) -it else it },
             animationSpec = tween(300)
         ) + fadeOut(animationSpec = tween(300)),
         modifier = modifier
             .fillMaxWidth()
-            .zIndex(999f) // Ensure it's on top
+            .zIndex(999f)
     ) {
         notification?.let {
             NotificationContent(notification = it)

@@ -8,6 +8,7 @@ object AppPreferences {
     private const val PREFS_NAME = "MeterKenshinSettings"
     private const val KEY_JSON_SAVING_ENABLED = "json_saving_enabled"
     private const val KEY_PRINTING_ENABLED = "printing_enabled"  // ADD THIS
+    private const val KEY_NOTIFICATION_FROM_TOP = "notification_from_top"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -28,5 +29,14 @@ object AppPreferences {
 
     fun setPrintingEnabled(context: Context, enabled: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_PRINTING_ENABLED, enabled) }
+    }
+
+
+    fun isNotificationFromTop(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_NOTIFICATION_FROM_TOP, false)
+    }
+
+    fun setNotificationFromTop(context: Context, fromTop: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_NOTIFICATION_FROM_TOP, fromTop) }
     }
 }

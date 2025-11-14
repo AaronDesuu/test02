@@ -1,7 +1,6 @@
 package com.example.meterkenshin.ui.component.card
 
 import android.annotation.SuppressLint
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,6 +42,7 @@ import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.ui.component.dialog.PrinterStatusErrorDialog
 import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -97,7 +97,7 @@ fun SavedBillingDataCard(
     // Function to attempt printing using PrinterStatusHelper
     fun attemptPrint() {
         if (!isPrintingEnabled) {
-            Toast.makeText(context, "Printing is disabled in settings", Toast.LENGTH_SHORT).show()
+            NotificationManager.showWarning("Printing is disabled in settings")
             return
         }
 
@@ -116,11 +116,7 @@ fun SavedBillingDataCard(
                     // All checks passed - proceed with printing
                     onPrintReceipt()
 
-                    Toast.makeText(
-                        context,
-                        "✅ Printing receipt...",
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    NotificationManager.showSuccess("Printing receipt...")
 
                     // Disable button for 5 seconds to prevent double printing
                     isPrintButtonEnabled = false
