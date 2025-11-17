@@ -329,10 +329,8 @@ class MeterReadingViewModel : ViewModel() {
                 // You can add RSSI to Meter model if needed
             )
 
-            _uiState.value = _uiState.value.copy(
-                allMeters = currentMeters,
-                filteredMeters = filterMeters(currentMeters, _searchQuery.value)
-            )
+            _uiState.value = _uiState.value.copy(allMeters = currentMeters)
+            reapplyCurrentState()
 
             Log.d(TAG, "Updated meter ${meter.serialNumber} as nearby (RSSI: $rssi)")
         }
@@ -509,10 +507,8 @@ class MeterReadingViewModel : ViewModel() {
         }
 
         if (updated) {
-            _uiState.value = _uiState.value.copy(
-                allMeters = currentMeters,
-                filteredMeters = filterMeters(currentMeters, _searchQuery.value)
-            )
+            _uiState.value = _uiState.value.copy(allMeters = currentMeters)
+            reapplyCurrentState()
         }
     }
 
@@ -679,6 +675,60 @@ class MeterReadingViewModel : ViewModel() {
                     meter.location.lowercase().contains(lowerQuery) ||
                     meter.bluetoothId?.lowercase()?.contains(lowerQuery) == true
         }
+    }
+
+    /**
+     * Reapply current filters and sorting after allMeters is updated
+     * Preserves user's active filter and sort state during BLE scan updates
+     */
+    private fun reapplyCurrentState() {
+        val currentFiltered = _uiState.value.filteredMeters
+        val currentAll = _uiState.value.allMeters
+
+        // Determine which filter is active by checking filtered vs all meters
+        val filtered = when {
+            // Check if a specific filter is applied by comparing sizes
+            currentFiltered.size < currentAll.size -> {
+                // Preserve filter by matching serial numbers from previous filtered list
+                val filteredSerials = currentFiltered.map { it.serialNumber }.toSet()
+                val refiltered = currentAll.filter { it.serialNumber in filteredSerials }
+
+                // If search query exists, apply it too
+                if (_searchQuery.value.isNotBlank()) {
+                    filterMeters(refiltered, _searchQuery.value)
+                } else {
+                    refiltered
+                }
+            }
+            // Only search query applied
+            _searchQuery.value.isNotBlank() -> filterMeters(currentAll, _searchQuery.value)
+            // No filters
+            else -> currentAll
+        }
+
+        // Reapply sorting
+        val sorted = when (_sortConfig.value.field) {
+            SortField.SERIAL_NUMBER -> {
+                if (_sortConfig.value.order == SortOrder.ASCENDING)
+                    filtered.sortedBy { it.serialNumber }
+                else
+                    filtered.sortedByDescending { it.serialNumber }
+            }
+            SortField.LOCATION -> {
+                if (_sortConfig.value.order == SortOrder.ASCENDING)
+                    filtered.sortedBy { it.location }
+                else
+                    filtered.sortedByDescending { it.location }
+            }
+            SortField.LAST_MAINTENANCE_DATE -> {
+                if (_sortConfig.value.order == SortOrder.ASCENDING)
+                    filtered.sortedWith(compareBy(nullsLast()) { it.readDate })
+                else
+                    filtered.sortedWith(compareByDescending(nullsLast()) { it.readDate })
+            }
+        }
+
+        _uiState.update { it.copy(filteredMeters = sorted) }
     }
 
     private fun parseDate(dateString: String): Date? {
@@ -852,12 +902,8 @@ class MeterReadingViewModel : ViewModel() {
                     withContext(Dispatchers.Main) {
                         val updatedMeters = loadMeterDataFromFile(context, filename)
                         if (updatedMeters is MeterLoadResult.Success) {
-                            _uiState.update {
-                                it.copy(
-                                    allMeters = updatedMeters.meters,
-                                    filteredMeters = filterMeters(updatedMeters.meters, _searchQuery.value)
-                                )
-                            }
+                            _uiState.update { it.copy(allMeters = updatedMeters.meters) }
+                            reapplyCurrentState()
                         }
                     }
                 }

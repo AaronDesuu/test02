@@ -93,13 +93,13 @@ import java.util.Locale
 @SuppressLint("MissingPermission")
 @Composable
 fun MeterListComponent(
+    modifier: Modifier = Modifier,
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     onMeterClick: (Meter) -> Unit = {},
     showSearch: Boolean = true,
     showStatistics: Boolean = true,
     maxItemsToShow: Int? = null, // null = show all, number = limit items
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     customHeader: (@Composable () -> Unit)? = null,
     customEmptyState: (@Composable () -> Unit)? = null,
     useScrolling: Boolean = true
@@ -201,7 +201,7 @@ fun MeterListComponent(
     }
     // Load meters when CSV is available
     LaunchedEffect(isMeterCsvUploaded, Unit) {
-        if (isMeterCsvUploaded) {
+        if (isMeterCsvUploaded && uiState.allMeters.isEmpty()) {
             val fileToLoad = if (File(
                     context.getExternalFilesDir(null),
                     "app_files/$currentMeterFile"
