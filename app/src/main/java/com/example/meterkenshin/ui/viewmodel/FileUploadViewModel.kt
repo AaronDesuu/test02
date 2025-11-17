@@ -227,7 +227,20 @@ class FileUploadViewModel : ViewModel() {
                     }
                 }
 
-                // Delete all JSON billing files from externalFilesDir (format: YYYYMM_SerialNumber.json)
+                // NEW: Delete billing JSON files from app_files/billing
+                val billingDir = File(appFilesDir, "billing")
+                if (billingDir.exists() && billingDir.isDirectory) {
+                    billingDir.listFiles()?.forEach { file ->
+                        if (file.name.matches(Regex("\\d{6}_\\w+\\.json"))) {
+                            if (file.delete()) {
+                                deletedCount++
+                                Log.i(TAG, "Deleted billing JSON from app_files/billing: ${file.name}")
+                            }
+                        }
+                    }
+                }
+
+                // Delete billing JSON from external files dir (existing code)
                 externalFilesDir?.listFiles()?.forEach { file ->
                     if (file.name.matches(Regex("\\d{6}_\\w+\\.json"))) {
                         if (file.delete()) {
