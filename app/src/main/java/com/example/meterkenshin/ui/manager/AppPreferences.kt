@@ -7,8 +7,9 @@ import androidx.core.content.edit
 object AppPreferences {
     private const val PREFS_NAME = "MeterKenshinSettings"
     private const val KEY_JSON_SAVING_ENABLED = "json_saving_enabled"
-    private const val KEY_PRINTING_ENABLED = "printing_enabled"  // ADD THIS
+    private const val KEY_PRINTING_ENABLED = "printing_enabled"
     private const val KEY_NOTIFICATION_FROM_TOP = "notification_from_top"
+    private const val KEY_DLMS_CONFIRM_ENABLED = "dlms_confirm_enabled"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -43,5 +44,13 @@ object AppPreferences {
     fun clearAll(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit { clear() }
+    }
+
+    fun isDlmsConfirmEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_DLMS_CONFIRM_ENABLED, true)
+    }
+
+    fun setDlmsConfirmEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_DLMS_CONFIRM_ENABLED, enabled) }
     }
 }

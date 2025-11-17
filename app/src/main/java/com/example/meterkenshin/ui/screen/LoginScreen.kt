@@ -26,7 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.UserDatabase
-import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.ui.manager.SessionManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

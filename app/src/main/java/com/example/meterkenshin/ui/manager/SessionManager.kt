@@ -1,4 +1,4 @@
-package com.example.meterkenshin.manager
+package com.example.meterkenshin.ui.manager
 
 import android.annotation.SuppressLint
 import android.content.Context

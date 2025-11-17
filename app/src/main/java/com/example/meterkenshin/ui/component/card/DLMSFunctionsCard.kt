@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.component.card
 
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -11,6 +12,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.example.meterkenshin.ui.manager.AppPreferences
 
 /**
  * DLMS Functions Card Component
@@ -25,6 +31,7 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun DLMSFunctionsCard(
+    context: Context,
     modifier: Modifier = Modifier,
     meterActivate: Int = 0,
     onRegistration: () -> Unit,
@@ -35,6 +42,11 @@ fun DLMSFunctionsCard(
     onSetClock: () -> Unit,
     isProcessing: Boolean = false,
 ) {
+    var showConfirmDialog by remember { mutableStateOf(false) }
+    var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var dialogTitle by remember { mutableStateOf("") }
+    var dialogMessage by remember { mutableStateOf("") }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -77,7 +89,16 @@ fun DLMSFunctionsCard(
             DLMSFunctionButton(
                 text = "Read data",
                 icon = Icons.Default.Assessment,
-                onClick = onReadData,
+                onClick = {
+                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                        dialogTitle = "Read Data"
+                        dialogMessage = "Read meter data?"
+                        pendingAction = onReadData
+                        showConfirmDialog = true
+                    } else {
+                        onReadData()
+                    }
+                },
                 enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -85,7 +106,16 @@ fun DLMSFunctionsCard(
             DLMSFunctionButton(
                 text = "Load profile",
                 icon = Icons.Default.Storage,
-                onClick = onLoadProfile,
+                onClick = {
+                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                        dialogTitle = "Load Profile"
+                        dialogMessage = "Load meter profile?"
+                        pendingAction = onLoadProfile
+                        showConfirmDialog = true
+                    } else {
+                        onLoadProfile()
+                    }
+                },
                 enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -93,7 +123,16 @@ fun DLMSFunctionsCard(
             DLMSFunctionButton(
                 text = "Event log",
                 icon = Icons.Default.Event,
-                onClick = onEventLog,
+                onClick = {
+                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                        dialogTitle = "Event Log"
+                        dialogMessage = "Retrieve event log?"
+                        pendingAction = onEventLog
+                        showConfirmDialog = true
+                    } else {
+                        onEventLog()
+                    }
+                },
                 enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -101,7 +140,16 @@ fun DLMSFunctionsCard(
             DLMSFunctionButton(
                 text = "Billing data",
                 icon = Icons.Default.Payment,
-                onClick = onBillingData,
+                onClick = {
+                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                        dialogTitle = "Billing Data"
+                        dialogMessage = "Retrieve billing data?"
+                        pendingAction = onBillingData
+                        showConfirmDialog = true
+                    } else {
+                        onBillingData()
+                    }
+                },
                 enabled = !isProcessing && meterActivate != 0
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -110,9 +158,51 @@ fun DLMSFunctionsCard(
             DLMSFunctionButton(
                 text = "Set Clock",
                 icon = Icons.Default.Schedule,
-                onClick = onSetClock,
+                onClick = {
+                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                        dialogTitle = "Set Clock"
+                        dialogMessage = "Set meter clock to current time?"
+                        pendingAction = onSetClock
+                        showConfirmDialog = true
+                    } else {
+                        onSetClock()
+                    }
+                },
                 enabled = !isProcessing  // No meterActivate check
             )
+
+            // Confirmation Dialog
+            if (showConfirmDialog) {
+                AlertDialog(
+                    onDismissRequest = {
+                        showConfirmDialog = false
+                        pendingAction = null
+                    },
+                    title = { Text(dialogTitle) },
+                    text = { Text(dialogMessage) },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                pendingAction?.invoke()
+                                showConfirmDialog = false
+                                pendingAction = null
+                            }
+                        ) {
+                            Text("Confirm")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = {
+                                showConfirmDialog = false
+                                pendingAction = null
+                            }
+                        ) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
         }
     }
 }

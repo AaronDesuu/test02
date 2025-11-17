@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.RequiredFile
-import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.printer.BluetoothPrinterManager
 import com.example.meterkenshin.ui.component.BluetoothStatusComponent

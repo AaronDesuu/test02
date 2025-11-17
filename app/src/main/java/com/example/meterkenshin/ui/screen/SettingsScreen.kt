@@ -27,7 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.example.meterkenshin.BuildConfig
-import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.ui.component.card.AppSettingsCard
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 
@@ -68,34 +69,95 @@ fun SettingsScreen(
 
         // Data Management Section
         SettingsSection(title = "Data Management") {
-            JsonSavingToggleCard(context = context)
-            PrintingToggleCard(context = context)
+            var jsonEnabled by remember { mutableStateOf(AppPreferences.isJsonSavingEnabled(context)) }
+            var printEnabled by remember { mutableStateOf(AppPreferences.isPrintingEnabled(context)) }
+
+            AppSettingsCard(
+                title = "JSON Saving",
+                description = if (jsonEnabled)
+                    "Enabled - Billing data will be saved as JSON"
+                else "Disabled - No JSON files will be created",
+                icon = Icons.Default.Save,
+                isEnabled = jsonEnabled,
+                enabledColor = Color(0xFF4CAF50),
+                onToggle = {
+                    jsonEnabled = it
+                    AppPreferences.setJsonSavingEnabled(context, it)
+                }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            AppSettingsCard(
+                title = "Receipt Printing",
+                description = if (printEnabled)
+                    "Enabled - Print dialogs will be shown"
+                else "Disabled - Printing will be skipped automatically",
+                icon = Icons.Default.Print,
+                isEnabled = printEnabled,
+                enabledColor = Color(0xFF2196F3),
+                onToggle = {
+                    printEnabled = it
+                    AppPreferences.setPrintingEnabled(context, it)
+                }
+            )
+        }
+
+// App Settings Section
+        SettingsSection(title = "App Settings") {
+            var notifFromTop by remember { mutableStateOf(AppPreferences.isNotificationFromTop(context)) }
+            var dlmsConfirm by remember { mutableStateOf(AppPreferences.isDlmsConfirmEnabled(context)) }
+
+            AppSettingsCard(
+                title = "Notification Position",
+                description = if (notifFromTop) "Show from top" else "Show from bottom",
+                icon = if (notifFromTop) Icons.Default.VerticalAlignTop else Icons.Default.VerticalAlignBottom,
+                isEnabled = notifFromTop,
+                enabledColor = Color(0xFF2196F3),
+                onToggle = {
+                    notifFromTop = it
+                    AppPreferences.setNotificationFromTop(context, it)
+                }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            AppSettingsCard(
+                title = "DLMS Confirm Dialog",
+                description = if (dlmsConfirm)
+                    "Enabled - Show confirmation before actions"
+                else "Disabled - Execute actions directly",
+                icon = Icons.Default.CheckCircle,
+                isEnabled = dlmsConfirm,
+                enabledColor = Color(0xFF4CAF50),
+                onToggle = {
+                    dlmsConfirm = it
+                    AppPreferences.setDlmsConfirmEnabled(context, it)
+                }
+            )
         }
 
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 8.dp),
             thickness = DividerDefaults.Thickness,
-            color = DividerDefaults.color
+            color = Color.Transparent
         )
 
-        // Notification Settings Section
-        SettingsSection(title = "Notification Settings") {
-            NotificationPositionToggleCard(context = context)
-        }
-
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
-            thickness = DividerDefaults.Thickness,
-            color = DividerDefaults.color
-        )
-
-        // Bluetooth Permissions Section
-        SettingsSection(title = "Bluetooth Permissions") {
+        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
             BluetoothPermissionCard(context = context)
         }
 
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 8.dp),
+            thickness = DividerDefaults.Thickness,
+            color = Color.Transparent
+        )
+
+        Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+            HardResetCard(
+                onResetClick = { showHardResetDialog = true },
+                isResetting = isResetting
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 16.dp),
             thickness = DividerDefaults.Thickness,
             color = DividerDefaults.color
         )
@@ -110,14 +172,6 @@ fun SettingsScreen(
             thickness = DividerDefaults.Thickness,
             color = DividerDefaults.color
         )
-
-        // Hard Reset Section
-        SettingsSection(title = "App Reset") {
-            HardResetCard(
-                onResetClick = { showHardResetDialog = true },
-                isResetting = isResetting
-            )
-        }
 
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 8.dp),
@@ -175,58 +229,6 @@ fun SettingsScreen(
 }
 
 @Composable
-fun NotificationPositionToggleCard(context: Context) {
-    var isFromTop by remember { mutableStateOf(AppPreferences.isNotificationFromTop(context)) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = if (isFromTop) Icons.Default.VerticalAlignTop else Icons.Default.VerticalAlignBottom,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text(
-                        text = "Notification Position",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = if (isFromTop) "Show from top" else "Show from bottom",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            Switch(
-                checked = isFromTop,
-                onCheckedChange = { enabled ->
-                    isFromTop = enabled
-                    AppPreferences.setNotificationFromTop(context, enabled)
-                }
-            )
-        }
-    }
-}
-
-@Composable
 fun SettingsSection(
     title: String,
     content: @Composable () -> Unit
@@ -280,116 +282,6 @@ fun UserProfileCard(
                 icon = Icons.Default.AccessTime,
                 title = "Last Login",
                 value = loginTime
-            )
-        }
-    }
-}
-
-@Composable
-fun JsonSavingToggleCard(context: Context) {
-    var isEnabled by remember {
-        mutableStateOf(AppPreferences.isJsonSavingEnabled(context))
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    isEnabled = !isEnabled
-                    AppPreferences.setJsonSavingEnabled(context, isEnabled)
-                }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Save,
-                contentDescription = null,
-                tint = if (isEnabled) Color(0xFF4CAF50) else Color.Gray
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "JSON Saving",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = if (isEnabled) "Enabled - Billing data will be saved as JSON"
-                    else "Disabled - No JSON files will be created",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = {
-                    isEnabled = it
-                    AppPreferences.setJsonSavingEnabled(context, it)
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun PrintingToggleCard(context: Context) {
-    var isEnabled by remember {
-        mutableStateOf(AppPreferences.isPrintingEnabled(context))
-    }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    isEnabled = !isEnabled
-                    AppPreferences.setPrintingEnabled(context, isEnabled)
-                }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Print,
-                contentDescription = null,
-                tint = if (isEnabled) Color(0xFF2196F3) else Color.Gray
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Receipt Printing",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                Text(
-                    text = if (isEnabled) "Enabled - Print dialogs will be shown"
-                    else "Disabled - Printing will be skipped automatically",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Switch(
-                checked = isEnabled,
-                onCheckedChange = {
-                    isEnabled = it
-                    AppPreferences.setPrintingEnabled(context, it)
-                }
             )
         }
     }

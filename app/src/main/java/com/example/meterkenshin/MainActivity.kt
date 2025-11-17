@@ -14,13 +14,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
-import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.permissions.BluetoothPermissionHandler
 import com.example.meterkenshin.ui.theme.MeterKenshinTheme
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
@@ -67,6 +68,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)

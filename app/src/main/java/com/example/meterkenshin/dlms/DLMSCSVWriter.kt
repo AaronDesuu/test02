@@ -50,7 +50,7 @@ object DLMSCSVWriter {
             val filePrefix = when (type) {
                 CSVType.BILLING -> "BD"
                 CSVType.LOAD_PROFILE -> "LP"
-                CSVType.EVENT_LOG -> "EV"
+                CSVType.EVENT_LOG -> "EL"
             }
             val filename = "${serialNumber}_${filePrefix}_${timestamp}.csv"
             val file = File(externalDir, filename)

@@ -53,7 +53,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.R
-import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.model.UserSession
 import kotlinx.coroutines.launch

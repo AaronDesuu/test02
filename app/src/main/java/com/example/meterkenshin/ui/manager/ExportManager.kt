@@ -40,7 +40,7 @@ class ExportManager(private val context: Context) {
         val allFiles = getAvailableFiles()
 
         val lpFiles = mutableListOf<File>()
-        val evFiles = mutableListOf<File>()
+        val elFiles = mutableListOf<File>()
         val bdFiles = mutableListOf<File>()
         val otherFiles = mutableListOf<File>()
 
@@ -48,7 +48,7 @@ class ExportManager(private val context: Context) {
             val fileName = file.name.uppercase()
             when {
                 fileName.contains("LP") -> lpFiles.add(file)
-                fileName.contains("EV") -> evFiles.add(file)
+                fileName.contains("EL") -> elFiles.add(file)
                 fileName.contains("BD") -> bdFiles.add(file)
                 else -> otherFiles.add(file)
             }
@@ -56,7 +56,7 @@ class ExportManager(private val context: Context) {
 
         return buildList {
             if (lpFiles.isNotEmpty()) add(FileGroup("Load Profile", lpFiles))
-            if (evFiles.isNotEmpty()) add(FileGroup("Event", evFiles))
+            if (elFiles.isNotEmpty()) add(FileGroup("Event Log", elFiles))
             if (bdFiles.isNotEmpty()) add(FileGroup("Billing Data", bdFiles))
             if (otherFiles.isNotEmpty()) add(FileGroup("Other", otherFiles))
         }

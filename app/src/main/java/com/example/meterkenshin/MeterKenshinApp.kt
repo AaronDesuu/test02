@@ -12,7 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import com.example.meterkenshin.manager.SessionManager
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.AppScreen
 import com.example.meterkenshin.ui.AppWithDrawer

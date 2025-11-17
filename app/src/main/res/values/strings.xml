@@ -13,7 +13,7 @@
     <string name="login_success">Login successful</string>
 
     <!-- Home Screen -->
-    <string name="home_title">MeterKenshin Dashboard</string>
+    <string name="home_title">Dashboard</string>
     <string name="welcome_message">Welcome, %1$s!</string>
     <string name="user_role">Role: %1$s</string>
     <string name="logout_button">Logout</string>

@@ -213,6 +213,7 @@ fun MeterDetailScreen(
 
             // 2. DLMS function buttons - NOW IN SEPARATE FILE
             DLMSFunctionsCard(
+                context = context,
                 meterActivate = activeMeter.activate,  // This will update when CSV is written
                 onRegistration = {
                     if (meter.activate == 0) {
