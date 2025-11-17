@@ -217,6 +217,10 @@ class FileUploadViewModel : ViewModel() {
                 val externalFilesDir = context.getExternalFilesDir(null)
                 var deletedCount = 0
 
+                // First, read serial numbers from meter.csv before deleting it
+                val meterSerials = readMeterSerialNumbers(appFilesDir)
+                Log.i(TAG, "Found ${meterSerials.size} meter serial numbers in meter.csv")
+
                 // Delete all files containing "meter" in app_files folder
                 appFilesDir.listFiles()?.forEach { file ->
                     if (file.name.contains("meter", ignoreCase = true)) {
@@ -227,25 +231,33 @@ class FileUploadViewModel : ViewModel() {
                     }
                 }
 
-                // NEW: Delete billing JSON files from app_files/billing
+                // Delete billing JSON files ONLY for meters that existed in meter.csv
                 val billingDir = File(appFilesDir, "billing")
                 if (billingDir.exists() && billingDir.isDirectory) {
                     billingDir.listFiles()?.forEach { file ->
-                        if (file.name.matches(Regex("\\d{6}_\\w+\\.json"))) {
-                            if (file.delete()) {
-                                deletedCount++
-                                Log.i(TAG, "Deleted billing JSON from app_files/billing: ${file.name}")
+                        val match = Regex("\\d{6}_(\\w+)\\.json").matchEntire(file.name)
+                        if (match != null) {
+                            val serialNumber = match.groupValues[1]
+                            if (meterSerials.contains(serialNumber)) {
+                                if (file.delete()) {
+                                    deletedCount++
+                                    Log.i(TAG, "Deleted billing JSON: ${file.name}")
+                                }
                             }
                         }
                     }
                 }
 
-                // Delete billing JSON from external files dir (existing code)
+                // Delete billing JSON from external files dir (only matching serials)
                 externalFilesDir?.listFiles()?.forEach { file ->
-                    if (file.name.matches(Regex("\\d{6}_\\w+\\.json"))) {
-                        if (file.delete()) {
-                            deletedCount++
-                            Log.i(TAG, "Deleted billing JSON: ${file.name}")
+                    val match = Regex("\\d{6}_(\\w+)\\.json").matchEntire(file.name)
+                    if (match != null) {
+                        val serialNumber = match.groupValues[1]
+                        if (meterSerials.contains(serialNumber)) {
+                            if (file.delete()) {
+                                deletedCount++
+                                Log.i(TAG, "Deleted external billing JSON: ${file.name}")
+                            }
                         }
                     }
                 }
@@ -257,6 +269,33 @@ class FileUploadViewModel : ViewModel() {
                 false
             }
         }
+    }
+
+    /**
+     * Read all serial numbers from meter.csv files
+     */
+    private fun readMeterSerialNumbers(appFilesDir: File): Set<String> {
+        val serials = mutableSetOf<String>()
+
+        try {
+            // Check both meter.csv and YYYYMM_meter.csv
+            appFilesDir.listFiles()?.forEach { file ->
+                if (file.name.contains("meter", ignoreCase = true) && file.name.endsWith(".csv")) {
+                    file.readLines().drop(1).forEach { line ->
+                        val columns = line.split(',')
+                        // Serial number is at index 2
+                        val serial = columns.getOrNull(2)?.trim()?.removeSurrounding("\"")
+                        if (!serial.isNullOrEmpty()) {
+                            serials.add(serial)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading meter serial numbers", e)
+        }
+
+        return serials
     }
 
     private suspend fun clearAllBillingData(context: Context): Boolean {
