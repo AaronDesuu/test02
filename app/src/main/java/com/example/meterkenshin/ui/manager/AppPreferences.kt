@@ -39,4 +39,9 @@ object AppPreferences {
     fun setNotificationFromTop(context: Context, fromTop: Boolean) {
         getPrefs(context).edit { putBoolean(KEY_NOTIFICATION_FROM_TOP, fromTop) }
     }
+
+    fun clearAll(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit { clear() }
+    }
 }

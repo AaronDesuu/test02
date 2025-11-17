@@ -1,8 +1,10 @@
 package com.example.meterkenshin
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -28,6 +30,7 @@ import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.screen.ExportScreen
 import kotlinx.coroutines.delay
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("MissingPermission")
 @Composable
 fun MeterKenshinApp(
@@ -211,7 +214,8 @@ fun MeterKenshinApp(
 
                 currentScreen == "settings" -> {
                     SettingsScreen(
-                        sessionManager = sessionManager
+                        sessionManager = sessionManager,
+                        fileUploadViewModel = fileUploadViewModel
                     )
                 }
 

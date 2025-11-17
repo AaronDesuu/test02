@@ -176,6 +176,33 @@ fun BatchProcessingDialog(
                         )
                     }
 
+                    // Inside the dialog content, add this section before the buttons:
+
+                    if (errorCount > 0 && !awaitingUserAction) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Errors: $errorCount",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                // Display failed meters list if available
+                                Text(
+                                    text = "Failed to process some meters",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                        }
+                    }
+
                     // Print/Save Options (when awaiting user action and NOT showing use existing)
                     if (awaitingUserAction && !showUseExistingDialog) {
                         Spacer(modifier = Modifier.height(4.dp))

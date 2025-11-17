@@ -3,6 +3,7 @@ package com.example.meterkenshin.ui.screen
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Environment
 import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,17 +22,27 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import com.example.meterkenshin.BuildConfig
 import com.example.meterkenshin.manager.SessionManager
 import com.example.meterkenshin.ui.manager.AppPreferences
+import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 
 @Composable
 fun SettingsScreen(
-    sessionManager: SessionManager
+    sessionManager: SessionManager,
+    fileUploadViewModel: FileUploadViewModel
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
+    val scope = rememberCoroutineScope()
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showHardResetDialog by remember { mutableStateOf(false) }
+    var showDeleteExportedDialog by remember { mutableStateOf(false) }
+    var isResetting by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -100,6 +111,20 @@ fun SettingsScreen(
             color = DividerDefaults.color
         )
 
+        // Hard Reset Section
+        SettingsSection(title = "App Reset") {
+            HardResetCard(
+                onResetClick = { showHardResetDialog = true },
+                isResetting = isResetting
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
+            thickness = DividerDefaults.Thickness,
+            color = DividerDefaults.color
+        )
+
         // Help & Support Section
         SettingsSection(title = "Help & Support") {
             HelpSupportCard(
@@ -110,6 +135,42 @@ fun SettingsScreen(
 
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
+    // Hard Reset Confirmation Dialog
+    if (showHardResetDialog) {
+        HardResetConfirmationDialog(
+            onDismiss = { showHardResetDialog = false },
+            onConfirm = {
+                showHardResetDialog = false
+                showDeleteExportedDialog = true
+            }
+        )
+    }
+
+    // Delete Exported Files Dialog
+    if (showDeleteExportedDialog) {
+        DeleteExportedFilesDialog(
+            onDismiss = { showDeleteExportedDialog = false },
+            onYes = {
+                showDeleteExportedDialog = false
+                isResetting = true
+                scope.launch {
+                    performHardReset(context, deleteExported = true)
+                    fileUploadViewModel.checkExistingFiles(context)
+                    isResetting = false
+                }
+            },
+            onNo = {
+                showDeleteExportedDialog = false
+                isResetting = true
+                scope.launch {
+                    performHardReset(context, deleteExported = true)
+                    fileUploadViewModel.checkExistingFiles(context)
+                    isResetting = false
+                }
+            }
+        )
     }
 }
 
@@ -521,4 +582,212 @@ fun HelpDialog(onDismiss: () -> Unit) {
             }
         }
     )
+}
+
+@Composable
+fun HardResetCard(
+    onResetClick: () -> Unit,
+    isResetting: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = "Hard Reset",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Hard Reset App",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    Text(
+                        text = "Delete all app data and optionally exported files",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onResetClick,
+                enabled = !isResetting,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                if (isResetting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = MaterialTheme.colorScheme.onError,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Resetting...")
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.RestartAlt,
+                        contentDescription = "Reset",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Hard Reset")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HardResetConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = { Text("Hard Reset App?") },
+        text = {
+            Text("This will delete ALL app data including:\n\n• Meter CSV files\n• Printer CSV files\n• Rate CSV files\n• Billing JSON files\n• App settings\n\nThis action cannot be undone!")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Continue")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun DeleteExportedFilesDialog(
+    onDismiss: () -> Unit,
+    onYes: () -> Unit,
+    onNo: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Folder,
+                contentDescription = null
+            )
+        },
+        title = { Text("Delete Exported Files?") },
+        text = {
+            Text("Do you also want to delete exported files from the Download folder?\n\nThis includes all exported receipts and data files.")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onYes,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("Yes, Delete All")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onNo) {
+                Text("No, Keep Exported")
+            }
+        }
+    )
+}
+
+private suspend fun performHardReset(context: Context, deleteExported: Boolean) {
+    withContext(Dispatchers.IO) {
+        try {
+            // Delete app_files folder
+            val externalFilesDir = context.getExternalFilesDir(null)
+            if (externalFilesDir != null) {
+                val appFilesDir = File(externalFilesDir, "app_files")
+                deleteDirectory(appFilesDir)
+            }
+
+            val internalAppFilesDir = File(context.filesDir, "app_files")
+            deleteDirectory(internalAppFilesDir)
+
+            // Delete billing JSON files
+            externalFilesDir?.listFiles()?.forEach { file ->
+                if (file.name.matches(Regex("\\d{6}_\\w+\\.json"))) {
+                    file.delete()
+                }
+            }
+
+            // Clear preferences
+            AppPreferences.clearAll(context)
+
+            // Delete exported files if requested
+            if (deleteExported) {
+                deleteExportedFiles()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
+private fun deleteDirectory(directory: File) {
+    if (directory.exists()) {
+        directory.listFiles()?.forEach { file ->
+            if (file.isDirectory) {
+                deleteDirectory(file)
+            } else {
+                file.delete()
+            }
+        }
+        directory.delete()
+    }
+}
+
+private fun deleteExportedFiles() {
+    try {
+        val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+
+        downloadsDir.listFiles()?.forEach { file ->
+            if (file.name.contains("receipt", ignoreCase = true) ||
+                file.name.contains("meter", ignoreCase = true) ||
+                file.name.contains("export", ignoreCase = true)) {
+                file.delete()
+            }
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
 }
