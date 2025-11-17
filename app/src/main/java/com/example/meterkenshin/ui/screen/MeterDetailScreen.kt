@@ -45,6 +45,10 @@ import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.loadMeterRates
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Modern Meter Detail Screen with updated design and theme consistency
@@ -154,6 +158,28 @@ fun MeterDetailScreen(
     LaunchedEffect(pendingBillingData) {
         if (pendingBillingData != null) {
             showSaveJSONDialog = true
+        }
+    }
+
+    LaunchedEffect(meter.uid) {
+        // Reload meter from CSV to get latest activate state
+        val externalFilesDir = context.getExternalFilesDir(null)
+        val appFilesDir = File(externalFilesDir, "app_files")
+        val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
+        val filename = "${yearMonth}_meter.csv"
+        val meterFile = File(appFilesDir, filename)
+
+        if (meterFile.exists()) {
+            val lines = meterFile.readLines()
+            for (line in lines.drop(1)) { // Skip header
+                val columns = line.split(',')
+                val csvUid = columns.getOrNull(0)?.trim()?.removeSurrounding("\"")?.toIntOrNull()
+                if (csvUid == meter.uid) {
+                    val activate = columns.getOrNull(1)?.trim()?.removeSurrounding("\"")?.toIntOrNull() ?: 0
+                    registrationViewModel.updateCurrentMeter(meter.copy(activate = activate))
+                    break
+                }
+            }
         }
     }
 

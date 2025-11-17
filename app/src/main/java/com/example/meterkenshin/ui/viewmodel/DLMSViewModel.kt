@@ -85,6 +85,11 @@ class DLMSViewModel : ViewModel() {
     private val _showReadDataOptionsDialog = MutableStateFlow(false)
     val showReadDataOptionsDialog: StateFlow<Boolean> = _showReadDataOptionsDialog.asStateFlow()
 
+    fun updateCurrentMeter(updatedMeter: Meter) {
+        meter = updatedMeter
+        _currentMeter.value = updatedMeter
+    }
+
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         readDataPrinting.setPrinterViewModel(viewModel)
     }
