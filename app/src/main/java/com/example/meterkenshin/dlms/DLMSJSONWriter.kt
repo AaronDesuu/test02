@@ -13,6 +13,10 @@ import java.util.Locale
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.example.meterkenshin.utils.convertLocalDatetime
+import com.example.meterkenshin.utils.dateTimeToMonth
+import com.example.meterkenshin.utils.formattedMonthDay
+import com.example.meterkenshin.utils.getCurrentDateTime
 
 /**
  * DLMSJSONWriter - Handles JSON export of billing data
@@ -110,7 +114,7 @@ object DLMSJSONWriter {
                     Discount = 10.0f
                     Interest = 10.0f
                     Reader = "Fuji Taro"
-                    ReadDatetime = getNowDate()
+                    ReadDatetime = getCurrentDateTime()
                     Version = "v1.00.2"
                 }
 
@@ -269,63 +273,5 @@ object DLMSJSONWriter {
         } catch (e: Exception) {
             Log.e(TAG, "Error sharing multiple JSONs: ${e.message}", e)
         }
-    }
-
-    // Helper methods from DLMS.java
-
-
-    private val MonthList = arrayOf(
-        "----", "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    )
-
-    /**
-     * Convert datetime string to "Month Year" format
-     * Input: yyyy/MM/dd HH:mm:ss
-     * Output: "September 2024"
-     */
-    fun dateTimeToMonth(dateTime: String): String {
-        val monthIndex = dateTime.substring(5, 7).toInt()
-        val year = dateTime.substring(0, 4)
-        return "${MonthList[monthIndex]} $year"
-    }
-
-    /**
-     * Convert datetime to MM/dd/yyyy format
-     * Input: yyyy/MM/dd HH:mm:ss
-     * Output: MM/dd/yyyy
-     */
-    private fun convertLocalDatetime(yearMonDay: String): String {
-        return String.format(
-            "%s/%s/%s",
-            yearMonDay.substring(5, 7),  // Month
-            yearMonDay.substring(8, 10), // Day
-            yearMonDay.substring(0, 4)   // Year
-        )
-    }
-
-    /**
-     * Get current date/time in readable format
-     */
-    internal fun getNowDate(): String {
-        val sdf = SimpleDateFormat("EEE dd MMM yyyy HH:mm:ss", Locale.getDefault())
-        return sdf.format(Date())
-    }
-
-    /**
-     * Format month and day offset from current date
-     * Returns format: "Month DD, YYYY"
-     */
-    @SuppressLint("SimpleDateFormat", "DefaultLocale")
-    fun formattedMonthDay(monthOffset: Int, dayOffset: Int): String {
-        val calendar = java.util.Calendar.getInstance()
-        calendar.add(java.util.Calendar.MONTH, monthOffset)
-        calendar.add(java.util.Calendar.DATE, dayOffset)
-
-        val monthIndex = calendar.get(java.util.Calendar.MONTH) + 1
-        val day = calendar.get(java.util.Calendar.DATE)
-        val year = calendar.get(java.util.Calendar.YEAR)
-
-        return String.format("%s %2d, %4d", MonthList[monthIndex], day, year)
     }
 }
