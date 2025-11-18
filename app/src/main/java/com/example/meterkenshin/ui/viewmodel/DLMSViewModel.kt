@@ -718,6 +718,12 @@ class DLMSViewModel : ViewModel() {
                 if (success) {
                     appendLog("✅ Success to save billing data to JSON")
                     appendLog("Data was ${30 - savedData.daysRemaining()} days old")
+                    // Trigger share dialog if enabled
+                    mContext?.let { ctx ->
+                        if (AppPreferences.isAutoShareExportEnabled(ctx)) {
+                            DLMSJSONWriter.shareJSON(ctx, savedData.billing.SerialNumber)
+                        }
+                    }
                 } else {
                     appendLog("❌ Failed to save billing data to JSON")
                 }
@@ -748,6 +754,12 @@ class DLMSViewModel : ViewModel() {
 
                 if (success) {
                     appendLog("✅ Success to save billing data to JSON")
+                    // Trigger share dialog if enabled
+                    mContext?.let { ctx ->
+                        if (AppPreferences.isAutoShareExportEnabled(ctx)) {
+                            DLMSJSONWriter.shareJSON(ctx, billing.SerialNumber)
+                        }
+                    }
                 } else {
                     appendLog("❌ Failed to save billing data to JSON")
                 }

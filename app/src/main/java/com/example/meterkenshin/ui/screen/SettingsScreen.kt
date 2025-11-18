@@ -71,6 +71,7 @@ fun SettingsScreen(
         SettingsSection(title = "Data Management") {
             var jsonEnabled by remember { mutableStateOf(AppPreferences.isJsonSavingEnabled(context)) }
             var printEnabled by remember { mutableStateOf(AppPreferences.isPrintingEnabled(context)) }
+            var autoShareEnabled by remember { mutableStateOf(AppPreferences.isAutoShareExportEnabled(context)) }
 
             AppSettingsCard(
                 title = "JSON Saving",
@@ -85,7 +86,9 @@ fun SettingsScreen(
                     AppPreferences.setJsonSavingEnabled(context, it)
                 }
             )
+
             Spacer(modifier = Modifier.height(8.dp))
+
             AppSettingsCard(
                 title = "Receipt Printing",
                 description = if (printEnabled)
@@ -97,6 +100,22 @@ fun SettingsScreen(
                 onToggle = {
                     printEnabled = it
                     AppPreferences.setPrintingEnabled(context, it)
+                }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            AppSettingsCard(
+                title = "Auto-share Export",
+                description = if (autoShareEnabled)
+                    "Enabled - Share dialog appears after export"
+                else "Disabled - Files export silently to Download/kenshinApp",
+                icon = Icons.Default.Share,
+                isEnabled = autoShareEnabled,
+                enabledColor = Color(0xFFFF9800),
+                onToggle = {
+                    autoShareEnabled = it
+                    AppPreferences.setAutoShareExportEnabled(context, it)
                 }
             )
         }

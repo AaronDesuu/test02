@@ -131,9 +131,13 @@ fun HomeMeterList(
             }
 
             // Success state with meters
+            // Success state with meters
             else -> {
-                // Show latest 5 meters using simple Column (NO SCROLLING)
-                val metersToShow = uiState.filteredMeters.take(5)
+                // Filter meters with readDate, sort by most recent, take top 5
+                val metersToShow = uiState.filteredMeters
+                    .filter { it.readDate != null }
+                    .sortedByDescending { it.readDate }
+                    .take(5)
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(12.dp)

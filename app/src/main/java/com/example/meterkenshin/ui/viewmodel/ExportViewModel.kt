@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.ui.manager.ExportManager
 import com.example.meterkenshin.ui.manager.FileGroup
 import com.example.meterkenshin.ui.manager.NotificationManager
-
+import com.example.meterkenshin.ui.manager.AppPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +15,7 @@ import java.io.File
 
 class ExportViewModel(application: Application) : AndroidViewModel(application) {
     private val exportManager = ExportManager(application)
+    private val context = application
 
     private val _files = MutableStateFlow<List<File>>(emptyList())
     val files: StateFlow<List<File>> = _files.asStateFlow()
@@ -25,10 +26,8 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
     private val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting.asStateFlow()
 
-    // Add to ExportViewModel
     private val _fileGroups = MutableStateFlow<List<FileGroup>>(emptyList())
 
-    // Add search functionality
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -58,7 +57,7 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             _fileGroups.value = exportManager.getGroupedFiles()
             _files.value = exportManager.getAvailableFiles()
-            filterFiles() // Initialize filtered groups
+            filterFiles()
         }
     }
 
@@ -100,6 +99,12 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
                         "Successfully exported ${result.exportedCount} file(s) to Download/kenshinApp"
                     )
                     _selectedFiles.value = emptySet()
+
+                    // Check preference before showing share dialog
+                    if (result.exportedFiles.isNotEmpty() &&
+                        AppPreferences.isAutoShareExportEnabled(context)) {
+                        exportManager.shareFiles(result.exportedFiles)
+                    }
                 } else {
                     NotificationManager.showError(
                         "Export failed: ${result.errorMessage}"
@@ -113,25 +118,14 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    // New delete methods
     fun deleteFile(fileName: String) {
         viewModelScope.launch {
-            try {
-                val result = exportManager.deleteFile(fileName)
-                if (result.success) {
-                    // Remove from selection if it was selected
-                    val current = _selectedFiles.value.toMutableSet()
-                    current.remove(fileName)
-                    _selectedFiles.value = current
-
-                    // Reload files
-                    loadFiles()
-                    NotificationManager.showSuccess("File '$fileName' deleted successfully")
-                } else {
-                    NotificationManager.showError("Failed to delete file: ${result.errorMessage}")
-                }
-            } catch (e: Exception) {
-                NotificationManager.showError("Error deleting file: ${e.message}")
+            val result = exportManager.deleteFile(fileName)
+            if (result.success) {
+                NotificationManager.showSuccess("File deleted")
+                loadFiles()
+            } else {
+                NotificationManager.showError("Delete failed: ${result.errorMessage}")
             }
         }
     }
@@ -143,23 +137,13 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
                 return@launch
             }
 
-            try {
-                val selectedFileNames = _selectedFiles.value.toList()
-                val result = exportManager.deleteFiles(selectedFileNames)
-
-                if (result.success) {
-                    _selectedFiles.value = emptySet()
-                    loadFiles()
-                    NotificationManager.showSuccess(
-                        "Successfully deleted ${result.exportedCount} file(s)"
-                    )
-                } else {
-                    NotificationManager.showError(
-                        "Failed to delete files: ${result.errorMessage}"
-                    )
-                }
-            } catch (e: Exception) {
-                NotificationManager.showError("Error deleting files: ${e.message}")
+            val result = exportManager.deleteFiles(_selectedFiles.value)
+            if (result.success) {
+                NotificationManager.showSuccess("Deleted ${result.exportedCount} file(s)")
+                _selectedFiles.value = emptySet()
+                loadFiles()
+            } else {
+                NotificationManager.showError("Delete failed: ${result.errorMessage}")
             }
         }
     }

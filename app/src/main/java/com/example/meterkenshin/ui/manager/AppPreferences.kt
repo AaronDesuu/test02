@@ -10,6 +10,7 @@ object AppPreferences {
     private const val KEY_PRINTING_ENABLED = "printing_enabled"
     private const val KEY_NOTIFICATION_FROM_TOP = "notification_from_top"
     private const val KEY_DLMS_CONFIRM_ENABLED = "dlms_confirm_enabled"
+    private const val KEY_AUTO_SHARE_EXPORT = "auto_share_export"
 
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -23,9 +24,16 @@ object AppPreferences {
         getPrefs(context).edit { putBoolean(KEY_JSON_SAVING_ENABLED, enabled) }
     }
 
-    // ADD THESE METHODS
     fun isPrintingEnabled(context: Context): Boolean {
         return getPrefs(context).getBoolean(KEY_PRINTING_ENABLED, true) // default enabled
+    }
+
+    fun isAutoShareExportEnabled(context: Context): Boolean {
+        return getPrefs(context).getBoolean(KEY_AUTO_SHARE_EXPORT, true)
+    }
+
+    fun setAutoShareExportEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean(KEY_AUTO_SHARE_EXPORT, enabled) }
     }
 
     fun setPrintingEnabled(context: Context, enabled: Boolean) {

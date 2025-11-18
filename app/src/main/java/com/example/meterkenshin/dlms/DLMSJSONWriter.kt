@@ -10,6 +10,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.content.Context
+import android.content.Intent
+import androidx.core.content.FileProvider
 
 /**
  * DLMSJSONWriter - Handles JSON export of billing data
@@ -175,6 +178,96 @@ object DLMSJSONWriter {
         } catch (e: Exception) {
             Log.e(TAG, "Error saving billing JSON: ${e.message}", e)
             false
+        }
+    }
+
+    fun shareJSON(context: Context, serialNumber: String?) {
+        if (serialNumber.isNullOrEmpty()) return
+
+        try {
+            val currentYearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault())
+                .format(Date())
+            val filename = "${currentYearMonth}_${serialNumber}.json"
+
+            val externalDir = getJSONDirectory()
+            val file = File(externalDir, filename)
+
+            if (!file.exists()) {
+                Log.e(TAG, "JSON file not found: ${file.absolutePath}")
+                return
+            }
+
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+
+            val shareIntent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_STREAM, uri)
+                type = "application/json"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            context.startActivity(Intent.createChooser(shareIntent, "Share JSON file").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sharing JSON: ${e.message}", e)
+        }
+    }
+
+    fun shareMultipleJSON(context: Context, serialNumbers: List<String>) {
+        if (serialNumbers.isEmpty()) return
+
+        try {
+            val currentYearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault())
+                .format(Date())
+
+            val externalDir = getJSONDirectory()
+            val files = serialNumbers.mapNotNull { serialNumber ->
+                val filename = "${currentYearMonth}_${serialNumber}.json"
+                val file = File(externalDir, filename)
+                if (file.exists()) file else null
+            }
+
+            if (files.isEmpty()) {
+                Log.e(TAG, "No JSON files found to share")
+                return
+            }
+
+            val uris = files.map { file ->
+                FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    file
+                )
+            }
+
+            val shareIntent = Intent().apply {
+                if (uris.size == 1) {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_STREAM, uris.first())
+                } else {
+                    action = Intent.ACTION_SEND_MULTIPLE
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+                }
+                type = "application/json"
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            context.startActivity(Intent.createChooser(shareIntent, "Share ${files.size} JSON file(s)").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+
+            Log.i(TAG, "Sharing ${files.size} JSON files")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sharing multiple JSONs: ${e.message}", e)
         }
     }
 

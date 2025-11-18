@@ -5,10 +5,12 @@ import android.content.Context
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -119,6 +121,8 @@ class BatchProcessingManager(
     val useExistingDialogMeter: StateFlow<String?> = _useExistingDialogMeter.asStateFlow()
 
     private var useExistingChoice: UserChoice? = null
+
+    private val _savedJsonFiles = MutableStateFlow<List<String>>(emptyList())
 
     /**
      * Update print option
@@ -342,7 +346,7 @@ class BatchProcessingManager(
 
                             if (_shouldSaveJson.value) {
                                 Log.i(TAG, "Saving JSON for ${meter.serialNumber}")
-                                saveJson()
+                                saveJson(meter)
                                 delay(500)
                             }
                         }
@@ -378,6 +382,16 @@ class BatchProcessingManager(
                 updateProgressWithStep(0, "❌ Batch processing error: ${e.message}")
                 onComplete(false, emptyList())
             } finally {
+                // Share all collected JSON files if auto-share is enabled
+                if (_savedJsonFiles.value.isNotEmpty() &&
+                    AppPreferences.isAutoShareExportEnabled(context)) {
+                    withContext(Dispatchers.Main) {
+                        DLMSJSONWriter.shareMultipleJSON(context, _savedJsonFiles.value)
+                    }
+                }
+                // Clear the list for next batch
+                _savedJsonFiles.value = emptyList()
+
                 meterReadingViewModel.startBLEScanning()
                 _isProcessing.value = false
                 _awaitingUserAction.value = false
@@ -510,16 +524,28 @@ class BatchProcessingManager(
      * Save JSON for current meter
      * FIXED: Uses saveStoredBillingToJSON from DLMSViewModel
      */
-    private fun saveJson() {
+    private fun saveJson(meter: Meter) {
         val savedData = dlmsViewModel.savedBillingData.value
 
         if (savedData != null && savedData.isValid()) {
             Log.i(TAG, "Saving JSON for ${savedData.billing.SerialNumber}")
-            // FIXED: Use the correct method name from DLMSViewModel
-            dlmsViewModel.saveStoredBillingToJSON()
+            val success = DLMSJSONWriter.saveSingleBillingToJSON(
+                serialNumber = savedData.billing.SerialNumber,
+                billing = savedData.billing
+            )
+
+            if (success) {
+                savedData.billing.SerialNumber?.let { trackSavedJson(it) }
+            }
         } else {
             Log.e(TAG, "No valid billing data available for saving JSON")
         }
+    }
+
+    private fun trackSavedJson(serialNumber: String) {
+        val current = _savedJsonFiles.value.toMutableList()
+        current.add(serialNumber)
+        _savedJsonFiles.value = current
     }
 
     /**
