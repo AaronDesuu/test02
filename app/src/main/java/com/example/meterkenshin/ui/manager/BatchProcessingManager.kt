@@ -421,28 +421,28 @@ class BatchProcessingManager(
         var waitCount = 0
         val registrationState = dlmsViewModel.registrationState
 
-        // Wait for operation to start first (give it 2 seconds)
+        // Wait for operation to start
         var startWaitCount = 0
         while (!registrationState.value.isRunning && startWaitCount < 2) {
             delay(1000)
             startWaitCount++
         }
 
-        // Now wait for it to complete
+        // Wait for completion
         while (registrationState.value.isRunning && waitCount < READ_TIMEOUT_SECONDS) {
             delay(1000)
             waitCount++
         }
 
-        // ⭐ FIX: Check if we have valid billing data instead of just state
         val hasValidData = dlmsViewModel.savedBillingData.value?.isValid() == true
 
-        Log.d(
-            TAG, "Operation complete check: isComplete=${registrationState.value.isComplete}, " +
-                "isRunning=${registrationState.value.isRunning}, hasValidData=$hasValidData")
+        // Return false if timed out
+        if (waitCount >= READ_TIMEOUT_SECONDS) {
+            Log.e(TAG, "Operation timed out after $READ_TIMEOUT_SECONDS seconds")
+            return false
+        }
 
-        // Success if we have valid data OR state shows complete
-        return hasValidData
+        return hasValidData  // Only valid data = success
     }
 
     /**
