@@ -1,6 +1,5 @@
 package com.example.meterkenshin.ui.screen
 
-import android.annotation.SuppressLint
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,7 +30,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -58,15 +56,16 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.data.FileUploadState
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FileUploadScreen(
+    modifier: Modifier = Modifier,
     viewModel: FileUploadViewModel = viewModel(),
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+    meterReadingViewModel: MeterReadingViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val uploadState by viewModel.uploadState.collectAsState()
@@ -185,6 +184,10 @@ fun FileUploadScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
+                            // Clear meters when replacing meter.csv
+                            if (fileType == RequiredFile.FileType.METER) {
+                                meterReadingViewModel.clearMeters()  // ADD THIS
+                            }
                             filePickerLauncher.launch("*/*")
                             showReplaceDialog = null
                         }
@@ -209,6 +212,10 @@ fun FileUploadScreen(
                 confirmButton = {
                     TextButton(
                         onClick = {
+                            // Clear meters when deleting meter.csv
+                            if (fileType == RequiredFile.FileType.METER) {
+                                meterReadingViewModel.clearMeters()  // ADD THIS
+                            }
                             viewModel.removeFile(fileType, context)
                             showDeleteDialog = null
                         }
@@ -223,8 +230,6 @@ fun FileUploadScreen(
                 }
             )
         }
-
-        // Removed automatic navigation - users can stay on this screen even when files are uploaded
     }
 }
 

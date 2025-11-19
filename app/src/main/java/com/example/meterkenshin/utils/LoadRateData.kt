@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -11,6 +12,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.data.getDefaultRates
 import com.example.meterkenshin.data.RequiredFile
@@ -89,27 +91,60 @@ fun RateDataDialog(
     rateData: FloatArray,
     onDismiss: () -> Unit
 ) {
+    val rateLabels = listOf(
+        "Gen/Trans: kWh Rate" to 0,
+        "Gen/Trans: Demand Rate" to 1,
+        "Gen/Trans: Additional kWh" to 2,
+        "Distribution: Demand Rate" to 3,
+        "Distribution: Fixed Charge 1" to 4,
+        "Distribution: Fixed Charge 2" to 5,
+        "Sustainable CAPEX: kWh Rate 1" to 6,
+        "Sustainable CAPEX: kWh Rate 2" to 7,
+        "Other Charges: kWh Rate 1" to 8,
+        "Other Charges: kWh Rate 2" to 9,
+        "Universal: kWh Base" to 10,
+        "Universal: CAPEX Multiplier" to 11,
+        "Universal: kWh Rate 1" to 12,
+        "Universal: kWh Rate 2" to 13,
+        "Universal: kWh Rate 3" to 14,
+        "Universal: kWh Rate 4" to 15,
+        "VAT: kWh Rate 1" to 16,
+        "VAT: kWh Rate 2" to 17,
+        "VAT: kWh Rate 3" to 18,
+        "VAT: Distribution Multiplier" to 19,
+        "VAT: Other Charges Multiplier" to 20
+    )
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(text = "Rate Data")
+            Text(text = "Rate Data Variables")
         },
         text = {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(rateData.size) { index ->
-                    Text(
-                        text = String.format("Rate[%d]: %.6f", index, rateData[index]),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = FontFamily.Monospace
-                    )
+                items(rateLabels.size) { index ->
+                    val (label, rateIndex) = rateLabels[index]
+                    Column {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = String.format("Rate[%d]: %.6f", rateIndex, rateData.getOrNull(rateIndex) ?: 0f),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("OK")
+                Text("Close")
             }
         }
     )

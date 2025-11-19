@@ -181,7 +181,8 @@ fun MeterKenshinApp(
 
                 currentScreen == "file_upload" -> {
                     FileUploadScreen(
-                        viewModel = fileUploadViewModel
+                        viewModel = fileUploadViewModel,
+                        meterReadingViewModel = meterReadingViewModel
                     )
                 }
 

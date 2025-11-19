@@ -234,7 +234,8 @@ fun SettingsScreen(
                 scope.launch {
                     performHardReset(context, deleteExported = true)
                     fileUploadViewModel.checkExistingFiles(context)
-                    meterReadingViewModel.reloadMeters(context) // ADD THIS
+                    meterReadingViewModel.clearMeters() // Clear state first
+                    meterReadingViewModel.reloadMeters(context)
                     isResetting = false
                     NotificationManager.showSuccess("App reset complete")
                 }
@@ -245,7 +246,8 @@ fun SettingsScreen(
                 scope.launch {
                     performHardReset(context, deleteExported = false)
                     fileUploadViewModel.checkExistingFiles(context)
-                    meterReadingViewModel.reloadMeters(context) // ADD THIS
+                    meterReadingViewModel.clearMeters() // Clear state first
+                    meterReadingViewModel.reloadMeters(context)
                     isResetting = false
                     NotificationManager.showSuccess("App reset complete")
                 }

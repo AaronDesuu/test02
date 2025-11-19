@@ -947,6 +947,15 @@ class MeterReadingViewModel : ViewModel() {
         _uiState.update { it.copy(filteredMeters = it.allMeters) }
     }
 
+    fun clearMeters() {
+        _uiState.value = MeterReadingUiState(
+            isLoading = false,
+            allMeters = emptyList(),
+            filteredMeters = emptyList(),
+            errorMessage = null
+        )
+    }
+
     override fun onCleared() {
         super.onCleared()
         Log.i(TAG, "ViewModel cleared")
