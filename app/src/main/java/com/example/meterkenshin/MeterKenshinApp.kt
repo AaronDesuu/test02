@@ -215,7 +215,8 @@ fun MeterKenshinApp(
                 currentScreen == "settings" -> {
                     SettingsScreen(
                         sessionManager = sessionManager,
-                        fileUploadViewModel = fileUploadViewModel
+                        fileUploadViewModel = fileUploadViewModel,
+                        meterReadingViewModel = meterReadingViewModel,
                     )
                 }
 

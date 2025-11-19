@@ -32,11 +32,13 @@ import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
+import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 
 @Composable
 fun SettingsScreen(
     sessionManager: SessionManager,
-    fileUploadViewModel: FileUploadViewModel
+    fileUploadViewModel: FileUploadViewModel,
+    meterReadingViewModel: MeterReadingViewModel,
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
@@ -121,7 +123,7 @@ fun SettingsScreen(
             )
         }
 
-// App Settings Section
+        // App Settings Section
         SettingsSection(title = "App Settings") {
             var notifFromTop by remember { mutableStateOf(AppPreferences.isNotificationFromTop(context)) }
             var dlmsConfirm by remember { mutableStateOf(AppPreferences.isDlmsConfirmEnabled(context)) }
@@ -232,6 +234,7 @@ fun SettingsScreen(
                 scope.launch {
                     performHardReset(context, deleteExported = true)
                     fileUploadViewModel.checkExistingFiles(context)
+                    meterReadingViewModel.reloadMeters(context) // ADD THIS
                     isResetting = false
                     NotificationManager.showSuccess("App reset complete")
                 }
@@ -242,6 +245,7 @@ fun SettingsScreen(
                 scope.launch {
                     performHardReset(context, deleteExported = false)
                     fileUploadViewModel.checkExistingFiles(context)
+                    meterReadingViewModel.reloadMeters(context) // ADD THIS
                     isResetting = false
                     NotificationManager.showSuccess("App reset complete")
                 }
@@ -647,8 +651,9 @@ fun DeleteExportedFilesDialog(
 private suspend fun performHardReset(context: Context, deleteExported: Boolean) {
     withContext(Dispatchers.IO) {
         try {
-            // Delete app_files folder
             val externalFilesDir = context.getExternalFilesDir(null)
+
+            // Delete app_files folder (always)
             if (externalFilesDir != null) {
                 val appFilesDir = File(externalFilesDir, "app_files")
                 deleteDirectory(appFilesDir)
@@ -657,17 +662,26 @@ private suspend fun performHardReset(context: Context, deleteExported: Boolean) 
             val internalAppFilesDir = File(context.filesDir, "app_files")
             deleteDirectory(internalAppFilesDir)
 
-            // Delete billing JSON files
+            // Delete billing JSON files (always)
             externalFilesDir?.listFiles()?.forEach { file ->
                 if (file.name.matches(Regex("\\d{6}_\\w+\\.json"))) {
                     file.delete()
                 }
             }
 
-            // Clear preferences
+            // Delete Export Screen files (LP, EL, BD, etc.) - ONLY if deleteExported is true
+            if (deleteExported) {
+                externalFilesDir?.listFiles()?.forEach { file ->
+                    if (file.isFile && file.extension.lowercase() in listOf("csv", "txt")) {
+                        file.delete()
+                    }
+                }
+            }
+
+            // Clear preferences (always)
             AppPreferences.clearAll(context)
 
-            // Delete exported files if requested
+            // Delete exported files in Downloads folder (only if deleteExported is true)
             if (deleteExported) {
                 deleteExportedFiles()
             }
