@@ -23,8 +23,7 @@ import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.NotificationManager
-import com.example.meterkenshin.utils.calculateBillingData
-import com.example.meterkenshin.utils.getCurrentYearMonth
+import com.example.meterkenshin.utils.*
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -640,7 +639,7 @@ class DLMSViewModel : ViewModel() {
 
                 // Create Billing object with current and previous data
                 val billing = Billing().apply {
-                    Period = DLMSJSONWriter.dateTimeToMonth(billingData[1])
+                    Period = dateTimeToMonth(billingData[1])
                     Commercial = "LARGE"
                     SerialNumber = meter.serialNumber
                     Multiplier = 1.0f
@@ -649,12 +648,12 @@ class DLMSViewModel : ViewModel() {
                     PrevReading = effectivePrevReading?.toString()?.toFloatOrNull() ?: 0f
                     PresReading = currentRecord.imp
                     MaxDemand = currentRecord.maxImp / 1000f
-                    DueDate = DLMSJSONWriter.formattedMonthDay(1, 0)
-                    DiscoDate = DLMSJSONWriter.formattedMonthDay(1, 1)
+                    DueDate = formattedMonthDay(1, 0)
+                    DiscoDate = formattedMonthDay(1, 1)
                     Discount = 10.0f
                     Interest = 10.0f
                     Reader = "Fuji Taro"
-                    ReadDatetime = DLMSJSONWriter.getNowDate()
+                    ReadDatetime = getCurrentDateTime()  // Use existing function
                     Version = "v1.00.2"
                 }
 

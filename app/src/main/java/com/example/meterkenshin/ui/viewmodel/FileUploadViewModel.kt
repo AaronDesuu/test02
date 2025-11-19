@@ -88,7 +88,16 @@ class FileUploadViewModel : ViewModel() {
                             uploadProgress = 100
                         )
                     } else {
-                        file
+                        // Reset to PENDING if file doesn't exist
+                        file.copy(
+                            status = FileUploadState.FileStatus.PENDING,
+                            fileSize = 0,
+                            uploadedAt = null,
+                            uploadProgress = 0,
+                            selectedUri = null,
+                            selectedFileName = null,
+                            errorMessage = null
+                        )
                     }
                 }
 

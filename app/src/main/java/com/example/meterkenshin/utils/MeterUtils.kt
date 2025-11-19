@@ -16,6 +16,16 @@ enum class InspectionStatus(
 }
 
 /**
+ * Simplified 2-state inspection status for when printing is disabled
+ */
+enum class SimplifiedInspectionStatus(
+    val color: Color
+) {
+    INSPECTED(Color(0xFF4CAF50)), // Green
+    NOT_INSPECTED(Color(0xFFF44336)) // Red
+}
+
+/**
  * Helper function to determine inspection status based on meter data
  * Uses the meter's properties to determine the actual inspection and billing status
  *
@@ -51,14 +61,32 @@ fun getInspectionStatus(meter: Meter): InspectionStatus {
 }
 
 /**
+ * Get simplified 2-state inspection status for when printing is disabled
+ * Returns only "Inspected" or "Not Inspected"
+ */
+fun getSimplifiedInspectionStatus(meter: Meter): SimplifiedInspectionStatus {
+    // Case 1: No readDate means meter has never been inspected
+    if (meter.readDate == null) {
+        return SimplifiedInspectionStatus.NOT_INSPECTED
+    }
+
+    // Case 2: Has readDate and impKWh - considered inspected
+    if (meter.impKWh != null) {
+        return SimplifiedInspectionStatus.INSPECTED
+    }
+
+    // Case 3: Has readDate but no impKWh (shouldn't happen with proper flow)
+    return SimplifiedInspectionStatus.NOT_INSPECTED
+}
+
+/**
  * Connection status enum based on online/offline status
  */
 enum class ConnectionStatus(
     val displayName: String,
     val color: Color
 ) {
-    ONLINE_EXCELLENT("Online", Color(0xFF4CAF50)), // Green for online
-    ONLINE_FAIR("Online", Color(0xFFFF9800)), // Yellow/Orange for fair signal
+    ONLINE("Online", Color(0xFF4CAF50)), // Green for online
     OFFLINE("Offline", Color(0xFFF44336)) // Red for offline
 }
 

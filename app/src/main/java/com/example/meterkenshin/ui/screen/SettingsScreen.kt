@@ -30,6 +30,7 @@ import com.example.meterkenshin.BuildConfig
 import com.example.meterkenshin.ui.component.card.AppSettingsCard
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.manager.AppPreferences
+import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 
 @Composable
@@ -111,7 +112,7 @@ fun SettingsScreen(
                     "Enabled - Share dialog appears after export"
                 else "Disabled - Files export silently to Download/kenshinApp",
                 icon = Icons.Default.Share,
-                isEnabled = autoShareEnabled,
+                isEnabled = autoShareEnabled && jsonEnabled, // Add jsonEnabled check here
                 enabledColor = Color(0xFFFF9800),
                 onToggle = {
                     autoShareEnabled = it
@@ -232,15 +233,17 @@ fun SettingsScreen(
                     performHardReset(context, deleteExported = true)
                     fileUploadViewModel.checkExistingFiles(context)
                     isResetting = false
+                    NotificationManager.showSuccess("App reset complete")
                 }
             },
             onNo = {
                 showDeleteExportedDialog = false
                 isResetting = true
                 scope.launch {
-                    performHardReset(context, deleteExported = true)
+                    performHardReset(context, deleteExported = false)
                     fileUploadViewModel.checkExistingFiles(context)
                     isResetting = false
+                    NotificationManager.showSuccess("App reset complete")
                 }
             }
         )

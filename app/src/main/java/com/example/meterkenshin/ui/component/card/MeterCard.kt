@@ -31,12 +31,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.utils.InspectionStatus
-import com.example.meterkenshin.utils.ConnectionStatus
-import com.example.meterkenshin.utils.getInspectionStatus
-import com.example.meterkenshin.utils.getSignalColor
-import com.example.meterkenshin.utils.getSignalQuality
+import com.example.meterkenshin.utils.*
+import com.example.meterkenshin.ui.manager.AppPreferences
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -50,20 +48,22 @@ fun MeterCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     showChevron: Boolean = true,
-    customContent: (@Composable () -> Unit)? = null,
     isNearby: Boolean = false,
     inspectionStatus: InspectionStatus = getInspectionStatus(meter),
     signalStrength: Int? = null,
     showCheckbox: Boolean = false,
     isSelected: Boolean = false,
 ) {
+    val context = LocalContext.current
+    val isPrintingEnabled = AppPreferences.isPrintingEnabled(context)
+
     // Check if meter is not registered (activate = 0)
     val isNotRegistered = meter.activate == 0
     val isDisabled = isNotRegistered && showCheckbox
 
     // Determine connection status based on activate field from CSV (via MeterReadingViewModel)
     val connectionStatus = when {
-        isNearby -> ConnectionStatus.ONLINE_EXCELLENT
+        isNearby -> ConnectionStatus.ONLINE
         else -> ConnectionStatus.OFFLINE
     }
 
@@ -189,14 +189,30 @@ fun MeterCard(
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(connectionStatus.color)
-                        )
+                        if (isNearby && signalStrength != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            signalStrength >= -70 -> Color(0xFF4CAF50) // Good/Excellent - Green
+                                            else -> Color(0xFFFF9800) // Fair/Poor - Yellow/Orange
+                                        }
+                                    )
+                            )
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                        } else {
+                            // Offline - show red dot
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFF44336))
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
 
                         Text(
                             text = connectionStatus.displayName,
@@ -275,12 +291,18 @@ fun MeterCard(
                     .height(32.dp)
                     .background(
                         color = if (isNotRegistered) {
-                            Color(0xFF9E9E9E) // Gray color for not registered
-                        } else {
+                            Color(0xFF9E9E9E)
+                        } else if (isPrintingEnabled) {
                             when (inspectionStatus) {
-                                InspectionStatus.INSPECTED_BILLING_PRINTED -> Color(0xFF4CAF50) // Green
-                                InspectionStatus.INSPECTED_BILLING_NOT_PRINTED -> Color(0xFFFF9800) // Yellow/Orange
-                                InspectionStatus.NOT_INSPECTED -> Color(0xFFF44336) // Red
+                                InspectionStatus.INSPECTED_BILLING_PRINTED -> Color(0xFF4CAF50)
+                                InspectionStatus.INSPECTED_BILLING_NOT_PRINTED -> Color(0xFFFF9800)
+                                InspectionStatus.NOT_INSPECTED -> Color(0xFFF44336)
+                            }
+                        } else {
+                            // 2-state mode when printing disabled
+                            when (getSimplifiedInspectionStatus(meter)) {
+                                SimplifiedInspectionStatus.INSPECTED -> Color(0xFF4CAF50)
+                                SimplifiedInspectionStatus.NOT_INSPECTED -> Color(0xFFF44336)
                             }
                         },
                         shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp)
@@ -289,11 +311,17 @@ fun MeterCard(
                 Text(
                     text = if (isNotRegistered) {
                         "Meter not Registered"
-                    } else {
+                    } else if (isPrintingEnabled) {
                         when (inspectionStatus) {
                             InspectionStatus.INSPECTED_BILLING_PRINTED -> "Inspected & Billing Printed"
                             InspectionStatus.INSPECTED_BILLING_NOT_PRINTED -> "Inspected, Billing not Printed"
                             InspectionStatus.NOT_INSPECTED -> "Not Inspected"
+                        }
+                    } else {
+                        // 2-state mode when printing disabled
+                        when (getSimplifiedInspectionStatus(meter)) {
+                            SimplifiedInspectionStatus.INSPECTED -> "Inspected"
+                            SimplifiedInspectionStatus.NOT_INSPECTED -> "Not Inspected"
                         }
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -305,8 +333,5 @@ fun MeterCard(
                 )
             }
         }
-
-        // Custom content if provided
-        customContent?.invoke()
     }
 }

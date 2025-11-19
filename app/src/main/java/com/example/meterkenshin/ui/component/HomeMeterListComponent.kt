@@ -131,12 +131,10 @@ fun HomeMeterList(
             }
 
             // Success state with meters
-            // Success state with meters
             else -> {
-                // Filter meters with readDate, sort by most recent, take top 5
+                // Show top 5 meters, prioritizing those with readDate (most recent first)
                 val metersToShow = uiState.filteredMeters
-                    .filter { it.readDate != null }
-                    .sortedByDescending { it.readDate }
+                    .sortedWith(compareByDescending(nullsFirst()) { it.readDate })
                     .take(5)
 
                 Column(
@@ -151,17 +149,9 @@ fun HomeMeterList(
                             meter = meter,
                             onClick = { onMeterClick(meter) },
                             modifier = Modifier.fillMaxWidth(),
-                            isNearby = isNearby,              // BLE connection status
-                            signalStrength = signalStrength,  // RSSI value
-                            inspectionStatus = getInspectionStatus(meter)
-                        )
-                    }
-
-                    // Show "View All" card if there are more meters
-                    if (uiState.filteredMeters.size > 5) {
-                        ViewAllMetersCard(
-                            remainingCount = uiState.filteredMeters.size - 5,
-                            onClick = onViewAllClick
+                            isNearby = isNearby,
+                            inspectionStatus = getInspectionStatus(meter),
+                            signalStrength = signalStrength
                         )
                     }
                 }

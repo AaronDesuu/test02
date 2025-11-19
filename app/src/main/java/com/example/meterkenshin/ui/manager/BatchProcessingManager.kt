@@ -10,7 +10,6 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
-import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -346,7 +345,7 @@ class BatchProcessingManager(
 
                             if (_shouldSaveJson.value) {
                                 Log.i(TAG, "Saving JSON for ${meter.serialNumber}")
-                                saveJson(meter)
+                                saveJson()
                                 delay(500)
                             }
                         }
@@ -382,8 +381,9 @@ class BatchProcessingManager(
                 updateProgressWithStep(0, "❌ Batch processing error: ${e.message}")
                 onComplete(false, emptyList())
             } finally {
-                // Share all collected JSON files if auto-share is enabled
+                // Share all collected JSON files if BOTH JSON saving AND auto-share are enabled
                 if (_savedJsonFiles.value.isNotEmpty() &&
+                    AppPreferences.isJsonSavingEnabled(context) && // Add this check
                     AppPreferences.isAutoShareExportEnabled(context)) {
                     withContext(Dispatchers.Main) {
                         DLMSJSONWriter.shareMultipleJSON(context, _savedJsonFiles.value)
@@ -403,6 +403,7 @@ class BatchProcessingManager(
                 }
                 Log.i(TAG, "Meter data reloaded after batch processing")
             }
+
         }
     }
 
@@ -524,7 +525,7 @@ class BatchProcessingManager(
      * Save JSON for current meter
      * FIXED: Uses saveStoredBillingToJSON from DLMSViewModel
      */
-    private fun saveJson(meter: Meter) {
+    private fun saveJson() {
         val savedData = dlmsViewModel.savedBillingData.value
 
         if (savedData != null && savedData.isValid()) {
