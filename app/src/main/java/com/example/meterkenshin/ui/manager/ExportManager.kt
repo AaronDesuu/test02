@@ -2,6 +2,7 @@
 
 package com.example.meterkenshin.ui.manager
 
+import android.media.MediaScannerConnection
 import android.content.Context
 import android.content.Intent
 import android.os.Environment
@@ -92,8 +93,24 @@ class ExportManager(private val context: Context) {
             }
 
             if (errors.isEmpty()) {
+                // Notify system about new files
+                MediaScannerConnection.scanFile(
+                    context,
+                    exportedFiles.map { it.absolutePath }.toTypedArray(),
+                    null,
+                    null
+                )
                 ExportResult(true, exportedCount, exportedFiles = exportedFiles)
             } else {
+                // Still notify about successfully exported files
+                if (exportedFiles.isNotEmpty()) {
+                    MediaScannerConnection.scanFile(
+                        context,
+                        exportedFiles.map { it.absolutePath }.toTypedArray(),
+                        null,
+                        null
+                    )
+                }
                 ExportResult(false, exportedCount, errors.joinToString("; "), exportedFiles)
             }
         } catch (e: Exception) {
