@@ -49,6 +49,12 @@ class DLMSViewModel : ViewModel() {
         private const val TAG = "DLMSRegistration"
     }
 
+    private var currentUsername: String? = null
+    fun setCurrentUser(username: String) {
+        currentUsername = username
+        Log.d(TAG, "DLMSViewModel user set to: $username")
+    }
+
     // State flows
     private val _registrationState = MutableStateFlow(RegistrationState())
     val registrationState: StateFlow<RegistrationState> = _registrationState.asStateFlow()
@@ -254,8 +260,16 @@ class DLMSViewModel : ViewModel() {
     private fun clearMeterReadDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val username = currentUsername
+                if (username == null) {
+                    appendLog("ERROR: Username not set")
+                    return@launch
+                }
+
                 val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return@launch
-                val csvDir = File(externalFilesDir, "app_files")
+
+                // User-specific path: files/{username}/app_files/
+                val csvDir = File(File(externalFilesDir, username), "app_files")
                 val yearMonth = getCurrentYearMonth()
                 val filename = "${yearMonth}_meter.csv"
                 val meterFile = File(csvDir, filename)
@@ -1306,14 +1320,22 @@ class DLMSViewModel : ViewModel() {
     private fun updateMeterBillingPrintDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val username = currentUsername
+                if (username == null) {
+                    appendLog("ERROR: Username not set")
+                    return@launch
+                }
+
                 val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return@launch
-                val csvDir = File(externalFilesDir, "app_files")
+
+                // User-specific path: files/{username}/app_files/
+                val csvDir = File(File(externalFilesDir, username), "app_files")
                 val yearMonth = getCurrentYearMonth()
                 val filename = "${yearMonth}_meter.csv"
                 val meterFile = File(csvDir, filename)
 
                 if (!meterFile.exists()) {
-                    appendLog("⚠ Warning: Meter CSV file not found")
+                    appendLog("⚠ ERROR: Meter CSV file not found")
                     return@launch
                 }
 

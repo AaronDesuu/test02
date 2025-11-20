@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.ui.manager.ExportManager
@@ -14,7 +15,10 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 class ExportViewModel(application: Application) : AndroidViewModel(application) {
-    private val exportManager = ExportManager(application)
+    private var currentUsername: String? = null
+
+    private var exportManager: ExportManager? = null
+
     private val context = application
 
     private val _files = MutableStateFlow<List<File>>(emptyList())
@@ -53,14 +57,6 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun loadFiles() {
-        viewModelScope.launch {
-            _fileGroups.value = exportManager.getGroupedFiles()
-            _files.value = exportManager.getAvailableFiles()
-            filterFiles()
-        }
-    }
-
     fun toggleFileSelection(fileName: String, isSelected: Boolean) {
         val current = _selectedFiles.value.toMutableSet()
         if (isSelected) {
@@ -79,10 +75,32 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
         _selectedFiles.value = emptySet()
     }
 
+    // ✅ ADD: Method to set current user
+    fun setCurrentUser(username: String) {
+        currentUsername = username
+        exportManager = ExportManager(context, username)
+        Log.d("ExportViewModel", "Export manager initialized for user: $username")
+    }
+
+    // ✅ UPDATE: All methods that use exportManager - add null check
+    fun loadFiles() {
+        viewModelScope.launch {
+            val manager = exportManager ?: return@launch
+            _fileGroups.value = manager.getGroupedFiles()
+            _files.value = manager.getAvailableFiles()
+            filterFiles()
+        }
+    }
+
     fun exportSelectedFiles() {
         viewModelScope.launch {
             if (_selectedFiles.value.isEmpty()) {
                 NotificationManager.showWarning("No files selected")
+                return@launch
+            }
+
+            val manager = exportManager ?: run {
+                NotificationManager.showError("Export manager not initialized")
                 return@launch
             }
 
@@ -92,23 +110,20 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
                     _selectedFiles.value.contains(it.name)
                 }
 
-                val result = exportManager.exportFiles(selectedFileList)
+                val result = manager.exportFiles(selectedFileList)
 
                 if (result.success) {
                     NotificationManager.showSuccess(
-                        "Successfully exported ${result.exportedCount} file(s) to Download/kenshinApp"
+                        "Successfully exported ${result.exportedCount} file(s)"
                     )
                     _selectedFiles.value = emptySet()
 
-                    // Check preference before showing share dialog
                     if (result.exportedFiles.isNotEmpty() &&
                         AppPreferences.isAutoShareExportEnabled(context)) {
-                        exportManager.shareFiles(result.exportedFiles)
+                        manager.shareFiles(result.exportedFiles)
                     }
                 } else {
-                    NotificationManager.showError(
-                        "Export failed: ${result.errorMessage}"
-                    )
+                    NotificationManager.showError("Export failed: ${result.errorMessage}")
                 }
             } catch (e: Exception) {
                 NotificationManager.showError("Export failed: ${e.message}")
@@ -120,7 +135,8 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
 
     fun deleteFile(fileName: String) {
         viewModelScope.launch {
-            val result = exportManager.deleteFile(fileName)
+            val manager = exportManager ?: return@launch
+            val result = manager.deleteFile(fileName)
             if (result.success) {
                 NotificationManager.showSuccess("File deleted")
                 loadFiles()
@@ -137,7 +153,8 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
                 return@launch
             }
 
-            val result = exportManager.deleteFiles(_selectedFiles.value)
+            val manager = exportManager ?: return@launch
+            val result = manager.deleteFiles(_selectedFiles.value)
             if (result.success) {
                 NotificationManager.showSuccess("Deleted ${result.exportedCount} file(s)")
                 _selectedFiles.value = emptySet()

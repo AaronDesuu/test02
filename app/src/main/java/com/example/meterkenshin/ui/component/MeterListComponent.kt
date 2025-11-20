@@ -67,6 +67,7 @@ import com.example.meterkenshin.ui.manager.BatchPrintManager
 import com.example.meterkenshin.ui.manager.BatchPrintMode
 import com.example.meterkenshin.ui.manager.BatchProcessingManager
 import com.example.meterkenshin.ui.manager.NotificationManager
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
@@ -109,6 +110,7 @@ fun MeterListComponent(
     val uiState by meterReadingViewModel.uiState.collectAsState()
     val searchQuery by meterReadingViewModel.searchQuery.collectAsState()
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
+    val sessionManager = remember { SessionManager.getInstance(context) }
 
     // BLE Scanning states
     val nearbyMeterCount by meterReadingViewModel.nearbyMeterCount.collectAsState()
@@ -200,13 +202,12 @@ fun MeterListComponent(
         loadMeterRates(context, fileUploadViewModel)
     }
     // Load meters when CSV is available
-    LaunchedEffect(isMeterCsvUploaded, Unit) {
-        if (isMeterCsvUploaded && uiState.allMeters.isEmpty()) {
-            val fileToLoad = if (File(
-                    context.getExternalFilesDir(null),
-                    "app_files/$currentMeterFile"
-                ).exists()
-            ) {
+    LaunchedEffect(isMeterCsvUploaded) {
+        if (isMeterCsvUploaded) {
+            val username = sessionManager.getSession()?.username ?: "admin"
+            val userAppFilesDir = File(File(context.getExternalFilesDir(null), username), "app_files")
+
+            val fileToLoad = if (File(userAppFilesDir, currentMeterFile).exists()) {
                 currentMeterFile
             } else {
                 fallbackFile

@@ -1,6 +1,5 @@
 package com.example.meterkenshin.ui.component
 
-import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -29,6 +29,7 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.component.card.MeterCard
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.utils.getInspectionStatus
@@ -44,15 +45,16 @@ import java.util.Locale
  */
 @Composable
 fun HomeMeterList(
+    modifier: Modifier = Modifier,
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     onMeterClick: (Meter) -> Unit = {},
     onViewAllClick: () -> Unit = {},
-    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val uiState by meterReadingViewModel.uiState.collectAsState()
     val uploadState by fileUploadViewModel.uploadState.collectAsState()
+    val sessionManager = remember { SessionManager.getInstance(context) }
 
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
@@ -65,10 +67,10 @@ fun HomeMeterList(
     // Load meters when CSV is available
     LaunchedEffect(isMeterCsvUploaded, Unit) {
         if (isMeterCsvUploaded) {
-            val fileToLoad = if (File(
-                    context.getExternalFilesDir(null),
-                    "app_files/$currentMeterFile"
-                ).exists()) {
+            val username = sessionManager.getSession()?.username ?: "admin"
+            val userAppFilesDir = File(File(context.getExternalFilesDir(null), username), "app_files")
+
+            val fileToLoad = if (File(userAppFilesDir, currentMeterFile).exists()) {
                 currentMeterFile
             } else {
                 fallbackFile

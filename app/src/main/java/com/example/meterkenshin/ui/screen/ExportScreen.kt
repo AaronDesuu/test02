@@ -42,8 +42,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.ExportViewModel
 
 @Composable
@@ -60,6 +62,17 @@ fun ExportScreen(
     var showDeleteFileDialog by remember { mutableStateOf(false) }
     var showDeleteSelectedDialog by remember { mutableStateOf(false) }
     var fileToDelete by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager.getInstance(context) }
+
+    LaunchedEffect(Unit) {
+        val username = sessionManager.getSession()?.username
+        if (username != null) {
+            viewModel.setCurrentUser(username)
+        }
+        viewModel.loadFiles()
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadFiles()

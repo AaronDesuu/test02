@@ -2,6 +2,7 @@ package com.example.meterkenshin.data.csv
 
 import android.content.Context
 import android.util.Log
+import com.example.meterkenshin.data.FileStorageManager
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStreamReader
@@ -13,7 +14,10 @@ import java.io.BufferedReader
  * Activate,Bluetooth ID,printer model
  * 1,1C:B8:57:50:01:D9,WISP-i350
  */
-class PrinterCsvParser(private val context: Context) {
+class PrinterCsvParser(
+    private val context: Context,
+    private val username: String
+) {
 
     companion object {
         private const val TAG = "PrinterCsvParser"
@@ -47,37 +51,18 @@ class PrinterCsvParser(private val context: Context) {
      * Checks both external and internal storage locations
      */
     private fun getPrinterCsvFile(): File {
-        // Priority 1: Check external storage (where FileUploadViewModel saves files)
-        val externalFilesDir = context.getExternalFilesDir(null)
-        if (externalFilesDir != null) {
-            val externalAppFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
-            val externalFile = File(externalAppFilesDir, PRINTER_CSV_FILENAME)
-            if (externalFile.exists()) {
-                Log.d(TAG, "Found printer.csv in external storage: ${externalFile.absolutePath}")
-                return externalFile
-            }
+        val fileStorageManager = FileStorageManager(context)
+        val userDir = fileStorageManager.getUserStorageDirectory(username)
+
+        // Check user-specific directory
+        val userFile = File(userDir, PRINTER_CSV_FILENAME)
+        if (userFile.exists()) {
+            Log.d(TAG, "Found printer.csv for user $username: ${userFile.absolutePath}")
+            return userFile
         }
 
-        // Priority 2: Check internal storage (fallback)
-        val appFilesDir = File(context.filesDir, APP_FILES_FOLDER)
-        val internalFile = File(appFilesDir, PRINTER_CSV_FILENAME)
-        if (internalFile.exists()) {
-            Log.d(TAG, "Found printer.csv in internal storage: ${internalFile.absolutePath}")
-            return internalFile
-        }
-
-        // Return external path as default (for error logging)
-        val defaultPath = if (externalFilesDir != null) {
-            File(File(externalFilesDir, APP_FILES_FOLDER), PRINTER_CSV_FILENAME)
-        } else {
-            internalFile
-        }
-
-        Log.w(TAG, "printer.csv not found. Expected locations:")
-        Log.w(TAG, "  - External: ${if (externalFilesDir != null) File(File(externalFilesDir, APP_FILES_FOLDER), PRINTER_CSV_FILENAME).absolutePath else "N/A"}")
-        Log.w(TAG, "  - Internal: ${internalFile.absolutePath}")
-
-        return defaultPath
+        Log.w(TAG, "printer.csv not found for user $username")
+        return userFile // Return path even if doesn't exist
     }
 
     /**

@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.FileProvider
+import com.example.meterkenshin.data.FileStorageManager
 import java.io.File
 
 data class ExportResult(
@@ -22,20 +23,25 @@ data class FileGroup(
     val files: List<File>
 )
 
-class ExportManager(private val context: Context) {
+class ExportManager(
+    private val context: Context,
+    private val username: String
+) {
     private val TAG = "ExportManager"
 
     fun getAvailableFiles(): List<File> {
         return try {
-            val filesDir = context.getExternalFilesDir(null) ?: context.filesDir
-            val files = filesDir.listFiles()?.filter {
+            val fileStorageManager = FileStorageManager(context)
+            val userFilesDir = fileStorageManager.getUserStorageDirectory(username)
+
+            val files = userFilesDir.listFiles()?.filter {
                 it.isFile && it.extension.lowercase() in listOf("csv", "txt")
             } ?: emptyList()
 
-            Log.d(TAG, "Found ${files.size} files in ${filesDir.absolutePath}")
+            Log.d(TAG, "Found ${files.size} files for user $username in ${userFilesDir.absolutePath}")
             files.sortedByDescending { it.lastModified() }
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting available files", e)
+            Log.e(TAG, "Error getting available files for user $username", e)
             emptyList()
         }
     }
