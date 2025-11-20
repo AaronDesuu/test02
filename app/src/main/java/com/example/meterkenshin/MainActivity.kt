@@ -195,24 +195,18 @@ class MainActivity : ComponentActivity() {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             enableBluetoothLauncher.launch(enableBtIntent)
         } else {
+            // Bluetooth is already enabled, initialize printer manager
             lifecycleScope.launch {
                 try {
-                    // ✅ Get current username from session
-                    val currentUsername = sessionManager.getSession()?.username ?: "admin"
-
-                    Log.d("MainActivity", "Initializing Bluetooth printer manager for user: $currentUsername")
-
-                    // ✅ Initialize with username parameter
-                    bluetoothPrinterManager = CustomBluetoothManager(
-                        this@MainActivity,
-                        currentUsername  // ✅ Pass username here
-                    ).apply {
+                    // Initialize custom Bluetooth printer manager
+                    bluetoothPrinterManager = CustomBluetoothManager(this@MainActivity).apply {
+                        // Initialize Bluetooth ViewModel with manager (correct method name)
                         printerBluetoothViewModel.initializeBluetoothManager(this)
-                        Log.d("MainActivity", "Bluetooth printer manager initialized successfully")
+
+                        Log.d("MainActivity", "Bluetooth printer manager initialized")
                     }
                 } catch (e: Exception) {
                     Log.e("MainActivity", "Error initializing Bluetooth printer manager", e)
-                    NotificationManager.showError("Failed to initialize printer: ${e.message}")
                 }
             }
         }

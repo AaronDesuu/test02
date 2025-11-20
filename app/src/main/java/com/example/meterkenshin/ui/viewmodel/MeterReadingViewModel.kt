@@ -84,13 +84,6 @@ class MeterReadingViewModel : ViewModel() {
         applySorting()
     }
 
-    private var currentUsername: String? = null
-
-    fun setCurrentUser(username: String) {
-        currentUsername = username
-        Log.d(TAG, "User set to: $username")
-    }
-
     // Context and BLE
     @SuppressLint("StaticFieldLeak")
     private var mContext: Context? = null
@@ -560,20 +553,11 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     fun reloadMeters(context: Context) {
-        val username = currentUsername
-        if (username == null) {
-            Log.e(TAG, "Username not set")
-            return
-        }
-
         val currentYearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
         val currentMeterFile = "${currentYearMonth}_meter.csv"
         val fallbackFile = "meter.csv"
 
-        val externalFilesDir = context.getExternalFilesDir(null)
-        val userAppFilesDir = File(File(externalFilesDir, username), APP_FILES_FOLDER)
-
-        val fileToLoad = if (File(userAppFilesDir, currentMeterFile).exists()) {
+        val fileToLoad = if (File(context.getExternalFilesDir(null), "app_files/$currentMeterFile").exists()) {
             currentMeterFile
         } else {
             fallbackFile
@@ -618,22 +602,11 @@ class MeterReadingViewModel : ViewModel() {
 
     private fun loadMeterDataFromFile(context: Context, fileName: String): MeterLoadResult {
         return try {
-            val username = currentUsername
-            if (username == null) {
-                Log.e(TAG, "Username not set, cannot load meters")
-                return MeterLoadResult.Error("User not set")
-            }
-
             val externalFilesDir = context.getExternalFilesDir(null)
-
-            // User-specific path: files/{username}/app_files/
-            val userAppFilesDir = File(File(externalFilesDir, username), APP_FILES_FOLDER)
-            val meterFile = File(userAppFilesDir, fileName)
-
-            Log.d(TAG, "Looking for meter file at: ${meterFile.absolutePath}")
+            val appFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
+            val meterFile = File(appFilesDir, fileName)
 
             if (!meterFile.exists()) {
-                Log.e(TAG, "Meter file not found")
                 return MeterLoadResult.Error("Meter file not found")
             }
 

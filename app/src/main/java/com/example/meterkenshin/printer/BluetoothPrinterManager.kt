@@ -17,10 +17,7 @@ import com.woosim.printer.WoosimService
 /**
  * Enhanced Bluetooth Manager using WoosimLib
  */
-class BluetoothPrinterManager(
-    context: Context,
-    username: String
-)  {
+class BluetoothPrinterManager(context: Context) {
 
     companion object {
         private const val TAG = "BluetoothPrinterManager"
@@ -43,7 +40,7 @@ class BluetoothPrinterManager(
     // WoosimService for processing received data
     private var woosimService: WoosimService? = null
 
-    private val printerCsvParser = PrinterCsvParser(context, username)
+    private val printerCsvParser = PrinterCsvParser(context)
 
     // LiveData for observing state
     private val _connectionState = MutableLiveData<ConnectionState>()

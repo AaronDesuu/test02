@@ -82,7 +82,7 @@ fun MeterKenshinApp(
         }
     }
 
-    // Start BLE scanning automatically when logged in
+    // ✅ NEW: Start BLE scanning automatically when logged in
     LaunchedEffect(isLoggedIn) {
         if (isLoggedIn) {
             try {
@@ -135,14 +135,6 @@ fun MeterKenshinApp(
                         onLoginSuccess = {
                             isLoggedIn = true
                             currentScreen = "home"
-
-                            // Set current user for user-specific storage
-                            val currentUser = sessionManager.getSession()
-                            if (currentUser != null) {
-                                fileUploadViewModel.setCurrentUser(currentUser.username, context)
-                                // Set user for meter loading
-                                meterReadingViewModel.setCurrentUser(currentUser.username)
-                            }
                             // Initialize file checking after successful login (preserve original)
                             fileUploadViewModel.checkExistingFiles(context)
 

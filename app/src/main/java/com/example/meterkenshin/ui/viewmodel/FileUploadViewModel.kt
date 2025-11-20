@@ -21,13 +21,10 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.text.format
 import androidx.core.content.edit
-import com.example.meterkenshin.data.FileStorageManager
 
 class FileUploadViewModel : ViewModel() {
     private val _uploadState = MutableStateFlow(FileUploadState())
     val uploadState: StateFlow<FileUploadState> = _uploadState.asStateFlow()
-    private lateinit var fileStorageManager: FileStorageManager
-    private var currentUsername: String? = null
 
     companion object {
         private const val TAG = "FileUploadViewModel"
@@ -38,12 +35,6 @@ class FileUploadViewModel : ViewModel() {
 
     init {
         initializeRequiredFiles()
-    }
-
-    fun setCurrentUser(username: String, context: Context) {
-        currentUsername = username
-        fileStorageManager = FileStorageManager(context)
-        Log.i(TAG, "User-specific storage set for: $username")
     }
 
     /**
@@ -85,8 +76,7 @@ class FileUploadViewModel : ViewModel() {
     fun checkExistingFiles(context: Context) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                val username = currentUsername ?: return@withContext
-                val appFilesDir = fileStorageManager.getUserStorageDirectory(username)
+                val appFilesDir = getAppFilesDirectory(context)
 
                 val updatedFiles = _uploadState.value.requiredFiles.map { file ->
                     val existingFile = File(appFilesDir, file.fileName)
@@ -98,6 +88,7 @@ class FileUploadViewModel : ViewModel() {
                             uploadProgress = 100
                         )
                     } else {
+                        // Reset to PENDING if file doesn't exist
                         file.copy(
                             status = FileUploadState.FileStatus.PENDING,
                             fileSize = 0,
@@ -114,6 +105,7 @@ class FileUploadViewModel : ViewModel() {
                     _uploadState.value = _uploadState.value.copy(
                         requiredFiles = updatedFiles
                     )
+                    Log.i(TAG, "Checked existing files. Found ${updatedFiles.count { it.isUploaded }} uploaded files.")
                 }
             }
         }
@@ -377,8 +369,7 @@ class FileUploadViewModel : ViewModel() {
     ): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                val username = currentUsername ?: return@withContext false
-                val appFilesDir = fileStorageManager.getUserStorageDirectory(username)
+                val appFilesDir = getAppFilesDirectory(context)
                 val targetFile = File(appFilesDir, file.fileName)
 
                 // Ensure parent directory exists
@@ -398,6 +389,7 @@ class FileUploadViewModel : ViewModel() {
                             outputStream.write(buffer, 0, bytesRead)
                             totalBytesRead += bytesRead
 
+                            // Report progress
                             if (totalSize > 0) {
                                 val progress = (totalBytesRead * 100 / totalSize).toInt()
                                 withContext(Dispatchers.Main) {
@@ -409,16 +401,19 @@ class FileUploadViewModel : ViewModel() {
                     }
                 }
 
+                // Verify file was written successfully
                 val success = targetFile.exists() && targetFile.length() > 0
                 if (success) {
-                    Log.i(TAG, "File uploaded for user $username: ${targetFile.absolutePath}")
+                    Log.i(TAG, "File copied successfully to: ${targetFile.absolutePath} (${formatFileSize(targetFile.length())})")
 
-                    // Create date-stamped copy for meter.csv
+                    // If the uploaded file is meter.csv, create a date-stamped copy
                     if (file.type == RequiredFile.FileType.METER && file.fileName == "meter.csv") {
-                        val yearMonth = getCurrentYearMonth()
+                        val yearMonth = getCurrentYearMonth() // e.g., "202410"
                         val datedFileName = "${yearMonth}_meter.csv"
                         val datedFile = File(appFilesDir, datedFileName)
+
                         targetFile.copyTo(datedFile, overwrite = true)
+                        Log.i(TAG, "Created date-stamped copy: ${datedFile.absolutePath}")
                     }
                 }
                 success
@@ -428,24 +423,19 @@ class FileUploadViewModel : ViewModel() {
                 false
             }
         }
+
     }
 
     /**
      * Get or create the app files directory
      */
     private fun getAppFilesDirectory(context: Context): File {
-        val username = currentUsername
-        val manager = fileStorageManager
-
-        return if (username != null) {
-            manager.getUserStorageDirectory(username)
+        val externalFilesDir = context.getExternalFilesDir(null)
+        return if (externalFilesDir != null) {
+            File(externalFilesDir, APP_FILES_FOLDER)
         } else {
-            val externalFilesDir = context.getExternalFilesDir(null)
-            if (externalFilesDir != null) {
-                File(externalFilesDir, APP_FILES_FOLDER)
-            } else {
-                File(context.filesDir, APP_FILES_FOLDER)
-            }
+            // Fallback to internal storage
+            File(context.filesDir, APP_FILES_FOLDER)
         }
     }
 
