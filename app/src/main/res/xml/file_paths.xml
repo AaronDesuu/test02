@@ -1,9 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- External storage paths for Android 11+ -->
     <external-path
         name="downloads"
         path="Download/kenshinApp/" />
     <external-path
         name="json"
         path="Download/kenshinApp/json/" />
+
+    <!-- App-specific external storage (scoped storage compatible) -->
+    <external-files-path
+        name="app_files"
+        path="." />
+    <external-files-path
+        name="app_files_folder"
+        path="app_files/" />
+
+    <!-- Internal storage paths -->
+    <files-path
+        name="internal_files"
+        path="." />
+
+    <!-- Cache directory -->
+    <cache-path
+        name="cache"
+        path="." />
 </paths>

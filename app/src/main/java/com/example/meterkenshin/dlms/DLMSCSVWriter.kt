@@ -165,6 +165,7 @@ object DLMSCSVWriter {
      * Generate Event Log CSV content
      * Format: Clock,Event,Volt
      */
+    @SuppressLint("DefaultLocale")
     private fun generateEventLogCSV(data: ArrayList<String>): String {
         val csvContent = StringBuilder()
 
@@ -180,7 +181,9 @@ object DLMSCSVWriter {
         while (i + 2 < eventData.size) {
             csvContent.append("${eventData[i]},")      // Clock
             csvContent.append("${eventData[i+1]},")    // Event
-            csvContent.append("${eventData[i+2]}\n")   // Volt
+            // Format Volt to 2 decimal places (e.g., 100.00)
+            val voltValue = eventData[i+2].toFloatOrNull() ?: 0f
+            csvContent.append("${String.format("%.2f", voltValue)}\n")   // Volt
             i += 3
         }
 
