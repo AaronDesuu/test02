@@ -3,9 +3,7 @@ package com.example.meterkenshin.dlms
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
-import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.model.BillingRecord
-import com.example.meterkenshin.utils.calculateBillingData
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -76,58 +74,30 @@ object DLMSCSVWriter {
 
     /**
      * Generate Billing CSV content
-     * Format: Clock,Imp,Exp,Abs,Net,ImpMaxDemand,ExpMaxDemand,MinVolt,Alert1,Alert2,
-     *         TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount
      */
     @SuppressLint("DefaultLocale")
-    private fun generateBillingCSV(additionalData: Any?): String {  // ← Removed data param
+    private fun generateBillingCSV(additionalData: Any?): String {
         val csvContent = StringBuilder()
 
-        // Header
-        csvContent.append("Clock,Imp,Exp,Abs,Net,ImpMaxDemand,ExpMaxDemand,MinVolt,Alert1,Alert2,")
-        csvContent.append("TotalUse[kWh],GenTrans,Distribution,Capex,Other,Universal,VAT,TotalAmount\n")
+        // Header - FIXED to match expected format
+        csvContent.append("Clock,Imp[kWh],Exp[kWh],Abs[kWh],Net[kWh],ImpMaxDemand[W],ExpMaxDemand[W],MinVolt[V],Alert\n")
 
-        // Parse records and rates
+        // Parse records
         @Suppress("UNCHECKED_CAST")
         val billingData = additionalData as? Pair<List<BillingRecord>, FloatArray>
         val records = billingData?.first ?: return csvContent.toString()
-        val rates = billingData.second
 
-        // Write data rows
+        // Write data rows - FIXED to output only billing record fields
         for (record in records) {
             csvContent.append("${record.clock},")
-            csvContent.append("${String.format("%.3f", record.imp)},")
-            csvContent.append("${String.format("%.3f", record.exp)},")
-            csvContent.append("${String.format("%.3f", record.abs)},")
-            csvContent.append("${String.format("%.3f", record.net)},")
-            csvContent.append("${String.format("%.3f", record.maxImp)},")
-            csvContent.append("${String.format("%.3f", record.maxExp)},")
-            csvContent.append("${String.format("%.2f", record.minVolt)},")
-            csvContent.append("${record.alert},")
-            csvContent.append(",") // Alert2 placeholder
-
-            // Calculate billing charges if not first record
-            val index = records.indexOf(record)
-            if (index > 0) {
-                val prevRecord = records[index - 1]
-                val billing = Billing().apply {
-                    PresReading = record.imp
-                    PrevReading = prevRecord.imp
-                    MaxDemand = record.maxImp / 1000f
-                }
-                calculateBillingData(billing, rates)
-
-                csvContent.append("${String.format("%.3f", billing.TotalUse ?: 0f)},")
-                csvContent.append("${String.format("%.2f", billing.GenTransCharges ?: 0f)},")
-                csvContent.append("${String.format("%.2f", billing.DistributionCharges ?: 0f)},")
-                csvContent.append("${String.format("%.2f", billing.SustainableCapex ?: 0f)},")
-                csvContent.append("${String.format("%.2f", billing.OtherCharges ?: 0f)},")
-                csvContent.append("${String.format("%.2f", billing.UniversalCharges ?: 0f)},")
-                csvContent.append("${String.format("%.2f", billing.ValueAddedTax ?: 0f)},")
-                csvContent.append("${String.format("%.2f", billing.TotalAmount ?: 0f)}\n")
-            } else {
-                csvContent.append("0.000,0.00,0.00,0.00,0.00,0.00,0.00,0.00\n")
-            }
+            csvContent.append("${String.format("%.0f", record.imp)},")      // Changed from %.3f
+            csvContent.append("${String.format("%.0f", record.exp)},")      // Changed from %.3f
+            csvContent.append("${String.format("%.0f", record.abs)},")      // Changed from %.3f
+            csvContent.append("${String.format("%.0f", record.net)},")      // Changed from %.3f
+            csvContent.append("${String.format("%.0f", record.maxImp)},")   // Changed from %.3f
+            csvContent.append("${String.format("%.0f", record.maxExp)},")   // Changed from %.3f
+            csvContent.append("${String.format("%.0f", record.minVolt)},")  // Changed from %.2f
+            csvContent.append("${record.alert}\n")                          // Removed Alert2, removed all billing calculations
         }
 
         return csvContent.toString()
