@@ -258,7 +258,7 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Root: root / root123\nAdmin: admin / admin123\nReader: reader / reader123",
+                    text = "Admin: admin / admin123 (DLMS Rank 1)\nReader: reader / reader123 (DLMS Rank 3)",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer
                 )

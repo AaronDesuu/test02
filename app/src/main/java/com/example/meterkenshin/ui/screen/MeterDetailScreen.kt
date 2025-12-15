@@ -144,15 +144,8 @@ fun MeterDetailScreen(
         )
     }
 
-    // Pause scanning when this screen is displayed
-    LaunchedEffect(Unit) {
-        try {
-            meterReadingViewModel.pauseScanning()
-            Log.i("MeterDetailScreen", "BLE scanning paused")
-        } catch (e: Exception) {
-            Log.e("MeterDetailScreen", "Error pausing BLE scan", e)
-        }
-    }
+    // Note: BLE scanning continues in LOW_POWER mode for real-time RSSI updates
+    // This doesn't interfere with DLMS communication due to low-power scan settings
 
     // Show dialog when billing data is ready
     LaunchedEffect(pendingBillingData) {
@@ -183,12 +176,11 @@ fun MeterDetailScreen(
         }
     }
 
-    // Resume scanning when leaving
+    // Cleanup when leaving screen
     DisposableEffect(Unit) {
         onDispose {
             try {
                 registrationViewModel.cleanup(context)
-                meterReadingViewModel.resumeScanning()
                 Log.i("MeterDetailScreen", "Cleanup complete")
             } catch (e: Exception) {
                 Log.e("MeterDetailScreen", "Error during cleanup", e)

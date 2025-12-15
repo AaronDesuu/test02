@@ -13,6 +13,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.manager.SessionManager
 import kotlinx.coroutines.delay
 
 /**
@@ -114,11 +115,17 @@ class DLMSInit(
         mContext = context
         currentMeter = meter
 
-        // Initialize DLMS with meter configuration
+        // Get DLMS rank from current user session (Admin=1, Reader=3)
+        val sessionManager = SessionManager.getInstance(context)
+        val session = sessionManager.getSession()
+        val dlmsRank = session?.role?.dlmsRank ?: 1  // Default to ADMIN if no session
+        Log.i(TAG, "Using DLMS rank: $dlmsRank (User: ${session?.username ?: "unknown"})")
+
+        // Initialize DLMS with meter configuration and session-based rank
         dlms = DLMS(context)
         dlms?.Password(meter.key, 1)
         dlms?.writeAddress(meter.logical, 1)
-        dlms?.writeRank(String.format("%02x", meter.rank), 1)
+        dlms?.writeRank(String.format("%02x", dlmsRank), 1)
 
         // Register receiver FIRST, before any BLE operations
         if (!mReceiverRegistered) {

@@ -340,7 +340,6 @@ private fun UserProfileSection(session: UserSession) {
                             imageVector = when (session.role) {
                                 UserRole.ADMIN -> Icons.Default.AdminPanelSettings
                                 UserRole.READER -> Icons.Default.Security
-                                UserRole.ROOT -> TODO()
                             },
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimary,

@@ -112,7 +112,6 @@ class MainActivity : ComponentActivity() {
         if (sessionManager.isLoggedIn()) {
             startBLEOperationsIfNeeded()
             startBLEScanningIfLoggedIn()
-            meterReadingViewModel.startPeriodicScanning()
         }
     }
 

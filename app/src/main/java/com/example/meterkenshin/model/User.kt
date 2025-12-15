@@ -2,10 +2,9 @@ package com.example.meterkenshin.model
 
 import java.util.Date
 
-enum class UserRole(val displayName: String) {
-    ROOT("Root User"),
-    ADMIN("Admin User"),
-    READER("Reader User")
+enum class UserRole(val displayName: String, val dlmsRank: Int) {
+    ADMIN("Admin User", 1),    // DLMS RANK_ADMIN
+    READER("Reader User", 3)   // DLMS RANK_READER
 }
 
 data class User(

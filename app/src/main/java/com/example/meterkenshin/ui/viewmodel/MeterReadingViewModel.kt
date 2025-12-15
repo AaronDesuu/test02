@@ -4,6 +4,11 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -24,13 +29,10 @@ import com.example.meterkenshin.model.MeterStatus
 import com.example.meterkenshin.model.MeterType
 import com.example.meterkenshin.utils.FilterUtils
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -44,9 +46,18 @@ class MeterReadingViewModel : ViewModel() {
     companion object {
         private const val TAG = "MeterReadingViewModel"
         private const val APP_FILES_FOLDER = "app_files"
-        private const val SCAN_PERIOD: Long = 2000 // 2 seconds active scan
-        private const val SCAN_INTERVAL: Long = 4000 // 4 seconds between scans
-        private const val SCAN_COOLDOWN: Long = 500 // 500ms cooldown between stop/start
+    }
+
+    // Modern BLE Scanner
+    private val bluetoothLeScanner: BluetoothLeScanner?
+        get() = mBluetoothAdapter?.bluetoothLeScanner
+
+    // Scan settings - LOW_POWER mode minimizes interference with Bluetooth Classic (printer)
+    private val scanSettings: ScanSettings by lazy {
+        ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_POWER)
+            .setReportDelay(0)
+            .build()
     }
 
     // BluetoothLeService constants
@@ -101,14 +112,8 @@ class MeterReadingViewModel : ViewModel() {
     private var mBluetoothLeService: BluetoothLeService? = null
     private var d: DLMS? = null
     private var mDeviceList: DeviceList? = null
-    private var scanJob: Job? = null
     val discoveredDevices: StateFlow<Map<String, Int>> = _discoveredDevices.asStateFlow()
-    private val _scannedInCurrentCycle = mutableSetOf<String>() // Track which devices already scanned this cycle
-    private var printerViewModel: PrinterBluetoothViewModel? = null
-
-    fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
-        printerViewModel = viewModel
-    }
+    private val _scannedInCurrentCycle = mutableSetOf<String>() // Track which devices already scanned
 
     private val _selectionMode = MutableStateFlow(false)
     val selectionMode: StateFlow<Boolean> = _selectionMode.asStateFlow()
@@ -145,27 +150,62 @@ class MeterReadingViewModel : ViewModel() {
         _selectionMode.value = false
     }
 
-    // Modified callback - only captures first RSSI per cycle
-    private val mLeScanCallback = BluetoothAdapter.LeScanCallback { device, rssi, _ ->
-        val knownMacAddresses = _uiState.value.allMeters
-            .mapNotNull { it.bluetoothId?.uppercase() }
-            .toSet()
+    /**
+     * Build hardware scan filters from known meter MAC addresses
+     * Hardware filtering is more efficient and reduces radio interference
+     */
+    private fun buildScanFilters(): List<ScanFilter> {
+        return _uiState.value.allMeters
+            .mapNotNull { it.bluetoothId }
+            .filter { it.isNotBlank() }
+            .map { mac ->
+                ScanFilter.Builder()
+                    .setDeviceAddress(mac.uppercase())
+                    .build()
+            }
+    }
 
-        val deviceMac = device.address.uppercase()
+    // Modern ScanCallback - hardware pre-filtered, only receives known meter devices
+    private val scanCallback = object : ScanCallback() {
+        override fun onScanResult(callbackType: Int, result: ScanResult) {
+            val device = result.device
+            val rssi = result.rssi
+            val deviceMac = device.address.uppercase()
 
-        if (knownMacAddresses.contains(deviceMac) && !_scannedInCurrentCycle.contains(deviceMac)) {
-            Log.i(TAG, "First discovery this cycle: $deviceMac, RSSI: $rssi dBm")
+            val isFirstDiscovery = !_scannedInCurrentCycle.contains(deviceMac)
 
-            _scannedInCurrentCycle.add(deviceMac)
-            mDeviceList?.addDevice(device, rssi)
-
+            // Always update RSSI for real-time signal strength display
             val currentDevices = _discoveredDevices.value.toMutableMap()
+            val previousRssi = currentDevices[deviceMac]
             currentDevices[deviceMac] = rssi
             _discoveredDevices.value = currentDevices
             _nearbyMeterCount.value = currentDevices.size
 
-            updateMeterNearbyStatus(deviceMac, rssi)
-            updateMeterLastCommunication(deviceMac)
+            // Update device list with latest RSSI
+            mDeviceList?.addDevice(device, rssi)
+
+            // Only log and do expensive operations on first discovery or significant RSSI change
+            if (isFirstDiscovery) {
+                Log.i(TAG, "Meter discovered: $deviceMac, RSSI: $rssi dBm")
+                _scannedInCurrentCycle.add(deviceMac)
+                updateMeterNearbyStatus(deviceMac, rssi)
+                updateMeterLastCommunication(deviceMac)
+            } else if (previousRssi != null && kotlin.math.abs(rssi - previousRssi) >= 5) {
+                // Log significant RSSI changes (5+ dBm difference)
+                Log.d(TAG, "RSSI update: $deviceMac, $previousRssi -> $rssi dBm")
+            }
+        }
+
+        override fun onScanFailed(errorCode: Int) {
+            Log.e(TAG, "BLE scan failed with error code: $errorCode")
+            mScanning = false
+            _isScanning.value = false
+            when (errorCode) {
+                SCAN_FAILED_ALREADY_STARTED -> Log.w(TAG, "Scan already started")
+                SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> Log.e(TAG, "App registration failed")
+                SCAN_FAILED_FEATURE_UNSUPPORTED -> Log.e(TAG, "BLE scan not supported")
+                SCAN_FAILED_INTERNAL_ERROR -> Log.e(TAG, "Internal error")
+            }
         }
     }
 
@@ -245,7 +285,8 @@ class MeterReadingViewModel : ViewModel() {
     }
 
     /**
-     * ✅ NEW: Start BLE scanning for nearby meters (filtered by CSV)
+     * Start BLE scanning for nearby meters using modern BluetoothLeScanner API
+     * Uses hardware filtering and LOW_POWER mode to minimize interference with printer
      */
     @RequiresPermission(allOf = [
         Manifest.permission.BLUETOOTH_SCAN,
@@ -253,8 +294,8 @@ class MeterReadingViewModel : ViewModel() {
         Manifest.permission.ACCESS_FINE_LOCATION
     ])
     fun startBLEScanning() {
-        if (mBluetoothAdapter == null) {
-            updateErrorMessage("Bluetooth adapter not available")
+        if (bluetoothLeScanner == null) {
+            updateErrorMessage("Bluetooth scanner not available")
             return
         }
 
@@ -263,52 +304,60 @@ class MeterReadingViewModel : ViewModel() {
             return
         }
 
-        if (!mScanning) {
-            viewModelScope.launch {
-                try {
-                    // Clear previous discoveries
-                    mDeviceList?.Deactivate()
-                    _discoveredDevices.value = emptyMap()
-                    _nearbyMeterCount.value = 0
+        if (mScanning) {
+            Log.d(TAG, "BLE scan already running")
+            return
+        }
 
-                    // Start scanning
-                    @Suppress("DEPRECATION")
-                    mBluetoothAdapter?.startLeScan(mLeScanCallback)
-                    mScanning = true
-                    _isScanning.value = true
-
-                    Log.i(TAG, "BLE scan started - looking for ${_uiState.value.allMeters.size} known meters")
-
-                    // Auto-stop after SCAN_PERIOD
-                    delay(SCAN_PERIOD)
-                    stopBLEScanning()
-
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error starting BLE scan", e)
-                    updateErrorMessage("Failed to start scanning: ${e.message}")
-                    _isScanning.value = false
-                }
+        try {
+            // Build hardware filters from known meter MAC addresses
+            val filters = buildScanFilters()
+            if (filters.isEmpty()) {
+                Log.w(TAG, "No meter MAC addresses to scan for")
+                updateErrorMessage("No meters with Bluetooth IDs found")
+                return
             }
+
+            // Clear tracking for new scan session
+            _scannedInCurrentCycle.clear()
+            mDeviceList?.Deactivate()
+
+            // Start scanning with hardware filters and low-power settings
+            bluetoothLeScanner?.startScan(filters, scanSettings, scanCallback)
+            mScanning = true
+            _isScanning.value = true
+
+            Log.i(TAG, "BLE scan started with ${filters.size} hardware filters (LOW_POWER mode)")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting BLE scan", e)
+            updateErrorMessage("Failed to start scanning: ${e.message}")
+            mScanning = false
+            _isScanning.value = false
         }
     }
 
     /**
-     * ✅ NEW: Stop BLE scanning
+     * Stop BLE scanning
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun stopBLEScanning() {
-        if (mScanning) {
-            try {
-                @Suppress("DEPRECATION")
-                mBluetoothAdapter?.stopLeScan(mLeScanCallback)
-                mScanning = false
-                _isScanning.value = false
+        if (!mScanning) return
 
-                Log.i(TAG, "BLE scan stopped - found ${_nearbyMeterCount.value} nearby meters")
+        try {
+            bluetoothLeScanner?.stopScan(scanCallback)
+            mScanning = false
+            _isScanning.value = false
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error stopping BLE scan", e)
-            }
+            // Update offline status for meters not discovered
+            updateOfflineMeters()
+
+            Log.i(TAG, "BLE scan stopped - found ${_nearbyMeterCount.value} nearby meters")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping BLE scan", e)
+            mScanning = false
+            _isScanning.value = false
         }
     }
 
@@ -395,93 +444,6 @@ class MeterReadingViewModel : ViewModel() {
             Log.i(TAG, "BLE operations stopped")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping BLE operations", e)
-        }
-    }
-
-    /**
-     * Start periodic scanning with proper backoff to avoid "scanning too frequently" warning
-     */
-    @RequiresPermission(allOf = [
-        Manifest.permission.BLUETOOTH_SCAN,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    ])
-    fun startPeriodicScanning() {
-        scanJob?.cancel()
-        scanJob = viewModelScope.launch {
-            while (isActive) {
-                // Clear the "already scanned" set for new cycle
-                _scannedInCurrentCycle.clear()
-
-                // ✅ Pause printer status monitoring during scan
-                printerViewModel?.stopStatusMonitoring()
-
-                // Start scan
-                startBLEScanningInternal()
-
-                // Scan for SCAN_PERIOD duration
-                delay(SCAN_PERIOD)
-
-                // Stop scan
-                stopBLEScanningInternal()
-
-                // NOW clear old discovered devices and replace with new scan results
-                val newDiscoveredDevices = _discoveredDevices.value.filterKeys { mac ->
-                    _scannedInCurrentCycle.contains(mac)
-                }
-                _discoveredDevices.value = newDiscoveredDevices
-                _nearbyMeterCount.value = newDiscoveredDevices.size
-
-                // Update offline meters based on current discovered devices
-                updateOfflineMeters()
-
-                // ✅ Resume printer status monitoring after scan
-                printerViewModel?.startStatusMonitoring()
-
-                // Wait cooldown before next cycle
-                Log.d(TAG, "Waiting ${SCAN_INTERVAL}ms before next scan cycle")
-                delay(SCAN_INTERVAL)
-            }
-        }
-        Log.i(TAG, "Periodic scanning started: ${SCAN_PERIOD}ms scan every ${SCAN_INTERVAL}ms")
-    }
-
-    @RequiresPermission(allOf = [
-        Manifest.permission.BLUETOOTH_SCAN,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    ])
-    private suspend fun startBLEScanningInternal() {
-        if (mBluetoothAdapter == null || _uiState.value.allMeters.isEmpty()) return
-
-        if (!mScanning) {
-            try {
-                // Add small delay if previous scan just stopped
-                delay(SCAN_COOLDOWN)
-
-                @Suppress("DEPRECATION")
-                mBluetoothAdapter?.startLeScan(mLeScanCallback)
-                mScanning = true
-                _isScanning.value = true
-                Log.i(TAG, "BLE scan started")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error starting BLE scan", e)
-            }
-        }
-    }
-
-    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    private fun stopBLEScanningInternal() {
-        if (mScanning) {
-            try {
-                @Suppress("DEPRECATION")
-                mBluetoothAdapter?.stopLeScan(mLeScanCallback)
-                mScanning = false
-                _isScanning.value = false
-                Log.i(TAG, "BLE scan stopped - found ${_scannedInCurrentCycle.size} devices this cycle")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error stopping BLE scan", e)
-            }
         }
     }
 
@@ -755,17 +717,16 @@ class MeterReadingViewModel : ViewModel() {
 
 
     /**
-     * Pause periodic scanning (for MeterDetailScreen)
+     * Pause BLE scanning (for MeterDetailScreen)
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun pauseScanning() {
-        scanJob?.cancel()
-        stopBLEScanningInternal()
+        stopBLEScanning()
         Log.i(TAG, "BLE scanning paused")
     }
 
     /**
-     * Resume periodic scanning (when leaving MeterDetailScreen)
+     * Resume BLE scanning (when leaving MeterDetailScreen)
      */
     @RequiresPermission(allOf = [
         Manifest.permission.BLUETOOTH_SCAN,
@@ -773,7 +734,7 @@ class MeterReadingViewModel : ViewModel() {
         Manifest.permission.ACCESS_FINE_LOCATION
     ])
     fun resumeScanning() {
-        startPeriodicScanning()
+        startBLEScanning()
         Log.i(TAG, "BLE scanning resumed")
     }
 

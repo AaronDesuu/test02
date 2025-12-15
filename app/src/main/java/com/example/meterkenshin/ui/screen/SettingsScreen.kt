@@ -59,6 +59,7 @@ fun SettingsScreen(
                 UserProfileCard(
                     username = it.username,
                     role = it.role.displayName,
+                    dlmsRank = it.role.dlmsRank,
                     loginTime = it.loginTime.toString()
                 )
             }
@@ -281,6 +282,7 @@ fun SettingsSection(
 fun UserProfileCard(
     username: String,
     role: String,
+    dlmsRank: Int,
     loginTime: String
 ) {
     Card(
@@ -304,6 +306,12 @@ fun UserProfileCard(
                 icon = Icons.Default.AdminPanelSettings,
                 title = "Role",
                 value = role
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            SettingsItem(
+                icon = Icons.Default.Key,
+                title = "DLMS Rank",
+                value = "Rank $dlmsRank"
             )
             Spacer(modifier = Modifier.height(12.dp))
             SettingsItem(

@@ -29,15 +29,6 @@ class UserDatabase private constructor() {
     }
 
     private fun createDefaultUsers() {
-        val rootUser = User(
-            id = UUID.randomUUID().toString(),
-            username = "root",
-            password = "root123", // In production, this should be hashed
-            role = UserRole.ROOT,
-            fullName = "Root Administrator",
-            email = "root@meterkenshin.com"
-        )
-
         val adminUser = User(
             id = UUID.randomUUID().toString(),
             username = "admin",
@@ -52,11 +43,10 @@ class UserDatabase private constructor() {
             username = "reader",
             password = "reader123",
             role = UserRole.READER,
-            fullName = "Report Reader",
+            fullName = "Meter Reader",
             email = "reader@meterkenshin.com"
         )
 
-        users[rootUser.username] = rootUser
         users[adminUser.username] = adminUser
         users[readerUser.username] = readerUser
     }
