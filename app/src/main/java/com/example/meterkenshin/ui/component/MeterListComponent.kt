@@ -499,12 +499,7 @@ fun MeterListComponent(
                         coverStatus = printerCoverStatus,
                         printerViewModel = printerViewModel,
                         onRetry = {
-                            scope.launch {
-                                printCurrentMeterSerial?.let { serial ->
-                                    val meter = uiState.allMeters.find { it.serialNumber == serial }
-                                    meter?.let { batchPrintManager.retryPrinting(it) }
-                                }
-                            }
+                            batchPrintManager.retryPrinting()
                         },
                         onCancel = {
                             batchPrintManager.dismissPrinterError()
