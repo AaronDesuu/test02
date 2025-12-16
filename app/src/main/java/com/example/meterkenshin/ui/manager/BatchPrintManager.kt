@@ -50,8 +50,6 @@ class BatchPrintManager(
         private const val PRINTER_ERROR_TIMEOUT_MS = 120000L // 2 minutes
         private const val PRINT_COMPLETION_TIMEOUT_MS = 15000L // 15 seconds
         private const val PRINT_STATUS_CHECK_INTERVAL_MS = 500L // Check every 500ms
-        private const val MAX_AUTO_RETRIES = 2 // Maximum automatic retries
-        private const val RETRY_BASE_DELAY_MS = 1000L // Base delay for exponential backoff
 
         // ✅ NEW: Progress persistence constants
         private const val PREFS_NAME = "batch_print_progress"
@@ -93,8 +91,6 @@ class BatchPrintManager(
     private val _currentMeterSerial = MutableStateFlow<String?>(null)
     val currentMeterSerial: StateFlow<String?> = _currentMeterSerial.asStateFlow()
 
-    private val _currentStep = MutableStateFlow(0)
-
     private val _currentStepDescription = MutableStateFlow("")
     val currentStepDescription: StateFlow<String> = _currentStepDescription.asStateFlow()
 
@@ -108,26 +104,13 @@ class BatchPrintManager(
     private val _printerErrorMessage = MutableStateFlow("")
     val printerErrorMessage: StateFlow<String> = _printerErrorMessage.asStateFlow()
 
-    // Real-time printer status for error dialog
-    private val _printerPaperStatus = MutableStateFlow(PrinterBluetoothViewModel.PaperStatus.UNKNOWN)
-
-    private val _printerCoverStatus = MutableStateFlow(PrinterBluetoothViewModel.CoverStatus.UNKNOWN)
-
     private var printerViewModel: PrinterBluetoothViewModel? = null
 
     /**
-     * Set printer ViewModel reference and collect real-time status
+     * Set printer ViewModel reference
      */
     fun setPrinterViewModel(viewModel: PrinterBluetoothViewModel) {
         this.printerViewModel = viewModel
-
-        // Collect real-time printer status for error dialog
-        scope.launch {
-            viewModel.paperStatus.collect { _printerPaperStatus.value = it }
-        }
-        scope.launch {
-            viewModel.coverStatus.collect { _printerCoverStatus.value = it }
-        }
     }
 
     init {
@@ -422,7 +405,6 @@ class BatchPrintManager(
      * Update progress with step tracking
      */
     private fun updateProgressWithStep(step: Int, description: String) {
-        _currentStep.value = step
         _currentStepDescription.value = description
     }
 
@@ -493,63 +475,6 @@ class BatchPrintManager(
         }
 
         return false
-    }
-
-    /**
-     * Print receipt with automatic retry and exponential backoff
-     * ✅ NEW: Smart retry logic for transient failures
-     *
-     * @param meter The meter to print
-     * @param maxRetries Maximum number of retry attempts (default: MAX_AUTO_RETRIES)
-     * @return Pair<Boolean, Int> - (success, attemptNumber)
-     */
-    private suspend fun printWithRetry(
-        meter: Meter,
-        maxRetries: Int = MAX_AUTO_RETRIES
-    ): Pair<Boolean, Int> {
-        var lastError: Exception? = null
-        var attempt = 1
-
-        repeat(maxRetries + 1) { attemptIndex ->
-            attempt = attemptIndex + 1
-
-            try {
-                Log.d(TAG, "Print attempt $attempt/${maxRetries + 1} for ${meter.serialNumber}")
-
-                val success = printReceipt(meter)
-
-                if (success) {
-                    if (attempt > 1) {
-                        Log.i(TAG, "Print succeeded on attempt $attempt for ${meter.serialNumber}")
-                    }
-                    return Pair(true, attempt)
-                }
-
-                // If not successful and not last attempt, wait with exponential backoff
-                if (attemptIndex < maxRetries) {
-                    val delayMs = RETRY_BASE_DELAY_MS * (1 shl attemptIndex) // 1s, 2s, 4s, ...
-                    Log.d(TAG, "Print failed, retrying in ${delayMs}ms (attempt ${attempt + 1})")
-                    updateProgressWithStep(2, "⏳ Retrying in ${delayMs / 1000}s... (Attempt ${attempt + 1})")
-                    delay(delayMs)
-                }
-
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                lastError = e
-                Log.w(TAG, "Print attempt $attempt failed with exception: ${e.message}")
-
-                // If not last attempt, wait with exponential backoff
-                if (attemptIndex < maxRetries) {
-                    val delayMs = RETRY_BASE_DELAY_MS * (1 shl attemptIndex)
-                    delay(delayMs)
-                }
-            }
-        }
-
-        // All attempts failed
-        Log.e(TAG, "All $attempt retry attempts failed for ${meter.serialNumber}", lastError)
-        return Pair(false, attempt)
     }
 
     /**
@@ -958,7 +883,6 @@ class BatchPrintManager(
         _batchResult.value = null
         _batchPreview.value = null
         _currentMeterSerial.value = null
-        _currentStep.value = 0
         _currentStepDescription.value = ""
         _errorCount.value = 0
         _showPrinterErrorDialog.value = false
