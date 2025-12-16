@@ -27,7 +27,9 @@ import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.MeterStatus
 import com.example.meterkenshin.model.MeterType
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.utils.FilterUtils
+import com.example.meterkenshin.utils.UserFileManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -83,6 +85,10 @@ class MeterReadingViewModel : ViewModel() {
     private val _isScanning = MutableStateFlow(false)
 
     private val _discoveredDevices = MutableStateFlow<Map<String, Int>>(emptyMap()) // MAC -> RSSI
+
+    // Track last RSSI update time for throttling (MAC -> timestamp in millis)
+    private val _lastRssiUpdate = mutableMapOf<String, Long>()
+    private val RSSI_UPDATE_INTERVAL_MS = 2000L // 2 seconds
 
     private val _nearbyMeterCount = MutableStateFlow(0)
     val nearbyMeterCount: StateFlow<Int> = _nearbyMeterCount.asStateFlow()
@@ -171,28 +177,36 @@ class MeterReadingViewModel : ViewModel() {
             val device = result.device
             val rssi = result.rssi
             val deviceMac = device.address.uppercase()
+            val currentTime = System.currentTimeMillis()
 
             val isFirstDiscovery = !_scannedInCurrentCycle.contains(deviceMac)
 
-            // Always update RSSI for real-time signal strength display
-            val currentDevices = _discoveredDevices.value.toMutableMap()
-            val previousRssi = currentDevices[deviceMac]
-            currentDevices[deviceMac] = rssi
-            _discoveredDevices.value = currentDevices
-            _nearbyMeterCount.value = currentDevices.size
+            // Throttle RSSI updates to every 2 seconds (except for first discovery)
+            val lastUpdate = _lastRssiUpdate[deviceMac] ?: 0L
+            val shouldUpdateRssi = isFirstDiscovery || (currentTime - lastUpdate >= RSSI_UPDATE_INTERVAL_MS)
 
-            // Update device list with latest RSSI
-            mDeviceList?.addDevice(device, rssi)
+            if (shouldUpdateRssi) {
+                // Update RSSI for real-time signal strength display
+                val currentDevices = _discoveredDevices.value.toMutableMap()
+                val previousRssi = currentDevices[deviceMac]
+                currentDevices[deviceMac] = rssi
+                _discoveredDevices.value = currentDevices
+                _nearbyMeterCount.value = currentDevices.size
+                _lastRssiUpdate[deviceMac] = currentTime
 
-            // Only log and do expensive operations on first discovery or significant RSSI change
-            if (isFirstDiscovery) {
-                Log.i(TAG, "Meter discovered: $deviceMac, RSSI: $rssi dBm")
-                _scannedInCurrentCycle.add(deviceMac)
-                updateMeterNearbyStatus(deviceMac, rssi)
-                updateMeterLastCommunication(deviceMac)
-            } else if (previousRssi != null && kotlin.math.abs(rssi - previousRssi) >= 5) {
-                // Log significant RSSI changes (5+ dBm difference)
-                Log.d(TAG, "RSSI update: $deviceMac, $previousRssi -> $rssi dBm")
+                // Update device list with latest RSSI
+                mDeviceList?.addDevice(device, rssi)
+
+                // Only log and do expensive operations on first discovery or significant RSSI change
+                if (isFirstDiscovery) {
+                    Log.i(TAG, "Meter discovered: $deviceMac, RSSI: $rssi dBm")
+                    _scannedInCurrentCycle.add(deviceMac)
+                    updateMeterNearbyStatus(deviceMac, rssi)
+                    updateMeterLastCommunication(deviceMac)
+                } else if (previousRssi != null && kotlin.math.abs(rssi - previousRssi) >= 5) {
+                    // Log significant RSSI changes (5+ dBm difference)
+                    Log.d(TAG, "RSSI update: $deviceMac, $previousRssi -> $rssi dBm")
+                }
             }
         }
 
@@ -320,6 +334,7 @@ class MeterReadingViewModel : ViewModel() {
 
             // Clear tracking for new scan session
             _scannedInCurrentCycle.clear()
+            _lastRssiUpdate.clear()
             mDeviceList?.Deactivate()
 
             // Start scanning with hardware filters and low-power settings
@@ -519,7 +534,11 @@ class MeterReadingViewModel : ViewModel() {
         val currentMeterFile = "${currentYearMonth}_meter.csv"
         val fallbackFile = "meter.csv"
 
-        val fileToLoad = if (File(context.getExternalFilesDir(null), "app_files/$currentMeterFile").exists()) {
+        // Check user-specific directory for meter file
+        val sessionManager = SessionManager.getInstance(context)
+        val currentFile = UserFileManager.getMeterFile(context, sessionManager, currentMeterFile)
+
+        val fileToLoad = if (currentFile.exists()) {
             currentMeterFile
         } else {
             fallbackFile
@@ -564,9 +583,9 @@ class MeterReadingViewModel : ViewModel() {
 
     private fun loadMeterDataFromFile(context: Context, fileName: String): MeterLoadResult {
         return try {
-            val externalFilesDir = context.getExternalFilesDir(null)
-            val appFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
-            val meterFile = File(appFilesDir, fileName)
+            // Get user-specific app files directory
+            val sessionManager = SessionManager.getInstance(context)
+            val meterFile = UserFileManager.getMeterFile(context, sessionManager, fileName)
 
             if (!meterFile.exists()) {
                 return MeterLoadResult.Error("Meter file not found")
@@ -813,11 +832,10 @@ class MeterReadingViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val context = mContext ?: return@launch
-                val externalFilesDir = context.getExternalFilesDir(null) ?: return@launch
-                val csvDir = File(externalFilesDir, "app_files")
+                val sessionManager = SessionManager.getInstance(context)
                 val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
                 val filename = "${yearMonth}_meter.csv"
-                val meterFile = File(csvDir, filename)
+                val meterFile = UserFileManager.getMeterFile(context, sessionManager, filename)
 
                 if (!meterFile.exists()) return@launch
 

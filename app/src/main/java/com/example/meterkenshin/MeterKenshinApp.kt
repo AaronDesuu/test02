@@ -208,7 +208,8 @@ fun MeterKenshinApp(
                 currentScreen == "meter_detail" -> {
                     selectedMeter?.let { meter ->
                         MeterDetailScreen(
-                            meter = meter
+                            meter = meter,
+                            sessionManager = sessionManager
                         )
                     }
                 }

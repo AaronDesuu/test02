@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.manager.SessionManager
+import com.example.meterkenshin.utils.UserFileManager
 import com.example.meterkenshin.utils.getCurrentYearMonth
 import java.io.File
 import java.text.SimpleDateFormat
@@ -320,15 +322,12 @@ class DLMSFunctions(
         readDate: String
     ) {
         try {
-            // Define file and directory
-            val externalFilesDir = context?.getExternalFilesDir(null) ?: return
-            val csvDir = File(externalFilesDir, "app_files")
-            if (!csvDir.exists()) {
-                csvDir.mkdirs()
-            }
+            // Get user-specific meter file
+            val ctx = context ?: return
+            val sessionManager = SessionManager.getInstance(ctx)
             val yearMonth = getCurrentYearMonth()
             val filename = "${yearMonth}_meter.csv"
-            val meterFile = File(csvDir, filename)
+            val meterFile = UserFileManager.getMeterFile(ctx, sessionManager, filename)
 
             val newRowData = listOf(
                 uid, activate, serialNo, bluetoothId, fixedDate,
@@ -401,15 +400,12 @@ class DLMSFunctions(
         billingPrintDate: String
     ) {
         try {
-            val externalFilesDir = context?.getExternalFilesDir(null) ?: return
-            val csvDir = File(externalFilesDir, "app_files")
-            if (!csvDir.exists()) {
-                csvDir.mkdirs()
-            }
-
+            // Get user-specific meter file
+            val ctx = context ?: return
+            val sessionManager = SessionManager.getInstance(ctx)
             val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
             val filename = "${yearMonth}_meter.csv"
-            val meterFile = File(csvDir, filename)
+            val meterFile = UserFileManager.getMeterFile(ctx, sessionManager, filename)
 
             if (!meterFile.exists()) {
                 logCallback("ERROR: Meter CSV file does not exist")

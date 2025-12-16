@@ -40,10 +40,12 @@ import com.example.meterkenshin.ui.component.dialog.PrintReceiptDialog
 import com.example.meterkenshin.ui.component.dialog.PrinterStatusErrorDialog
 import com.example.meterkenshin.ui.component.dialog.SaveJSONDialog
 import com.example.meterkenshin.ui.component.card.SavedBillingDataCard
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.utils.UserFileManager
 import com.example.meterkenshin.utils.loadMeterRates
 import java.io.File
 import java.text.SimpleDateFormat
@@ -59,12 +61,14 @@ import java.util.Locale
 fun MeterDetailScreen(
     modifier: Modifier = Modifier,
     meter: Meter,
+    sessionManager: SessionManager,
     meterReadingViewModel: MeterReadingViewModel = viewModel(),
     registrationViewModel: DLMSViewModel = viewModel(key = "meter_${meter.uid}"),
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     printerViewModel: PrinterBluetoothViewModel = viewModel(),  // ADDED: Printer view model
 ) {
     val context = LocalContext.current
+    val session = sessionManager.getSession()
 
     // Track DLMS initialization state
     var isDlmsInitialized by remember { mutableStateOf(false) }
@@ -98,8 +102,9 @@ fun MeterDetailScreen(
         try {
             Log.i("MeterDetailScreen", "Initializing DLMS...")
 
-            // ADDED: Set printer view model reference
+            // Set printer and meter reading view model references
             registrationViewModel.setPrinterViewModel(printerViewModel)
+            registrationViewModel.setMeterReadingViewModel(meterReadingViewModel)
 
             registrationViewModel.initializeDLMS(context, meter)
             isDlmsInitialized = true
@@ -156,11 +161,10 @@ fun MeterDetailScreen(
 
     LaunchedEffect(meter.uid) {
         // Reload meter from CSV to get latest activate state
-        val externalFilesDir = context.getExternalFilesDir(null)
-        val appFilesDir = File(externalFilesDir, "app_files")
+        val sessionManager = SessionManager.getInstance(context)
         val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
         val filename = "${yearMonth}_meter.csv"
-        val meterFile = File(appFilesDir, filename)
+        val meterFile = UserFileManager.getMeterFile(context, sessionManager, filename)
 
         if (meterFile.exists()) {
             val lines = meterFile.readLines()
@@ -207,6 +211,7 @@ fun MeterDetailScreen(
             DLMSFunctionsCard(
                 context = context,
                 meterActivate = activeMeter.activate,  // This will update when CSV is written
+                userRole = session?.role,  // Pass user role for permission-based UI
                 onRegistration = {
                     if (meter.activate == 0) {
                         registrationViewModel.registration(meter)

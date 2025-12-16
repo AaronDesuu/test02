@@ -2,6 +2,8 @@ package com.example.meterkenshin.data.csv
 
 import android.content.Context
 import android.util.Log
+import com.example.meterkenshin.ui.manager.SessionManager
+import com.example.meterkenshin.utils.UserFileManager
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStreamReader
@@ -43,41 +45,20 @@ class PrinterCsvParser(private val context: Context) {
     }
 
     /**
-     * Get the printer CSV file from app storage
-     * Checks both external and internal storage locations
+     * Get the user-specific printer CSV file from app storage
      */
     private fun getPrinterCsvFile(): File {
-        // Priority 1: Check external storage (where FileUploadViewModel saves files)
-        val externalFilesDir = context.getExternalFilesDir(null)
-        if (externalFilesDir != null) {
-            val externalAppFilesDir = File(externalFilesDir, APP_FILES_FOLDER)
-            val externalFile = File(externalAppFilesDir, PRINTER_CSV_FILENAME)
-            if (externalFile.exists()) {
-                Log.d(TAG, "Found printer.csv in external storage: ${externalFile.absolutePath}")
-                return externalFile
-            }
-        }
+        // Get user-specific printer file
+        val sessionManager = SessionManager.getInstance(context)
+        val printerFile = UserFileManager.getPrinterFile(context, sessionManager)
 
-        // Priority 2: Check internal storage (fallback)
-        val appFilesDir = File(context.filesDir, APP_FILES_FOLDER)
-        val internalFile = File(appFilesDir, PRINTER_CSV_FILENAME)
-        if (internalFile.exists()) {
-            Log.d(TAG, "Found printer.csv in internal storage: ${internalFile.absolutePath}")
-            return internalFile
-        }
-
-        // Return external path as default (for error logging)
-        val defaultPath = if (externalFilesDir != null) {
-            File(File(externalFilesDir, APP_FILES_FOLDER), PRINTER_CSV_FILENAME)
+        if (printerFile.exists()) {
+            Log.d(TAG, "Found printer.csv in user directory: ${printerFile.absolutePath}")
         } else {
-            internalFile
+            Log.w(TAG, "printer.csv not found at: ${printerFile.absolutePath}")
         }
 
-        Log.w(TAG, "printer.csv not found. Expected locations:")
-        Log.w(TAG, "  - External: ${if (externalFilesDir != null) File(File(externalFilesDir, APP_FILES_FOLDER), PRINTER_CSV_FILENAME).absolutePath else "N/A"}")
-        Log.w(TAG, "  - Internal: ${internalFile.absolutePath}")
-
-        return defaultPath
+        return printerFile
     }
 
     /**

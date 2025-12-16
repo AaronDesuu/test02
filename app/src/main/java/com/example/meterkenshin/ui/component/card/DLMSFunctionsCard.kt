@@ -16,24 +16,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.ui.manager.AppPreferences
 
 /**
  * DLMS Functions Card Component
  *
- * Displays all 6 DLMS function buttons:
- * - Registration
- * - Read data
- * - Load profile
- * - Event log
- * - Billing data
- * - Set Clock
+ * Displays DLMS function buttons based on user role:
+ * - ADMIN: All buttons (Registration, Read data, Load profile, Event log, Billing data, Set Clock)
+ * - READER: Only Read data button
  */
 @Composable
 fun DLMSFunctionsCard(
     context: Context,
     modifier: Modifier = Modifier,
     meterActivate: Int = 0,
+    userRole: UserRole? = null,
     onRegistration: () -> Unit,
     onReadData: () -> Unit,
     onLoadProfile: () -> Unit,
@@ -75,17 +73,19 @@ fun DLMSFunctionsCard(
                 )
             }
 
-            // Registration button - only enabled when activate = 0
-            DLMSFunctionButton(
-                text = "Registration",
-                icon = Icons.Default.Person,
-                onClick = onRegistration,
-                enabled = !isProcessing && meterActivate == 0
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
+            // Registration button - only enabled when activate = 0 (ADMIN only)
+            if (userRole != UserRole.READER) {
+                DLMSFunctionButton(
+                    text = "Registration",
+                    icon = Icons.Default.Person,
+                    onClick = onRegistration,
+                    enabled = !isProcessing && meterActivate == 0
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
 
             // Other buttons - enabled when activate ≠ 0
+            // Read data button - Available to all users
             DLMSFunctionButton(
                 text = "Read data",
                 icon = Icons.Default.Assessment,
@@ -103,73 +103,76 @@ fun DLMSFunctionsCard(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            DLMSFunctionButton(
-                text = "Load profile",
-                icon = Icons.Default.Storage,
-                onClick = {
-                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
-                        dialogTitle = "Load Profile"
-                        dialogMessage = "Load meter profile?"
-                        pendingAction = onLoadProfile
-                        showConfirmDialog = true
-                    } else {
-                        onLoadProfile()
-                    }
-                },
-                enabled = !isProcessing && meterActivate != 0
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            // Admin-only buttons
+            if (userRole != UserRole.READER) {
+                DLMSFunctionButton(
+                    text = "Load profile",
+                    icon = Icons.Default.Storage,
+                    onClick = {
+                        if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                            dialogTitle = "Load Profile"
+                            dialogMessage = "Load meter profile?"
+                            pendingAction = onLoadProfile
+                            showConfirmDialog = true
+                        } else {
+                            onLoadProfile()
+                        }
+                    },
+                    enabled = !isProcessing && meterActivate != 0
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
-            DLMSFunctionButton(
-                text = "Event log",
-                icon = Icons.Default.Event,
-                onClick = {
-                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
-                        dialogTitle = "Event Log"
-                        dialogMessage = "Retrieve event log?"
-                        pendingAction = onEventLog
-                        showConfirmDialog = true
-                    } else {
-                        onEventLog()
-                    }
-                },
-                enabled = !isProcessing && meterActivate != 0
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+                DLMSFunctionButton(
+                    text = "Event log",
+                    icon = Icons.Default.Event,
+                    onClick = {
+                        if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                            dialogTitle = "Event Log"
+                            dialogMessage = "Retrieve event log?"
+                            pendingAction = onEventLog
+                            showConfirmDialog = true
+                        } else {
+                            onEventLog()
+                        }
+                    },
+                    enabled = !isProcessing && meterActivate != 0
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
-            DLMSFunctionButton(
-                text = "Billing data",
-                icon = Icons.Default.Payment,
-                onClick = {
-                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
-                        dialogTitle = "Billing Data"
-                        dialogMessage = "Retrieve billing data?"
-                        pendingAction = onBillingData
-                        showConfirmDialog = true
-                    } else {
-                        onBillingData()
-                    }
-                },
-                enabled = !isProcessing && meterActivate != 0
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+                DLMSFunctionButton(
+                    text = "Billing data",
+                    icon = Icons.Default.Payment,
+                    onClick = {
+                        if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                            dialogTitle = "Billing Data"
+                            dialogMessage = "Retrieve billing data?"
+                            pendingAction = onBillingData
+                            showConfirmDialog = true
+                        } else {
+                            onBillingData()
+                        }
+                    },
+                    enabled = !isProcessing && meterActivate != 0
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // Set Clock - ALWAYS enabled (exception)
-            DLMSFunctionButton(
-                text = "Set Clock",
-                icon = Icons.Default.Schedule,
-                onClick = {
-                    if (AppPreferences.isDlmsConfirmEnabled(context)) {
-                        dialogTitle = "Set Clock"
-                        dialogMessage = "Set meter clock to current time?"
-                        pendingAction = onSetClock
-                        showConfirmDialog = true
-                    } else {
-                        onSetClock()
-                    }
-                },
-                enabled = !isProcessing  // No meterActivate check
-            )
+                // Set Clock - ADMIN only, ALWAYS enabled (no meterActivate check)
+                DLMSFunctionButton(
+                    text = "Set Clock",
+                    icon = Icons.Default.Schedule,
+                    onClick = {
+                        if (AppPreferences.isDlmsConfirmEnabled(context)) {
+                            dialogTitle = "Set Clock"
+                            dialogMessage = "Set meter clock to current time?"
+                            pendingAction = onSetClock
+                            showConfirmDialog = true
+                        } else {
+                            onSetClock()
+                        }
+                    },
+                    enabled = !isProcessing  // No meterActivate check
+                )
+            }
 
             // Confirmation Dialog
             if (showConfirmDialog) {

@@ -3,6 +3,8 @@ package com.example.meterkenshin.data
 import android.content.Context
 import android.util.Log
 import com.example.meterkenshin.model.Billing
+import com.example.meterkenshin.ui.manager.SessionManager
+import com.example.meterkenshin.utils.UserFileManager
 import com.google.gson.Gson
 import java.io.File
 import java.text.SimpleDateFormat
@@ -12,8 +14,9 @@ import java.util.Locale
 /**
  * Per-Meter CSV Billing Data Repository
  * Creates separate CSV file for each meter: {serialNumber}_billing.csv
- * Stored in: app_files/billing/
+ * Stored in: app_files/{username}/billing/
  *
+ * Each user account has their own isolated billing directory
  * Each meter's CSV accumulates all billing records over time
  * Format: Timestamp,Period,BillingJSON,RatesJSON
  *
@@ -22,12 +25,15 @@ import java.util.Locale
  * - Accumulates historical billing data
  * - Easy to backup/export individual meters
  * - No cross-meter data conflicts
+ * - User-specific data isolation
  */
-class BillingDataCSVRepository(private val context: Context) {
+class BillingDataCSVRepository(
+    private val context: Context,
+    private val sessionManager: SessionManager
+) {
 
     companion object {
         private const val TAG = "BillingDataCSVRepo"
-        private const val BILLING_DIR = "app_files/billing"
     }
 
     /**
@@ -42,13 +48,9 @@ class BillingDataCSVRepository(private val context: Context) {
                 return false
             }
 
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return false
-            val billingDir = File(externalFilesDir, BILLING_DIR)
-
-            if (!billingDir.exists()) {
-                billingDir.mkdirs()
-                Log.d(TAG, "Created billing directory: ${billingDir.absolutePath}")
-            }
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
+            Log.d(TAG, "Using billing directory: ${billingDir.absolutePath}")
 
             val filename = "${serialNumber}_billing.csv"
             val csvFile = File(billingDir, filename)
@@ -83,8 +85,8 @@ class BillingDataCSVRepository(private val context: Context) {
      */
     fun loadBillingData(serialNumber: String): SavedBillingData? {
         return try {
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return null
-            val billingDir = File(externalFilesDir, BILLING_DIR)
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
             val csvFile = File(billingDir, "${serialNumber}_billing.csv")
 
             if (!csvFile.exists()) {
@@ -135,8 +137,8 @@ class BillingDataCSVRepository(private val context: Context) {
      */
     fun loadAllBillingRecords(serialNumber: String): List<SavedBillingData> {
         return try {
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return emptyList()
-            val billingDir = File(externalFilesDir, BILLING_DIR)
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
             val csvFile = File(billingDir, "${serialNumber}_billing.csv")
 
             if (!csvFile.exists()) {
@@ -190,8 +192,8 @@ class BillingDataCSVRepository(private val context: Context) {
      */
     fun getAllMetersWithBillingData(): List<String> {
         return try {
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return emptyList()
-            val billingDir = File(externalFilesDir, BILLING_DIR)
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
 
             if (!billingDir.exists()) {
                 return emptyList()
@@ -219,8 +221,8 @@ class BillingDataCSVRepository(private val context: Context) {
      */
     fun clearBillingData(serialNumber: String): Boolean {
         return try {
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return false
-            val billingDir = File(externalFilesDir, BILLING_DIR)
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
             val csvFile = File(billingDir, "${serialNumber}_billing.csv")
 
             if (csvFile.exists()) {
@@ -243,8 +245,8 @@ class BillingDataCSVRepository(private val context: Context) {
      */
     fun clearAllBillingData(): Boolean {
         return try {
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return false
-            val billingDir = File(externalFilesDir, BILLING_DIR)
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
 
             if (billingDir.exists()) {
                 billingDir.listFiles()?.forEach { file ->
@@ -269,8 +271,8 @@ class BillingDataCSVRepository(private val context: Context) {
      */
     fun getBillingDataSummary(serialNumber: String): BillingDataSummary? {
         return try {
-            val externalFilesDir = context.getExternalFilesDir(null) ?: return null
-            val billingDir = File(externalFilesDir, BILLING_DIR)
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
             val csvFile = File(billingDir, "${serialNumber}_billing.csv")
 
             if (!csvFile.exists()) {
@@ -317,8 +319,8 @@ class BillingDataCSVRepository(private val context: Context) {
      * Check if billing data exists for a meter
      */
     fun hasBillingData(serialNumber: String): Boolean {
-        val externalFilesDir = context.getExternalFilesDir(null) ?: return false
-        val billingDir = File(externalFilesDir, BILLING_DIR)
+        // Get user-specific billing directory
+        val billingDir = UserFileManager.getBillingDir(context, sessionManager)
         val csvFile = File(billingDir, "${serialNumber}_billing.csv")
 
         return csvFile.exists() && csvFile.readLines().size > 1

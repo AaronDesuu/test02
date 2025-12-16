@@ -23,6 +23,7 @@ import com.example.meterkenshin.model.BillingRecord
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.NotificationManager
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.utils.*
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
@@ -93,6 +94,10 @@ class DLMSViewModel : ViewModel() {
         readDataPrinting.setPrinterViewModel(viewModel)
     }
 
+    fun setMeterReadingViewModel(viewModel: MeterReadingViewModel) {
+        meterReadingViewModel = viewModel
+    }
+
     // State flow delegations - expose to UI
     val showPrintDialog: StateFlow<Boolean> get() = readDataPrinting.showPrintDialog
     val showSaveDialog: StateFlow<Boolean> get() = readDataPrinting.showSaveDialog
@@ -130,7 +135,8 @@ class DLMSViewModel : ViewModel() {
      */
     fun initializeForPrinting(context: Context) {
         mContext = context
-        billingRepository = BillingDataCSVRepository(context)
+        val sessionManager = SessionManager.getInstance(context)
+        billingRepository = BillingDataCSVRepository(context, sessionManager)
         readDataPrinting.setContext(context)
 
         readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
@@ -150,7 +156,8 @@ class DLMSViewModel : ViewModel() {
         dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, mContext) { appendLog(it) }
         dlmsFunctions.setMeter(meter)
         sessionManager = DLMSSessionManager(dlmsInit)
-        billingRepository = BillingDataCSVRepository(context)
+        val userSessionManager = SessionManager.getInstance(context)
+        billingRepository = BillingDataCSVRepository(context, userSessionManager)
         readDataPrinting.setContext(context)
 
         readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
@@ -254,11 +261,11 @@ class DLMSViewModel : ViewModel() {
     private fun clearMeterReadDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return@launch
-                val csvDir = File(externalFilesDir, "app_files")
+                val context = mContext ?: return@launch
+                val sessionManager = SessionManager.getInstance(context)
                 val yearMonth = getCurrentYearMonth()
                 val filename = "${yearMonth}_meter.csv"
-                val meterFile = File(csvDir, filename)
+                val meterFile = UserFileManager.getMeterFile(context, sessionManager, filename)
 
                 if (!meterFile.exists()) {
                     appendLog("⚠ Warning: Meter CSV file not found")
@@ -671,6 +678,13 @@ class DLMSViewModel : ViewModel() {
 
                 appendLog("✅ Read Data Complete - Data saved for 30 days")
                 NotificationManager.showSuccess("Read Data Complete - Data saved for 30 days")
+
+                // Reload meters to update UI with latest data
+                withContext(Dispatchers.Main) {
+                    mContext?.let { ctx ->
+                        meterReadingViewModel?.reloadMeters(ctx)
+                    }
+                }
 
                 readDataPrinting.setPendingBillingData(billing)
                 readDataPrinting.setSavedRates(rates)
@@ -1306,11 +1320,11 @@ class DLMSViewModel : ViewModel() {
     private fun updateMeterBillingPrintDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return@launch
-                val csvDir = File(externalFilesDir, "app_files")
+                val context = mContext ?: return@launch
+                val sessionManager = SessionManager.getInstance(context)
                 val yearMonth = getCurrentYearMonth()
                 val filename = "${yearMonth}_meter.csv"
-                val meterFile = File(csvDir, filename)
+                val meterFile = UserFileManager.getMeterFile(context, sessionManager, filename)
 
                 if (!meterFile.exists()) {
                     appendLog("⚠ Warning: Meter CSV file not found")
@@ -1431,11 +1445,11 @@ class DLMSViewModel : ViewModel() {
      */
     private fun loadFixedDateFromCSV(serialNumber: String): String? {
         return try {
-            val externalFilesDir = mContext?.getExternalFilesDir(null) ?: return null
-            val csvDir = File(externalFilesDir, "app_files")
+            val context = mContext ?: return null
+            val sessionManager = SessionManager.getInstance(context)
             val yearMonth = getCurrentYearMonth()
             val filename = "${yearMonth}_meter.csv"
-            val meterFile = File(csvDir, filename)
+            val meterFile = UserFileManager.getMeterFile(context, sessionManager, filename)
 
             if (!meterFile.exists()) return null
 

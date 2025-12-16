@@ -10,6 +10,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.FileUploadState
 import com.example.meterkenshin.data.RequiredFile
+import com.example.meterkenshin.ui.manager.SessionManager
+import com.example.meterkenshin.utils.UserFileManager
 import com.example.meterkenshin.utils.getCurrentYearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -427,16 +429,12 @@ class FileUploadViewModel : ViewModel() {
     }
 
     /**
-     * Get or create the app files directory
+     * Get or create the user-specific app files directory
      */
     private fun getAppFilesDirectory(context: Context): File {
-        val externalFilesDir = context.getExternalFilesDir(null)
-        return if (externalFilesDir != null) {
-            File(externalFilesDir, APP_FILES_FOLDER)
-        } else {
-            // Fallback to internal storage
-            File(context.filesDir, APP_FILES_FOLDER)
-        }
+        // Get user-specific app files directory
+        val sessionManager = SessionManager.getInstance(context)
+        return UserFileManager.getAppFilesDir(context, sessionManager)
     }
 
     /**

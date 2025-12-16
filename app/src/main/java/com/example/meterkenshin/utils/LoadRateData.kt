@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.data.getDefaultRates
 import com.example.meterkenshin.data.RequiredFile
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import java.io.BufferedReader
 import java.io.File
@@ -31,49 +32,46 @@ fun loadMeterRates(
 
     if (rateCsvFile?.isUploaded == true) {
         try {
-            val externalFilesDir = context.getExternalFilesDir(null)
-            if (externalFilesDir != null) {
-                // ✅ FIX: Add app_files subdirectory
-                val appFilesDir = File(externalFilesDir, "app_files")
-                val rateFile = File(appFilesDir, rateCsvFile.fileName)
+            // Get user-specific rate file
+            val sessionManager = SessionManager.getInstance(context)
+            val rateFile = UserFileManager.getRateFile(context, sessionManager)
 
-                if (rateFile.exists()) {
-                    Log.d("MeterDetail", "Loading rates from: ${rateFile.absolutePath}")
+            if (rateFile.exists()) {
+                Log.d("MeterDetail", "Loading rates from: ${rateFile.absolutePath}")
 
-                    val rates = mutableListOf<Float>()
-                    val reader = BufferedReader(FileReader(rateFile))
+                val rates = mutableListOf<Float>()
+                val reader = BufferedReader(FileReader(rateFile))
 
-                    var isFirstLine = true
-                    reader.useLines { lines ->
-                        lines.forEach { line ->
-                            if (line.isNotBlank() && !line.startsWith("#")) {
-                                if (isFirstLine) {
-                                    val firstCell = line.split(",").firstOrNull()?.trim()
-                                    if (firstCell != null) {
-                                        try {
-                                            rates.add(firstCell.toFloat())
-                                            line.split(",").drop(1).forEach { cell ->
-                                                rates.add(cell.trim().toFloatOrNull() ?: 0f)
-                                            }
-                                        } catch (e: NumberFormatException) {
-                                            // First row is headers
+                var isFirstLine = true
+                reader.useLines { lines ->
+                    lines.forEach { line ->
+                        if (line.isNotBlank() && !line.startsWith("#")) {
+                            if (isFirstLine) {
+                                val firstCell = line.split(",").firstOrNull()?.trim()
+                                if (firstCell != null) {
+                                    try {
+                                        rates.add(firstCell.toFloat())
+                                        line.split(",").drop(1).forEach { cell ->
+                                            rates.add(cell.trim().toFloatOrNull() ?: 0f)
                                         }
+                                    } catch (e: NumberFormatException) {
+                                        // First row is headers
                                     }
-                                    isFirstLine = false
-                                } else {
-                                    line.split(",").forEach { cell ->
-                                        rates.add(cell.trim().toFloatOrNull() ?: 0f)
-                                    }
+                                }
+                                isFirstLine = false
+                            } else {
+                                line.split(",").forEach { cell ->
+                                    rates.add(cell.trim().toFloatOrNull() ?: 0f)
                                 }
                             }
                         }
                     }
+                }
 
-                    Log.d("MeterDetail", "Parsed ${rates.size} rate values from CSV")
+                Log.d("MeterDetail", "Parsed ${rates.size} rate values from CSV")
 
-                    if (rates.size >= 21) {
-                        return rates.take(21).toFloatArray()
-                    }
+                if (rates.size >= 21) {
+                    return rates.take(21).toFloatArray()
                 }
             }
         } catch (e: Exception) {
