@@ -132,9 +132,11 @@ class DLMSViewModel : ViewModel() {
 
     /**
      * Initialize components needed for printing without Bluetooth connection
+     * ✅ FIXED: Now accepts meterReadingViewModel to enable meter reloading after print
      */
-    fun initializeForPrinting(context: Context) {
+    fun initializeForPrinting(context: Context, meterReadingViewModel: MeterReadingViewModel? = null) {
         mContext = context
+        this.meterReadingViewModel = meterReadingViewModel
         val sessionManager = SessionManager.getInstance(context)
         billingRepository = BillingDataCSVRepository(context, sessionManager)
         readDataPrinting.setContext(context)
@@ -326,6 +328,13 @@ class DLMSViewModel : ViewModel() {
 
                 meterFile.writeText(lines.joinToString("\n"))
                 appendLog("✅ CSV updated successfully")
+
+                // Reload meters to update UI
+                withContext(Dispatchers.Main) {
+                    mContext?.let { ctx ->
+                        meterReadingViewModel?.reloadMeters(ctx)
+                    }
+                }
 
             } catch (e: Exception) {
                 appendLog("❌ Error clearing meter data: ${e.message}")
@@ -1320,11 +1329,13 @@ class DLMSViewModel : ViewModel() {
     private fun updateMeterBillingPrintDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                Log.d(TAG, "updateMeterBillingPrintDate called for: $serialNumber")
                 val context = mContext ?: return@launch
                 val sessionManager = SessionManager.getInstance(context)
                 val yearMonth = getCurrentYearMonth()
                 val filename = "${yearMonth}_meter.csv"
                 val meterFile = UserFileManager.getMeterFile(context, sessionManager, filename)
+                Log.d(TAG, "Meter file path: ${meterFile.absolutePath}, exists: ${meterFile.exists()}")
 
                 if (!meterFile.exists()) {
                     appendLog("⚠ Warning: Meter CSV file not found")
@@ -1360,30 +1371,47 @@ class DLMSViewModel : ViewModel() {
                     appendLog("Updating meter CSV for Serial: $serialNumber")
                     appendLog("Found meter with UID: ${meterRow[0]}")
 
-                    // ✅ FIX: Use CURRENT meter values from CSV, not from billing
-                    // Just update the billingPrintDate, keep all other values the same
-                    dlmsFunctions.exportMeterDataWithBillingDate(
-                        uid = meterRow[0].trim().removeSurrounding("\""),
-                        activate = meterRow[1].trim().removeSurrounding("\""),
-                        serialNo = meterRow[2].trim().removeSurrounding("\""),
-                        bluetoothId = meterRow[3].trim().removeSurrounding("\""),
-                        fixedDate = meterRow[4].trim().removeSurrounding("\""),
-                        imp = meterRow[5].trim().removeSurrounding("\""),
-                        exp = meterRow[6].trim().removeSurrounding("\""),
-                        impMaxDemand = meterRow[7].trim().removeSurrounding("\""),
-                        expMaxDemand = meterRow[8].trim().removeSurrounding("\""),
-                        minVolt = meterRow[9].trim().removeSurrounding("\""),
-                        alert = meterRow[10].trim().removeSurrounding("\""),
-                        readDate = meterRow[11].trim().removeSurrounding("\""),
-                        billingPrintDate = billingPrintDate  // Only this is new
-                    )
+                    // ✅ FIXED: Update CSV directly without using dlmsFunctions
+                    // This works even when dlmsFunctions is not initialized (batch printing)
+                    val updatedLine = buildString {
+                        // Columns 0-11 from existing data
+                        for (i in 0..11) {
+                            if (i > 0) append(",")
+                            append("\"${meterRow[i].trim().removeSurrounding("\"")}\"")
+                        }
+                        // Column 12: billingPrintDate (new value)
+                        append(",\"$billingPrintDate\"")
+                        // Column 13: lastCommunication (keep existing if present)
+                        if (meterRow.size >= 14) {
+                            append(",\"${meterRow[13].trim().removeSurrounding("\"")}\"")
+                        }
+                    }
+
+                    // Find and replace the meter's line in the CSV
+                    val updatedLines = lines.toMutableList()
+                    for (i in 1 until updatedLines.size) {
+                        val columns = updatedLines[i].split(',')
+                        val csvSerialNo = columns.getOrNull(serialNoIndex)
+                            ?.trim()
+                            ?.removeSurrounding("\"")
+
+                        if (csvSerialNo == serialNumber) {
+                            updatedLines[i] = updatedLine
+                            break
+                        }
+                    }
+
+                    // Write updated CSV back to file
+                    meterFile.writeText(updatedLines.joinToString("\n"))
 
                     appendLog("✅ Billing print date saved to meter CSV: $billingPrintDate")
+                    Log.d(TAG, "CSV update complete for $serialNumber, will reload meters")
 
                     // Reload meters to update UI
                     withContext(Dispatchers.Main) {
                         mContext?.let { ctx ->
                             meterReadingViewModel?.reloadMeters(ctx)
+                            Log.d(TAG, "Meters reloaded after updating $serialNumber")
                         }
                     }
                 } else {

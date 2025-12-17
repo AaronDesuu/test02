@@ -3,7 +3,9 @@ package com.example.meterkenshin.ui.manager
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import com.example.meterkenshin.data.BillingDataCSVRepository
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
@@ -106,6 +108,12 @@ class BatchPrintManager(
 
     private var printerViewModel: PrinterBluetoothViewModel? = null
 
+    // ✅ NEW: Billing repository for checking if billing data exists
+    private val billingRepository: BillingDataCSVRepository by lazy {
+        val sessionManager = SessionManager.getInstance(context)
+        BillingDataCSVRepository(context, sessionManager)
+    }
+
     /**
      * Set printer ViewModel reference
      */
@@ -114,7 +122,7 @@ class BatchPrintManager(
     }
 
     init {
-        dlmsViewModel.initializeForPrinting(context)
+        dlmsViewModel.initializeForPrinting(context, meterReadingViewModel)
     }
 
     /**
@@ -182,25 +190,26 @@ class BatchPrintManager(
         return loadBatchProgress()
     }
     /**
-     * Check if meter has valid billing data (either from savedBillingData OR from CSV)
-     * ✅ FIXED: Now checks BOTH temporary savedBillingData AND persistent CSV data
+     * Check if meter has valid billing data
+     * ✅ FIXED: Checks if billing CSV file exists (primary) OR meter CSV has data (fallback)
      */
     private fun hasValidBillingData(meter: Meter): Boolean {
-        // Check 1: Temporary savedBillingData (in-memory)
-        val savedData = dlmsViewModel.savedBillingData.value
-        if (savedData != null &&
-            savedData.billing.SerialNumber == meter.serialNumber &&
-            savedData.isValid()) {
-            return true
-        }
+        try {
+            // Primary check: Does billing CSV file exist?
+            // This is the source of truth since billing data is saved to {serialNumber}_billing.csv
+            val hasBillingFile = billingRepository.hasBillingData(meter.serialNumber)
 
-        // Check 2: Persistent CSV data (readDate + impKWh stored in database)
-        // This covers meters with status "Inspected & Billing Printed"
-        if (meter.readDate != null && meter.impKWh != null) {
-            return true
-        }
+            // Fallback check: Does meter CSV have readDate and impKWh populated?
+            // (In case meter CSV was manually updated or system was changed)
+            val hasMeterFields = meter.readDate != null && meter.impKWh != null
 
-        return false
+            val hasData = hasBillingFile || hasMeterFields
+            Log.d(TAG, "Meter ${meter.serialNumber}: billingFile=$hasBillingFile (readDate=${meter.readDate}, impKWh=${meter.impKWh}), meterFields=$hasMeterFields, hasData=$hasData")
+            return hasData
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking billing data for ${meter.serialNumber}: ${e.message}", e)
+            return false
+        }
     }
 
     /**
@@ -292,28 +301,10 @@ class BatchPrintManager(
 
     /**
      * Validate pre-conditions before starting batch print
-     * ✅ NEW: Pre-flight checks to prevent batch from starting with issues
+     * ✅ FIXED: Removed printer connection check - printer is checked before each print instead
      */
     private fun validatePreConditions(): Boolean {
-        // Check 1: Printer ViewModel is configured
-        val printer = printerViewModel
-        if (printer == null) {
-            Log.e(TAG, "Pre-flight check failed: Printer not configured")
-            updateProgressWithStep(0, "❌ Printer not configured")
-            _errorCount.value++
-            return false
-        }
-
-        // Check 2: Printer is connected
-        val connectionState = printer.connectionState.value
-        if (connectionState != com.example.meterkenshin.printer.BluetoothPrinterManager.ConnectionState.CONNECTED) {
-            Log.e(TAG, "Pre-flight check failed: Printer not connected (state: $connectionState)")
-            updateProgressWithStep(0, "❌ Printer not connected. Please connect to printer first.")
-            _errorCount.value++
-            return false
-        }
-
-        // Check 3: DLMS initialized for printing
+        // Check 1: DLMS initialized for printing
         if (dlmsViewModel == null) {
             Log.e(TAG, "Pre-flight check failed: DLMS not initialized")
             updateProgressWithStep(0, "❌ System not initialized properly")
@@ -321,7 +312,11 @@ class BatchPrintManager(
             return false
         }
 
-        Log.i(TAG, "✅ All pre-flight checks passed")
+        // Note: Printer connection is NOT checked here
+        // It will be checked before each individual print in printReceipt()
+        // This allows batch to start and show which meters have billing data
+
+        Log.i(TAG, "✅ Pre-flight checks passed (printer will be checked per-print)")
         return true
     }
 
@@ -548,6 +543,16 @@ class BatchPrintManager(
                 val failed = mutableListOf<FailureDetail>()  // ✅ NEW: Track detailed failures
 
                 // ✅ NEW: Generate and log preview before starting
+                Log.i(TAG, "========== BATCH PRINT DEBUG START ==========")
+                Log.i(TAG, "Total meters received: ${meters.size}")
+                Log.i(TAG, "Print mode: $printMode")
+
+                // Log each meter's details
+                meters.forEachIndexed { index, meter ->
+                    val hasBilling = hasValidBillingData(meter)
+                    Log.d(TAG, "Meter $index: ${meter.serialNumber} - hasBillingData=$hasBilling")
+                }
+
                 val preview = generateBatchPreview(meters, printMode)
                 _batchPreview.value = preview
                 Log.i(TAG, "Batch Preview: ${preview.toShortSummary()}")
@@ -555,6 +560,9 @@ class BatchPrintManager(
 
                 // ✅ FIXED: Use consolidated filtering function (eliminates duplication)
                 val metersToProcess = filterMetersForPrinting(meters, printMode)
+                Log.i(TAG, "Meters to process after filtering: ${metersToProcess.size}")
+                Log.i(TAG, "========== BATCH PRINT DEBUG END ==========")
+
 
                 // ✅ NEW: Initialize batch progress for persistence
                 currentBatchId = "batch_${System.currentTimeMillis()}"
@@ -793,6 +801,10 @@ class BatchPrintManager(
                 _isProcessing.value = false
                 _currentMeterSerial.value = null
                 _waitingForConfirmation.value = false
+
+                // ✅ FIXED: Wait for async CSV updates to complete before reloading
+                // The print success callback updates CSV asynchronously, so we need to wait
+                delay(1000) // Give time for updateMeterBillingPrintDate to complete
 
                 withContext(Dispatchers.Main) {
                     meterReadingViewModel.reloadMeters(context)
