@@ -81,6 +81,7 @@ class DLMSViewModel : ViewModel() {
     // ✅ FIXED: User-specific AND meter-specific log storage
     private var userSessionManager: SessionManager? = null
     private var currentMeterSerialNumber: String? = null
+    private var currentSessionUsername: String? = null // Track current user to detect session changes
 
     private val _currentMeter = MutableStateFlow<Meter?>(null)
     val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
@@ -439,19 +440,35 @@ class DLMSViewModel : ViewModel() {
     /**
      * Load log from user-specific AND meter-specific SharedPreferences
      * ✅ FIXED: Loads logs specific to current user AND current meter
+     * ✅ NEW: Detects session changes and clears logs from previous user
      * This ensures complete isolation between users and meters
      */
     private fun loadLogFromPreferences() {
         val context = mContext ?: return
         val sessionManager = userSessionManager ?: return
-        val session = sessionManager.getSession() ?: return
+        val session = sessionManager.getSession() ?: run {
+            Log.w(TAG, "Cannot load logs - no valid session")
+            _dlmsLog.value = ""
+            currentSessionUsername = null
+            return
+        }
+
         val meterSerial = currentMeterSerialNumber ?: run {
             Log.w(TAG, "Cannot load logs - no meter serial number set")
             _dlmsLog.value = ""
             return
         }
 
-        // First, clear any existing logs in memory to prevent cross-contamination
+        // ✅ NEW: Detect session change and clear logs from previous user
+        if (currentSessionUsername != null && currentSessionUsername != session.username) {
+            Log.i(TAG, "Session changed from '$currentSessionUsername' to '${session.username}' - clearing previous user's logs")
+            _dlmsLog.value = ""
+        }
+
+        // Update current session username
+        currentSessionUsername = session.username
+
+        // Clear any existing logs in memory to prevent cross-contamination
         _dlmsLog.value = ""
 
         // ✅ FIXED: Load logs specific to this user AND this meter
@@ -464,11 +481,13 @@ class DLMSViewModel : ViewModel() {
 
     /**
      * Reset logs when user logs out
-     * ✅ NEW: Clears in-memory logs without affecting saved preferences
+     * ✅ NEW: Clears in-memory logs and session tracking
      * This ensures that when a new user logs in, they don't see the previous user's logs
      */
     fun resetLogsForLogout() {
         _dlmsLog.value = ""
+        currentSessionUsername = null
+        Log.d(TAG, "Logs reset for logout - session username cleared")
     }
 
     /**

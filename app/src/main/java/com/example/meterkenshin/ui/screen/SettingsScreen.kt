@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Environment
 import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,9 +28,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import com.example.meterkenshin.BuildConfig
+import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.ui.component.card.AppSettingsCard
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.manager.AppPreferences
+import com.example.meterkenshin.ui.manager.MeterExportManager
 import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
@@ -45,8 +48,15 @@ fun SettingsScreen(
     val scope = rememberCoroutineScope()
     var showHelpDialog by remember { mutableStateOf(false) }
     var showHardResetDialog by remember { mutableStateOf(false) }
+    var showFullHardResetDialog by remember { mutableStateOf(false) }
     var showDeleteExportedDialog by remember { mutableStateOf(false) }
     var isResetting by remember { mutableStateOf(false) }
+
+    // Meter export states
+    var showMeterExportDialog by remember { mutableStateOf(false) }
+    var showMeterExportEmptyDialog by remember { mutableStateOf(false) }
+    var isExportingMeters by remember { mutableStateOf(false) }
+    var metersToExport by remember { mutableStateOf<List<com.example.meterkenshin.model.Meter>>(emptyList()) }
 
     Column(
         modifier = Modifier
@@ -59,7 +69,6 @@ fun SettingsScreen(
                 UserProfileCard(
                     username = it.username,
                     role = it.role.displayName,
-                    dlmsRank = it.role.dlmsRank,
                     loginTime = it.loginTime.toString()
                 )
             }
@@ -166,6 +175,34 @@ fun SettingsScreen(
             BluetoothPermissionCard(context = context)
         }
 
+        // Admin Tools Section (Admin only)
+        if (session?.role == UserRole.ADMIN) {
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                thickness = DividerDefaults.Thickness,
+                color = DividerDefaults.color
+            )
+
+            SettingsSection(title = "Admin Tools") {
+                MeterExportCard(
+                    onExportClick = {
+                        isExportingMeters = true
+                        scope.launch {
+                            val meters = MeterExportManager.getRegisteredMeters(context, sessionManager)
+                            if (meters.isEmpty()) {
+                                showMeterExportEmptyDialog = true
+                            } else {
+                                metersToExport = meters
+                                showMeterExportDialog = true
+                            }
+                            isExportingMeters = false
+                        }
+                    },
+                    isExporting = isExportingMeters
+                )
+            }
+        }
+
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 8.dp),
             thickness = DividerDefaults.Thickness,
@@ -177,6 +214,22 @@ fun SettingsScreen(
                 onResetClick = { showHardResetDialog = true },
                 isResetting = isResetting
             )
+        }
+
+        // Admin-only Full Hard Reset option
+        if (session?.role == UserRole.ADMIN) {
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 8.dp),
+                thickness = DividerDefaults.Thickness,
+                color = Color.Transparent
+            )
+
+            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                FullHardResetCard(
+                    onResetClick = { showFullHardResetDialog = true },
+                    isResetting = isResetting
+                )
+            }
         }
 
         HorizontalDivider(
@@ -214,12 +267,31 @@ fun SettingsScreen(
         HelpDialog(onDismiss = { showHelpDialog = false })
     }
 
-    // Hard Reset Confirmation Dialog
+    // Hard Reset Confirmation Dialog (User-scoped)
     if (showHardResetDialog) {
         HardResetConfirmationDialog(
             onDismiss = { showHardResetDialog = false },
             onConfirm = {
                 showHardResetDialog = false
+                isResetting = true
+                scope.launch {
+                    performUserReset(context, sessionManager)
+                    fileUploadViewModel.checkExistingFiles(context)
+                    meterReadingViewModel.clearMeters()
+                    meterReadingViewModel.reloadMeters(context)
+                    isResetting = false
+                    NotificationManager.showSuccess("User data reset complete")
+                }
+            }
+        )
+    }
+
+    // Full Hard Reset Confirmation Dialog (Admin only - all users)
+    if (showFullHardResetDialog) {
+        FullHardResetConfirmationDialog(
+            onDismiss = { showFullHardResetDialog = false },
+            onConfirm = {
+                showFullHardResetDialog = false
                 showDeleteExportedDialog = true
             }
         )
@@ -233,26 +305,78 @@ fun SettingsScreen(
                 showDeleteExportedDialog = false
                 isResetting = true
                 scope.launch {
-                    performHardReset(context, deleteExported = true)
+                    performFullHardReset(context, deleteExported = true)
                     fileUploadViewModel.checkExistingFiles(context)
-                    meterReadingViewModel.clearMeters() // Clear state first
+                    meterReadingViewModel.clearMeters()
                     meterReadingViewModel.reloadMeters(context)
                     isResetting = false
-                    NotificationManager.showSuccess("App reset complete")
+                    NotificationManager.showSuccess("Full hard reset complete")
                 }
             },
             onNo = {
                 showDeleteExportedDialog = false
                 isResetting = true
                 scope.launch {
-                    performHardReset(context, deleteExported = false)
+                    performFullHardReset(context, deleteExported = false)
                     fileUploadViewModel.checkExistingFiles(context)
-                    meterReadingViewModel.clearMeters() // Clear state first
+                    meterReadingViewModel.clearMeters()
                     meterReadingViewModel.reloadMeters(context)
                     isResetting = false
-                    NotificationManager.showSuccess("App reset complete")
+                    NotificationManager.showSuccess("Full hard reset complete")
                 }
             }
+        )
+    }
+
+    // Meter Export Dialogs
+    if (showMeterExportDialog && metersToExport.isNotEmpty()) {
+        com.example.meterkenshin.ui.component.dialog.MeterExportDialog(
+            meters = metersToExport,
+            onExportClick = {
+                showMeterExportDialog = false
+                isExportingMeters = true
+                scope.launch {
+                    try {
+                        val file = MeterExportManager.exportMetersToCSV(metersToExport, context)
+                        NotificationManager.showSuccess(
+                            "Exported ${metersToExport.size} meters to ${file.parentFile?.name}/meter.csv"
+                        )
+                    } catch (e: Exception) {
+                        NotificationManager.showError("Export failed: ${e.message}")
+                    } finally {
+                        isExportingMeters = false
+                        metersToExport = emptyList()
+                    }
+                }
+            },
+            onShareClick = {
+                showMeterExportDialog = false
+                isExportingMeters = true
+                scope.launch {
+                    try {
+                        val file = MeterExportManager.exportMetersToCSV(metersToExport, context)
+                        MeterExportManager.shareMeterCSV(context, file)
+                        NotificationManager.showSuccess(
+                            "Sharing ${metersToExport.size} meters from ${file.parentFile?.name}"
+                        )
+                    } catch (e: Exception) {
+                        NotificationManager.showError("Share failed: ${e.message}")
+                    } finally {
+                        isExportingMeters = false
+                        metersToExport = emptyList()
+                    }
+                }
+            },
+            onDismiss = {
+                showMeterExportDialog = false
+                metersToExport = emptyList()
+            }
+        )
+    }
+
+    if (showMeterExportEmptyDialog) {
+        com.example.meterkenshin.ui.component.dialog.MeterExportEmptyDialog(
+            onDismiss = { showMeterExportEmptyDialog = false }
         )
     }
 }
@@ -282,7 +406,6 @@ fun SettingsSection(
 fun UserProfileCard(
     username: String,
     role: String,
-    dlmsRank: Int,
     loginTime: String
 ) {
     Card(
@@ -306,12 +429,6 @@ fun UserProfileCard(
                 icon = Icons.Default.AdminPanelSettings,
                 title = "Role",
                 value = role
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            SettingsItem(
-                icon = Icons.Default.Key,
-                title = "DLMS Rank",
-                value = "Rank $dlmsRank"
             )
             Spacer(modifier = Modifier.height(12.dp))
             SettingsItem(
@@ -541,13 +658,13 @@ fun HardResetCard(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Hard Reset App",
+                        text = "Reset User Data",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     Text(
-                        text = "Delete all app data and optionally exported files",
+                        text = "Clear your settings and logs (preserves shared data)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer
                     )
@@ -579,7 +696,7 @@ fun HardResetCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Hard Reset")
+                    Text("Reset My Data")
                 }
             }
         }
@@ -600,9 +717,9 @@ fun HardResetConfirmationDialog(
                 tint = MaterialTheme.colorScheme.error
             )
         },
-        title = { Text("Hard Reset App?") },
+        title = { Text("Reset Your User Data?") },
         text = {
-            Text("This will delete ALL app data including:\n\n• Meter CSV files\n• Printer CSV files\n• Rate CSV files\n• Billing JSON files\n• App settings\n\nThis action cannot be undone!")
+            Text("This will reset only YOUR user data:\n\n• Your session (will be logged out)\n• Your app settings/preferences\n• Your DLMS logs\n\nShared data (meters, billing, printer configs) will NOT be affected.\n\nOther users can still access their data.")
         },
         confirmButton = {
             TextButton(
@@ -611,7 +728,193 @@ fun HardResetConfirmationDialog(
                     contentColor = MaterialTheme.colorScheme.error
                 )
             ) {
-                Text("Continue")
+                Text("Reset My Data")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+fun MeterExportCard(
+    onExportClick: () -> Unit,
+    isExporting: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Upload,
+                    contentDescription = "Export Meters",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Export Registered Meters",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        text = "Create CSV backup of meters with fixed billing dates",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onExportClick,
+                enabled = !isExporting,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.secondary
+                )
+            ) {
+                if (isExporting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = MaterialTheme.colorScheme.onSecondary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Loading Meters...")
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Upload,
+                        contentDescription = "Export",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Export Meters to CSV")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FullHardResetCard(
+    onResetClick: () -> Unit,
+    isResetting: Boolean
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
+        ),
+        border = BorderStroke(2.dp, MaterialTheme.colorScheme.error)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Full Hard Reset",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Full Hard Reset (Admin)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "Delete ALL data for ALL users - DANGER ZONE!",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onResetClick,
+                enabled = !isResetting,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.9f)
+                )
+            ) {
+                if (isResetting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        color = MaterialTheme.colorScheme.onError,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Resetting Everything...")
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = "Full Reset",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Full Hard Reset All Users")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FullHardResetConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error
+            )
+        },
+        title = { Text("⚠️ FULL HARD RESET ALL USERS?") },
+        text = {
+            Text("This will delete ALL app data for ALL users:\n\n• ALL user sessions\n• ALL user preferences\n• Meter CSV files\n• Printer CSV files\n• Rate CSV files\n• Billing data (all users)\n• DLMS logs (all users)\n\n⚠️ THIS ACTION CANNOT BE UNDONE!\n⚠️ ALL USERS WILL LOSE THEIR DATA!")
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("YES, DELETE EVERYTHING", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
@@ -638,7 +941,7 @@ fun DeleteExportedFilesDialog(
         },
         title = { Text("Delete Exported Files?") },
         text = {
-            Text("Do you also want to delete exported files from the Download folder?\n\nThis includes all exported receipts and data files.")
+            Text("Do you also want to delete exported files from the Download folder?\n\nThis includes all exported receipts and data files from all users.")
         },
         confirmButton = {
             TextButton(
@@ -658,7 +961,38 @@ fun DeleteExportedFilesDialog(
     )
 }
 
-private suspend fun performHardReset(context: Context, deleteExported: Boolean) {
+/**
+ * Reset only the current user's data, preserving shared data for other users
+ */
+private suspend fun performUserReset(context: Context, sessionManager: SessionManager) {
+    withContext(Dispatchers.IO) {
+        try {
+            val session = sessionManager.getSession()
+            val username = session?.username
+
+            if (username != null) {
+                // Clear user-specific DLMS logs
+                val dlmsLogPrefs = context.getSharedPreferences("DLMSLog_$username", Context.MODE_PRIVATE)
+                dlmsLogPrefs.edit().clear().apply()
+
+                // Clear user-specific app preferences (already user-scoped)
+                AppPreferences.clearAll(context)
+                AppPreferences.clearCache()
+            }
+
+            // Clear session data (logs out the user)
+            sessionManager.clearSession()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+}
+
+/**
+ * Full hard reset - deletes ALL data for ALL users (Admin only)
+ */
+private suspend fun performFullHardReset(context: Context, deleteExported: Boolean) {
     withContext(Dispatchers.IO) {
         try {
             val externalFilesDir = context.getExternalFilesDir(null)
@@ -688,8 +1022,14 @@ private suspend fun performHardReset(context: Context, deleteExported: Boolean) 
                 }
             }
 
-            // Clear preferences (always)
-            AppPreferences.clearAll(context)
+            // Clear ALL user preferences (all users)
+            val prefs = context.getSharedPreferences("prefs", Context.MODE_PRIVATE)
+            val allPrefsFiles = File(context.applicationInfo.dataDir, "shared_prefs").listFiles()
+            allPrefsFiles?.forEach { prefsFile ->
+                if (prefsFile.name.endsWith(".xml")) {
+                    prefsFile.delete()
+                }
+            }
 
             // Delete exported files in Downloads folder (only if deleteExported is true)
             if (deleteExported) {
@@ -729,3 +1069,4 @@ private fun deleteExportedFiles() {
         e.printStackTrace()
     }
 }
+

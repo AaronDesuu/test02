@@ -497,19 +497,24 @@ class MeterReadingViewModel : ViewModel() {
      * Load meters from CSV file
      * ✅ FIXED: Prevents unnecessary reloads of the same file
      */
-    fun loadMeters(context: Context, fileName: String) {
+    fun loadMeters(context: Context, fileName: String, forceReload: Boolean = false) {
         viewModelScope.launch {
             // ✅ FIXED: Check if we're trying to reload the same file
             val sessionManager = SessionManager.getInstance(context)
             val meterFile = UserFileManager.getMeterFile(context, sessionManager, fileName)
 
-            // Skip reload if same file and not modified
-            if (meterFile.exists() &&
+            // Skip reload if same file and not modified (unless force reload requested)
+            if (!forceReload &&
+                meterFile.exists() &&
                 fileName == lastLoadedFileName &&
                 meterFile.lastModified() == lastLoadedFileTimestamp &&
                 _uiState.value.allMeters.isNotEmpty()) {
                 Log.d(TAG, "Skipping reload - file unchanged: $fileName")
                 return@launch
+            }
+
+            if (forceReload) {
+                Log.i(TAG, "Force reloading meters from: $fileName")
             }
 
             lastLoadedFileName = fileName
@@ -550,7 +555,7 @@ class MeterReadingViewModel : ViewModel() {
         }
     }
 
-    fun reloadMeters(context: Context) {
+    fun reloadMeters(context: Context, forceReload: Boolean = false) {
         val currentYearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
         val currentMeterFile = "${currentYearMonth}_meter.csv"
         val fallbackFile = "meter.csv"
@@ -565,7 +570,7 @@ class MeterReadingViewModel : ViewModel() {
             fallbackFile
         }
 
-        loadMeters(context, fileToLoad)
+        loadMeters(context, fileToLoad, forceReload)
     }
 
     private fun applySorting() {

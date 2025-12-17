@@ -304,12 +304,14 @@ fun MeterListComponent(
                                 },
                                 trailingIcon = {
                                     IconButton(onClick = {
+                                        // Refresh both BLE scanning and meter list
                                         meterReadingViewModel.startBLEScanning()
-                                        NotificationManager.showInfo("Refreshing BLE")
+                                        meterReadingViewModel.reloadMeters(context, forceReload = true)
+                                        NotificationManager.showInfo("Refreshing meters and BLE")
                                     }) {
                                         Icon(
                                             imageVector = Icons.Default.Refresh,
-                                            contentDescription = "Refresh BLE scan"
+                                            contentDescription = "Refresh meters and BLE scan"
                                         )
                                     }
                                 },

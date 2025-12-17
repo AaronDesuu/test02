@@ -200,7 +200,7 @@ private fun DrawerContentWithTest(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Main Navigation Items
-            val navigationItems = listOf(
+            val allNavigationItems = listOf(
                 DrawerNavigationItem(
                     title = stringResource(R.string.nav_home),
                     icon = Icons.Default.Home,
@@ -256,6 +256,13 @@ private fun DrawerContentWithTest(
                     screen = AppScreen.SETTINGS
                 )
             )
+
+            // Filter out Export Data menu for Reader users
+            val navigationItems = if (session.role == UserRole.READER) {
+                allNavigationItems.filter { it.screen != AppScreen.EXPORT_DATA }
+            } else {
+                allNavigationItems
+            }
 
             // Render main navigation items
             navigationItems.forEach { item ->
