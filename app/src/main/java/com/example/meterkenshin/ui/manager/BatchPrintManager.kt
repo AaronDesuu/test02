@@ -53,18 +53,20 @@ class BatchPrintManager(
         private const val PRINT_COMPLETION_TIMEOUT_MS = 15000L // 15 seconds
         private const val PRINT_STATUS_CHECK_INTERVAL_MS = 500L // Check every 500ms
 
-        // ✅ NEW: Progress persistence constants
-        private const val PREFS_NAME = "batch_print_progress"
+        // ✅ FIXED: Progress persistence constants now user-specific
         private const val KEY_BATCH_PROGRESS = "current_batch_progress"
     }
 
     // Job tracking for proper cancellation
     private var processingJob: Job? = null
 
-    // ✅ NEW: Progress persistence
+    // ✅ FIXED: Progress persistence now user-specific
     private val gson = Gson()
     private val prefs: SharedPreferences by lazy {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val sessionManager = SessionManager.getInstance(context)
+        val session = sessionManager.getSession()
+        val username = session?.username ?: "default"
+        context.getSharedPreferences("batch_print_progress_$username", Context.MODE_PRIVATE)
     }
     private var currentBatchId: String? = null
 

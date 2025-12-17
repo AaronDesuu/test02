@@ -100,12 +100,22 @@ fun HomeScreen(
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
     val isMeterCsvUploaded = meterCsvFile?.isUploaded == true
 
-    // Load meter data when CSV is uploaded
-    LaunchedEffect(isMeterCsvUploaded) {
-        if (isMeterCsvUploaded) {
+    // ✅ FIXED: Check files when session changes (user login)
+    LaunchedEffect(session?.username) {
+        if (session != null) {
+            fileUploadViewModel.checkExistingFiles(context)
+        }
+    }
+
+    // ✅ FIXED: Load meter data when CSV is uploaded OR when user changes
+    LaunchedEffect(session?.username, isMeterCsvUploaded) {
+        if (isMeterCsvUploaded && session != null) {
             if (meterCsvFile != null) {
                 meterReadingViewModel.loadMeters(context, meterCsvFile.fileName)
             }
+        } else if (!isMeterCsvUploaded) {
+            // ✅ FIXED: Clear meters when CSV is not available
+            meterReadingViewModel.clearMeters()
         }
     }
 

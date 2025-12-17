@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.AppScreen
@@ -122,10 +123,34 @@ fun MeterKenshinApp(
                     Log.e("MeterKenshinApp", "Error stopping BLE scan on logout", e)
                 }
 
+                // ✅ FIXED: Clear meter data on logout to prevent cross-user contamination
+                try {
+                    meterReadingViewModel.clearMeters()
+                    Log.i("MeterKenshinApp", "Meter data cleared on logout")
+                } catch (e: Exception) {
+                    Log.e("MeterKenshinApp", "Error clearing meters on logout", e)
+                }
+
+                // ✅ FIXED: Clear AppPreferences cache on logout
+                try {
+                    AppPreferences.clearCache()
+                    Log.i("MeterKenshinApp", "AppPreferences cache cleared on logout")
+                } catch (e: Exception) {
+                    Log.e("MeterKenshinApp", "Error clearing AppPreferences cache", e)
+                }
+
                 // Handle logout from drawer
                 sessionManager.logout()
                 isLoggedIn = false
                 currentScreen = "login"
+
+                // ✅ FIXED: Re-check files after logout to update state for next user
+                try {
+                    fileUploadViewModel.checkExistingFiles(context)
+                    Log.i("MeterKenshinApp", "File state refreshed after logout")
+                } catch (e: Exception) {
+                    Log.e("MeterKenshinApp", "Error checking files after logout", e)
+                }
             }
         ) {
             when {
@@ -164,9 +189,33 @@ fun MeterKenshinApp(
                                 Log.e("MeterKenshinApp", "Error stopping BLE scan", e)
                             }
 
+                            // ✅ FIXED: Clear meter data on logout to prevent cross-user contamination
+                            try {
+                                meterReadingViewModel.clearMeters()
+                                Log.i("MeterKenshinApp", "Meter data cleared on logout from HomeScreen")
+                            } catch (e: Exception) {
+                                Log.e("MeterKenshinApp", "Error clearing meters on logout", e)
+                            }
+
+                            // ✅ FIXED: Clear AppPreferences cache on logout
+                            try {
+                                AppPreferences.clearCache()
+                                Log.i("MeterKenshinApp", "AppPreferences cache cleared on logout from HomeScreen")
+                            } catch (e: Exception) {
+                                Log.e("MeterKenshinApp", "Error clearing AppPreferences cache", e)
+                            }
+
                             sessionManager.logout()
                             isLoggedIn = false
                             currentScreen = "login"
+
+                            // ✅ FIXED: Re-check files after logout to update state for next user
+                            try {
+                                fileUploadViewModel.checkExistingFiles(context)
+                                Log.i("MeterKenshinApp", "File state refreshed after logout from HomeScreen")
+                            } catch (e: Exception) {
+                                Log.e("MeterKenshinApp", "Error checking files after logout", e)
+                            }
                         },
                         onNavigateToMeterReading = { currentScreen = "meter_reading" },
                         onNavigateToMeterDetail = { meter ->

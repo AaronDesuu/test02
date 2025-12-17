@@ -54,6 +54,8 @@ class DLMSViewModel : ViewModel() {
     private val _registrationState = MutableStateFlow(RegistrationState())
     val registrationState: StateFlow<RegistrationState> = _registrationState.asStateFlow()
 
+    // ✅ FIXED: DLMS logs always start empty to prevent cross-user contamination
+    // Logs are only loaded when user explicitly initializes DLMS
     private val _dlmsLog = MutableStateFlow("")
     val dlmsLog: StateFlow<String> = _dlmsLog.asStateFlow()
 
@@ -75,6 +77,10 @@ class DLMSViewModel : ViewModel() {
     @SuppressLint("StaticFieldLeak")
     private var mContext: Context? = null
     private var meter: Meter? = null
+
+    // ✅ FIXED: User-specific AND meter-specific log storage
+    private var userSessionManager: SessionManager? = null
+    private var currentMeterSerialNumber: String? = null
 
     private val _currentMeter = MutableStateFlow<Meter?>(null)
     val currentMeter: StateFlow<Meter?> = _currentMeter.asStateFlow()
@@ -133,38 +139,50 @@ class DLMSViewModel : ViewModel() {
     /**
      * Initialize components needed for printing without Bluetooth connection
      * ✅ FIXED: Now accepts meterReadingViewModel to enable meter reloading after print
+     * ✅ FIXED: Does NOT load logs here - logs are loaded per-meter in initializeDLMS
      */
     fun initializeForPrinting(context: Context, meterReadingViewModel: MeterReadingViewModel? = null) {
         mContext = context
         this.meterReadingViewModel = meterReadingViewModel
         val sessionManager = SessionManager.getInstance(context)
+        userSessionManager = sessionManager
         billingRepository = BillingDataCSVRepository(context, sessionManager)
         readDataPrinting.setContext(context)
 
         readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
             updateMeterBillingPrintDate(serialNumber)
         }
+
+        // Note: Logs are NOT loaded here - they're loaded per-meter when needed
     }
 
     /**
      * Initialize DLMS - delegates to DLMSInit
+     * ✅ FIXED: Loads user-specific AND meter-specific DLMS logs
      */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun initializeDLMS(context: Context, meter: Meter) {
         mContext = context
         this@DLMSViewModel.meter = meter
+
+        // ✅ FIXED: Set current meter serial number for per-meter logging
+        currentMeterSerialNumber = meter.serialNumber
+
         dlmsInit.initialize(context, meter)
         dlmsDataAccess = DLMSDataAccess(dlmsInit)
         dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, mContext) { appendLog(it) }
         dlmsFunctions.setMeter(meter)
         sessionManager = DLMSSessionManager(dlmsInit)
-        val userSessionManager = SessionManager.getInstance(context)
-        billingRepository = BillingDataCSVRepository(context, userSessionManager)
+        userSessionManager = SessionManager.getInstance(context)
+        billingRepository = BillingDataCSVRepository(context, userSessionManager!!)
         readDataPrinting.setContext(context)
 
         readDataPrinting.setOnPrintSuccessCallback { serialNumber ->
             updateMeterBillingPrintDate(serialNumber)
         }
+
+        // ✅ FIXED: Load user-specific AND meter-specific DLMS logs
+        loadLogFromPreferences()
 
         // Load saved billing data if available
         loadSavedBillingData()
@@ -363,23 +381,103 @@ class DLMSViewModel : ViewModel() {
 
     /**
      * Append message to log
+     * ✅ FIXED: Now saves to user-specific SharedPreferences
      */
     private fun appendLog(message: String) {
         _dlmsLog.value += "$message\n"
         Log.d(TAG, message)
+        saveLogToPreferences()
     }
 
     /**
-     * Clear log
+     * Clear log for current meter
+     * ✅ FIXED: Now clears user-specific AND meter-specific SharedPreferences
      */
     fun clearLog() {
+        _dlmsLog.value = ""
+        saveLogToPreferences()
+    }
+
+    /**
+     * Clear log for a specific meter
+     * ✅ NEW: Allows clearing logs for a specific meter by serial number
+     */
+    fun clearLogForMeter(context: Context, meterSerialNumber: String) {
+        val sessionManager = userSessionManager ?: SessionManager.getInstance(context)
+        val session = sessionManager.getSession() ?: return
+
+        val prefsName = "DLMSLog_${session.username}_${meterSerialNumber}"
+        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        prefs.edit().clear().apply()
+
+        // If this is the current meter, also clear in-memory log
+        if (meterSerialNumber == currentMeterSerialNumber) {
+            _dlmsLog.value = ""
+        }
+
+        Log.d(TAG, "Cleared DLMS logs for user: ${session.username}, meter: $meterSerialNumber")
+    }
+
+    /**
+     * Save current log to user-specific AND meter-specific SharedPreferences
+     * ✅ FIXED: Persists logs per user AND per meter
+     */
+    private fun saveLogToPreferences() {
+        val context = mContext ?: return
+        val sessionManager = userSessionManager ?: return
+        val session = sessionManager.getSession() ?: return
+        val meterSerial = currentMeterSerialNumber ?: return
+
+        // ✅ FIXED: Use both username and meter serial number in the key
+        val prefsName = "DLMSLog_${session.username}_${meterSerial}"
+        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        prefs.edit().putString("log", _dlmsLog.value).apply()
+
+        Log.d(TAG, "Saved DLMS logs for user: ${session.username}, meter: $meterSerial, log length: ${_dlmsLog.value.length}")
+    }
+
+    /**
+     * Load log from user-specific AND meter-specific SharedPreferences
+     * ✅ FIXED: Loads logs specific to current user AND current meter
+     * This ensures complete isolation between users and meters
+     */
+    private fun loadLogFromPreferences() {
+        val context = mContext ?: return
+        val sessionManager = userSessionManager ?: return
+        val session = sessionManager.getSession() ?: return
+        val meterSerial = currentMeterSerialNumber ?: run {
+            Log.w(TAG, "Cannot load logs - no meter serial number set")
+            _dlmsLog.value = ""
+            return
+        }
+
+        // First, clear any existing logs in memory to prevent cross-contamination
+        _dlmsLog.value = ""
+
+        // ✅ FIXED: Load logs specific to this user AND this meter
+        val prefsName = "DLMSLog_${session.username}_${meterSerial}"
+        val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
+        _dlmsLog.value = prefs.getString("log", "") ?: ""
+
+        Log.d(TAG, "Loaded DLMS logs for user: ${session.username}, meter: $meterSerial, log length: ${_dlmsLog.value.length}")
+    }
+
+    /**
+     * Reset logs when user logs out
+     * ✅ NEW: Clears in-memory logs without affecting saved preferences
+     * This ensures that when a new user logs in, they don't see the previous user's logs
+     */
+    fun resetLogsForLogout() {
         _dlmsLog.value = ""
     }
 
     /**
      * Cleanup - delegates to DLMSInit
+     * ✅ FIXED: Also saves current logs before cleanup
      */
     fun cleanup(context: Context) {
+        // Save current logs before cleanup
+        saveLogToPreferences()
         dlmsInit.cleanup(context)
     }
 
@@ -802,11 +900,16 @@ class DLMSViewModel : ViewModel() {
     }
 
     /**
-     * Load previous reading from SharedPreferences
+     * Load previous reading from user-specific SharedPreferences
+     * ✅ FIXED: Now uses user-specific preferences
      */
     private fun loadPreviousReading(serialNumber: String?): Billing? {
-        val prefs = mContext?.getSharedPreferences("MeterReadings", Context.MODE_PRIVATE)
-        val json = prefs?.getString("prev_${serialNumber}", null) ?: return null
+        val context = mContext ?: return null
+        val sessionManager = userSessionManager ?: return null
+        val session = sessionManager.getSession() ?: return null
+
+        val prefs = context.getSharedPreferences("MeterReadings_${session.username}", Context.MODE_PRIVATE)
+        val json = prefs.getString("prev_${serialNumber}", null) ?: return null
 
         return try {
             Gson().fromJson(json, Billing::class.java)
@@ -818,12 +921,17 @@ class DLMSViewModel : ViewModel() {
 
     /**
      * Save current reading as previous for next comparison
+     * ✅ FIXED: Now uses user-specific preferences
      */
     @SuppressLint("UseKtx")
     private fun savePreviousReading(serialNumber: String?, billing: Billing) {
-        val prefs = mContext?.getSharedPreferences("MeterReadings", Context.MODE_PRIVATE)
+        val context = mContext ?: return
+        val sessionManager = userSessionManager ?: return
+        val session = sessionManager.getSession() ?: return
+
+        val prefs = context.getSharedPreferences("MeterReadings_${session.username}", Context.MODE_PRIVATE)
         val json = Gson().toJson(billing)
-        prefs?.edit()?.putString("prev_${serialNumber}", json)?.apply()
+        prefs.edit().putString("prev_${serialNumber}", json).apply()
     }
 
     /**

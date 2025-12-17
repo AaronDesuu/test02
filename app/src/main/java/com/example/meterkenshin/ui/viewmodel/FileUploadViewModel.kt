@@ -312,10 +312,15 @@ class FileUploadViewModel : ViewModel() {
     private suspend fun clearAllBillingData(context: Context): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Clear SharedPreferences: MeterReadings (stores prev_SerialNumber readings)
-                val meterReadingsPrefs = context.getSharedPreferences("MeterReadings", Context.MODE_PRIVATE)
+                // Clear user-specific SharedPreferences: MeterReadings (stores prev_SerialNumber readings)
+                // ✅ FIXED: Now uses user-specific preferences
+                val sessionManager = SessionManager.getInstance(context)
+                val session = sessionManager.getSession()
+                val username = session?.username ?: "default"
+
+                val meterReadingsPrefs = context.getSharedPreferences("MeterReadings_$username", Context.MODE_PRIVATE)
                 meterReadingsPrefs.edit { clear() }
-                Log.i(TAG, "Cleared MeterReadings SharedPreferences")
+                Log.i(TAG, "Cleared user-specific MeterReadings SharedPreferences for $username")
 
                 // Clear SharedPreferences: BillingDataStorage (stores 30-day billing data)
                 val billingStoragePrefs = context.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)

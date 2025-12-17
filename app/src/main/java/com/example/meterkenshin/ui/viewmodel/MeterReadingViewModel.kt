@@ -489,11 +489,32 @@ class MeterReadingViewModel : ViewModel() {
         }
     }
 
+    // Track the last loaded file to prevent unnecessary reloads
+    private var lastLoadedFileName: String? = null
+    private var lastLoadedFileTimestamp: Long = 0
+
     /**
      * Load meters from CSV file
+     * ✅ FIXED: Prevents unnecessary reloads of the same file
      */
     fun loadMeters(context: Context, fileName: String) {
         viewModelScope.launch {
+            // ✅ FIXED: Check if we're trying to reload the same file
+            val sessionManager = SessionManager.getInstance(context)
+            val meterFile = UserFileManager.getMeterFile(context, sessionManager, fileName)
+
+            // Skip reload if same file and not modified
+            if (meterFile.exists() &&
+                fileName == lastLoadedFileName &&
+                meterFile.lastModified() == lastLoadedFileTimestamp &&
+                _uiState.value.allMeters.isNotEmpty()) {
+                Log.d(TAG, "Skipping reload - file unchanged: $fileName")
+                return@launch
+            }
+
+            lastLoadedFileName = fileName
+            lastLoadedFileTimestamp = if (meterFile.exists()) meterFile.lastModified() else 0
+
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
 
             try {
@@ -933,6 +954,16 @@ class MeterReadingViewModel : ViewModel() {
             filteredMeters = emptyList(),
             errorMessage = null
         )
+        // ✅ FIXED: Reset tracking so next load will execute
+        lastLoadedFileName = null
+        lastLoadedFileTimestamp = 0
+
+        // ✅ FIXED: Clear BLE scan results (nearby meters and discovered devices)
+        _discoveredDevices.value = emptyMap()
+        _nearbyMeterCount.value = 0
+        _scannedInCurrentCycle.clear()
+
+        Log.i(TAG, "Cleared meters and BLE scan results")
     }
 
     override fun onCleared() {

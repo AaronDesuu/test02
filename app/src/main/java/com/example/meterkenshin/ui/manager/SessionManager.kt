@@ -96,4 +96,18 @@ class SessionManager private constructor(context: Context) {
     fun logout() {
         clearSession()
     }
+
+    /**
+     * Clear all user-specific cached data (useful for cleanup operations)
+     * ✅ NEW: Optional method to clear DLMS logs if needed
+     * Note: Not called automatically on logout to preserve user's logs
+     */
+    fun clearUserDLMSLogs(context: Context) {
+        val session = getSession()
+        val username = session?.username ?: return
+
+        // Clear DLMS logs for this user
+        val dlmsLogPrefs = context.getSharedPreferences("DLMSLog_$username", Context.MODE_PRIVATE)
+        dlmsLogPrefs.edit().clear().apply()
+    }
 }
