@@ -13,3 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+/CLAUDE.md
+/.claude/settings.local.json
