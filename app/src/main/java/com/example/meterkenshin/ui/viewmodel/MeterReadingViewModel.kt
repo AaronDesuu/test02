@@ -31,6 +31,7 @@ import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.utils.FilterUtils
 import com.example.meterkenshin.utils.UserFileManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,10 +45,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@Suppress("PrivatePropertyName")
 class MeterReadingViewModel : ViewModel() {
     companion object {
         private const val TAG = "MeterReadingViewModel"
-        private const val APP_FILES_FOLDER = "app_files"
     }
 
     // Modern BLE Scanner
@@ -219,6 +220,13 @@ class MeterReadingViewModel : ViewModel() {
                 SCAN_FAILED_APPLICATION_REGISTRATION_FAILED -> Log.e(TAG, "App registration failed")
                 SCAN_FAILED_FEATURE_UNSUPPORTED -> Log.e(TAG, "BLE scan not supported")
                 SCAN_FAILED_INTERNAL_ERROR -> Log.e(TAG, "Internal error")
+                SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES -> {
+                    TODO()
+                }
+
+                SCAN_FAILED_SCANNING_TOO_FREQUENTLY -> {
+                    TODO()
+                }
             }
         }
     }
@@ -525,6 +533,10 @@ class MeterReadingViewModel : ViewModel() {
             try {
                 when (val result = loadMeterDataFromFile(context, fileName)) {
                     is MeterLoadResult.Success -> {
+                        // ✅ FIXED: Add small delay to ensure data is fully composed before showing
+                        // This prevents the flash of "Not Inspected" status while UI is initializing
+                        delay(150)
+
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             allMeters = result.meters,
@@ -760,28 +772,6 @@ class MeterReadingViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(errorMessage = message)
     }
 
-
-    /**
-     * Pause BLE scanning (for MeterDetailScreen)
-     */
-    @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
-    fun pauseScanning() {
-        stopBLEScanning()
-        Log.i(TAG, "BLE scanning paused")
-    }
-
-    /**
-     * Resume BLE scanning (when leaving MeterDetailScreen)
-     */
-    @RequiresPermission(allOf = [
-        Manifest.permission.BLUETOOTH_SCAN,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.ACCESS_FINE_LOCATION
-    ])
-    fun resumeScanning() {
-        startBLEScanning()
-        Log.i(TAG, "BLE scanning resumed")
-    }
 
     /**
      * Ensure the CSV file has billingPrintDate column (column 13)
