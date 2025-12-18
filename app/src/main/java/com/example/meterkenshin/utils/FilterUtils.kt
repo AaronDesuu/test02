@@ -41,6 +41,16 @@ object FilterUtils {
         return meters.filter { !viewModel.isMeterNearby(it.bluetoothId) }
     }
 
+    // Filter by location
+    fun filterByLocation(meters: List<Meter>, location: String): List<Meter> {
+        return meters.filter { it.location.equals(location, ignoreCase = true) }
+    }
+
+    // Get all unique locations from meters
+    fun getAllLocations(meters: List<Meter>): List<String> {
+        return meters.map { it.location }.distinct().sorted()
+    }
+
     // Show all meters (no filter)
     fun clearFilters(meters: List<Meter>): List<Meter> {
         return meters

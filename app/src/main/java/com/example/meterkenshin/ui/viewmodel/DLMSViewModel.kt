@@ -92,6 +92,10 @@ class DLMSViewModel : ViewModel() {
     private val _showReadDataOptionsDialog = MutableStateFlow(false)
     val showReadDataOptionsDialog: StateFlow<Boolean> = _showReadDataOptionsDialog.asStateFlow()
 
+    // ✅ NEW: Track pending CSV updates for batch processing
+    private val _pendingCsvUpdates = MutableStateFlow(0)
+    val pendingCsvUpdates: StateFlow<Int> = _pendingCsvUpdates.asStateFlow()
+
     fun updateCurrentMeter(updatedMeter: Meter) {
         meter = updatedMeter
         _currentMeter.value = updatedMeter
@@ -1455,6 +1459,8 @@ class DLMSViewModel : ViewModel() {
      */
     private fun updateMeterBillingPrintDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            // ✅ NEW: Track pending CSV update
+            _pendingCsvUpdates.value++
             try {
                 Log.d(TAG, "updateMeterBillingPrintDate called for: $serialNumber")
                 val context = mContext ?: return@launch
@@ -1534,11 +1540,22 @@ class DLMSViewModel : ViewModel() {
                     appendLog("✅ Billing print date saved to meter CSV: $billingPrintDate")
                     Log.d(TAG, "CSV update complete for $serialNumber, will reload meters")
 
-                    // Reload meters to update UI
+                    // ✅ FIXED: Skip auto-reload during batch processing
+                    // Batch manager will reload once at the end to avoid redundant reloads
+                    // Check if there are other pending updates before reloading
                     withContext(Dispatchers.Main) {
-                        mContext?.let { ctx ->
-                            meterReadingViewModel?.reloadMeters(ctx)
-                            Log.d(TAG, "Meters reloaded after updating $serialNumber")
+                        // Decrement pending counter first
+                        _pendingCsvUpdates.value--
+
+                        // Only reload if this was the last pending update
+                        // This prevents multiple redundant reloads during batch processing
+                        if (_pendingCsvUpdates.value == 0) {
+                            mContext?.let { ctx ->
+                                meterReadingViewModel?.reloadMeters(ctx)
+                                Log.d(TAG, "Meters reloaded after all CSV updates completed")
+                            }
+                        } else {
+                            Log.d(TAG, "CSV update complete for $serialNumber, ${_pendingCsvUpdates.value} updates still pending")
                         }
                     }
                 } else {
@@ -1551,6 +1568,11 @@ class DLMSViewModel : ViewModel() {
             } catch (e: Exception) {
                 appendLog("ERROR: Failed to save billing print date: ${e.message}")
                 Log.e(TAG, "updateMeterBillingPrintDate error", e)
+            } finally {
+                // ✅ NEW: Always decrement counter, even on error
+                if (_pendingCsvUpdates.value > 0) {
+                    _pendingCsvUpdates.value--
+                }
             }
         }
     }

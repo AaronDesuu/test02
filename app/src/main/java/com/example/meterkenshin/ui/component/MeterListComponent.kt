@@ -24,7 +24,9 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -48,14 +50,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.R
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.component.FilterSortControlRow
 import com.example.meterkenshin.ui.component.card.MeterCard
 import com.example.meterkenshin.ui.component.card.SelectionModeCard
 import com.example.meterkenshin.ui.component.dialog.BatchPrintOptionsDialog
@@ -608,202 +614,6 @@ fun MeterListComponent(
                     }
                 }
             }
-        }
-    }
-}
-
-/**
- * Filter and Sort Control Row
- */
-@Composable
-fun FilterSortControlRow(
-    meterReadingViewModel: MeterReadingViewModel,
-    modifier: Modifier = Modifier
-) {
-    val sortConfig by meterReadingViewModel.sortConfig.collectAsState()
-    var showSortMenu by remember { mutableStateOf(false) }
-    var showFilterMenu by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Filter Button
-        // Filter Button with Dropdown
-        Box(modifier = Modifier.weight(1f)) {
-            OutlinedButton(
-                onClick = { showFilterMenu = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FilterList,
-                    contentDescription = "Filter",
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text("Filter")
-            }
-
-            DropdownMenu(
-                expanded = showFilterMenu,
-                onDismissRequest = { showFilterMenu = false }
-            ) {
-                // Inspection Status Section
-                Text(
-                    text = "Inspection Status",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    fontWeight = FontWeight.Bold
-                )
-
-                DropdownMenuItem(
-                    text = { Text("Not Inspected") },
-                    onClick = {
-                        meterReadingViewModel.filterNotInspected()
-                        showFilterMenu = false
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = { Text("Inspected") },
-                    onClick = {
-                        meterReadingViewModel.filterInspected()
-                        showFilterMenu = false
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = { Text("Billing Not Printed") },
-                    onClick = {
-                        meterReadingViewModel.filterBillingNotPrinted()
-                        showFilterMenu = false
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = { Text("Billing Printed") },
-                    onClick = {
-                        meterReadingViewModel.filterBillingPrinted()
-                        showFilterMenu = false
-                    }
-                )
-
-                androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                // Connection Status Section
-                Text(
-                    text = "Connection Status",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    fontWeight = FontWeight.Bold
-                )
-
-                DropdownMenuItem(
-                    text = { Text("Online") },
-                    onClick = {
-                        meterReadingViewModel.filterOnline()
-                        showFilterMenu = false
-                    }
-                )
-
-                DropdownMenuItem(
-                    text = { Text("Offline") },
-                    onClick = {
-                        meterReadingViewModel.filterOffline()
-                        showFilterMenu = false
-                    }
-                )
-
-                androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-
-                // Clear Filters
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            "Clear Filters",
-                            color = MaterialTheme.colorScheme.error,
-                            fontWeight = FontWeight.Bold
-                        )
-                    },
-                    onClick = {
-                        meterReadingViewModel.clearFilters()
-                        showFilterMenu = false
-                    }
-                )
-            }
-        }
-        // Sort Dropdown Button
-        Box(modifier = Modifier.weight(1.5f)) {
-            OutlinedButton(
-                onClick = { showSortMenu = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Sort,
-                    contentDescription = "Sort",
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = when (sortConfig.field) {
-                        SortField.SERIAL_NUMBER -> "Serial Number"
-                        SortField.LOCATION -> "Location"
-                        SortField.LAST_MAINTENANCE_DATE -> "Due Date"
-                    },
-                    maxLines = 1
-                )
-            }
-
-            DropdownMenu(
-                expanded = showSortMenu,
-                onDismissRequest = { showSortMenu = false }
-            ) {
-                SortField.entries.forEach { field ->
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                when (field) {
-                                    SortField.SERIAL_NUMBER -> "Serial Number"
-                                    SortField.LOCATION -> "Location"
-                                    SortField.LAST_MAINTENANCE_DATE -> "Last Maintenance"
-                                }
-                            )
-                        },
-                        onClick = {
-                            meterReadingViewModel.setSortConfig(field, sortConfig.order)
-                            showSortMenu = false
-                        },
-                        leadingIcon = {
-                            if (sortConfig.field == field) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    )
-                }
-            }
-        }
-
-        // Ascending/Descending Toggle Button
-        OutlinedButton(
-            onClick = {
-                val newOrder = if (sortConfig.order == SortOrder.ASCENDING)
-                    SortOrder.DESCENDING else SortOrder.ASCENDING
-                meterReadingViewModel.setSortConfig(sortConfig.field, newOrder)
-            },
-            modifier = Modifier.weight(0.5f)
-        ) {
-            Icon(
-                imageVector = if (sortConfig.order == SortOrder.ASCENDING)
-                    Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                contentDescription = if (sortConfig.order == SortOrder.ASCENDING) "Ascending" else "Descending",
-                modifier = Modifier.size(18.dp)
-            )
         }
     }
 }

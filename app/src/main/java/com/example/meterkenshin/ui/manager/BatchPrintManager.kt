@@ -651,7 +651,9 @@ class BatchPrintManager(
                                         ))
                                         failedSerialsList.add(meter.serialNumber)
                                         _errorCount.value++
+                                        continue  // ✅ FIXED: Skip to next meter, don't execute success path
                                     } else {
+                                        // Retry succeeded, fall through to success path
                                         processedSerials.add(meter.serialNumber)
                                     }
                                 }
@@ -663,6 +665,7 @@ class BatchPrintManager(
                                     ))
                                     failedSerialsList.add(meter.serialNumber)
                                     _errorCount.value++
+                                    continue  // ✅ FIXED: Skip to next meter
                                 }
                                 PrinterErrorAction.CANCEL_BATCH -> {
                                     Log.w(TAG, "User cancelled entire batch from printer error")
@@ -678,10 +681,13 @@ class BatchPrintManager(
                             }
                         }
 
+                        // ✅ FIXED: Only execute success path if print succeeded (first try or retry)
                         delay(PRINT_DELAY_MS)
 
-                        // ✅ NEW: Track successful print in progress
-                        processedSerials.add(meter.serialNumber)
+                        // Track successful print in progress (only reached if printSuccess OR retry succeeded)
+                        if (printSuccess || meter.serialNumber !in failedSerialsList) {
+                            processedSerials.add(meter.serialNumber)
+                        }
 
                         updateProgressWithStep(3, "✅ Printed ${meter.serialNumber}")
                         Log.i(TAG, "Successfully printed ${meter.serialNumber}")
@@ -804,14 +810,28 @@ class BatchPrintManager(
                 _currentMeterSerial.value = null
                 _waitingForConfirmation.value = false
 
-                // ✅ FIXED: Wait for async CSV updates to complete before reloading
-                // The print success callback updates CSV asynchronously, so we need to wait
-                delay(1000) // Give time for updateMeterBillingPrintDate to complete
-
-                withContext(Dispatchers.Main) {
-                    meterReadingViewModel.reloadMeters(context)
+                // ✅ FIXED: Wait for all pending CSV updates to complete
+                // DLMSViewModel tracks pending updates via StateFlow, much more reliable than hardcoded delay
+                var waitCount = 0
+                while (dlmsViewModel.pendingCsvUpdates.value > 0 && waitCount < 50) {
+                    delay(100)  // Check every 100ms
+                    waitCount++
                 }
-                Log.i(TAG, "Meter data reloaded after batch printing")
+
+                if (waitCount >= 50) {
+                    Log.w(TAG, "Timeout waiting for CSV updates, ${dlmsViewModel.pendingCsvUpdates.value} still pending")
+                } else {
+                    Log.d(TAG, "All CSV updates completed after ${waitCount * 100}ms")
+                }
+
+                // Only reload if there were no pending updates (they auto-reload)
+                // or if we timed out waiting for them
+                if (dlmsViewModel.pendingCsvUpdates.value == 0) {
+                    withContext(Dispatchers.Main) {
+                        meterReadingViewModel.reloadMeters(context)
+                    }
+                    Log.i(TAG, "Meter data reloaded after batch printing")
+                }
             }
         }
     }

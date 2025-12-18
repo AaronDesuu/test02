@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import com.example.meterkenshin.dlms.DLMSJSONWriter
 import com.example.meterkenshin.model.Meter
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
@@ -249,7 +250,7 @@ class BatchProcessingManager(
                                     if (retryChoice == UserChoice.RETRY) {
                                         // Retry the read operation
                                         Log.i(TAG, "Retrying read for ${meter.serialNumber}")
-                                        dlmsViewModel.readData(meter, rates)
+                                        dlmsViewModel.performReadData(meter, rates)
 
                                         if (!waitForOperationComplete()) {
                                             // Still failed after retry
