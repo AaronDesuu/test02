@@ -843,13 +843,13 @@ fun FullHardResetCard(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Full Hard Reset (Admin)",
+                        text = "Hard Reset App",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.error
                     )
                     Text(
-                        text = "Delete ALL data for ALL users - DANGER ZONE!",
+                        text = "Delete ALL data for ALL users. Deleted Data cannot be restored",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Medium
@@ -882,7 +882,7 @@ fun FullHardResetCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Full Hard Reset All Users")
+                    Text("Hard Reset All Users")
                 }
             }
         }
