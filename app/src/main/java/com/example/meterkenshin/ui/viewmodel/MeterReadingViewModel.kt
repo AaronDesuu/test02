@@ -9,20 +9,14 @@ import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
-import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.content.ServiceConnection
-import android.os.Build
-import android.os.IBinder
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.bluetooth.DeviceList
+import com.example.meterkenshin.data.BluetoothRepository
 import com.example.meterkenshin.dlms.DLMS
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.model.MeterStatus
@@ -63,15 +57,7 @@ class MeterReadingViewModel : ViewModel() {
             .build()
     }
 
-    // BluetoothLeService constants
-    object BluetoothLeServiceConstants {
-        const val ACTION_GATT_CONNECTED = "com.example.meterkenshin.bluetooth.ACTION_GATT_CONNECTED"
-        const val ACTION_GATT_DISCONNECTED = "com.example.meterkenshin.bluetooth.ACTION_GATT_DISCONNECTED"
-        const val ACTION_GATT_SERVICES_DISCOVERED = "com.example.meterkenshin.bluetooth.ACTION_GATT_SERVICES_DISCOVERED"
-        const val ACTION_DATA_AVAILABLE = "com.example.meterkenshin.bluetooth.ACTION_DATA_AVAILABLE"
-        const val ACTION_GATT_ERROR = "com.example.meterkenshin.bluetooth.ACTION_GATT_ERROR"
-        const val EXTRA_DATA = "com.example.meterkenshin.bluetooth.EXTRA_DATA"
-    }
+    // ✅ FIXED: Constants moved to BluetoothLeService companion object
 
     // UI State
     private val _uiState = MutableStateFlow(MeterReadingUiState())
@@ -102,21 +88,18 @@ class MeterReadingViewModel : ViewModel() {
         applySorting()
     }
 
-    // Context and BLE
-    @SuppressLint("StaticFieldLeak")
-    private var mContext: Context? = null
+    // ✅ FIXED: Use Application Context instead of static Activity Context to prevent memory leaks
+    private lateinit var appContext: Context
     private var mBluetoothAdapter: BluetoothAdapter? = null
     private var mScanning = false
+
+    // ✅ FIXED: Use BluetoothRepository to manage service lifecycle (prevents memory leaks)
+    private var bluetoothRepository: BluetoothRepository? = null
 
     private var mStage = 0
     private var mStep = 0
 
-    private var mConnected = 0
-    private var mArrived = 0
-    private var mServiceActive = false
     private var mData = ByteArray(0)
-    @SuppressLint("StaticFieldLeak")
-    private var mBluetoothLeService: BluetoothLeService? = null
     private var d: DLMS? = null
     private var mDeviceList: DeviceList? = null
     val discoveredDevices: StateFlow<Map<String, Int>> = _discoveredDevices.asStateFlow()
@@ -233,79 +216,30 @@ class MeterReadingViewModel : ViewModel() {
         }
     }
 
-    // BroadcastReceiver for GATT events
-    private val mGattUpdateReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            when (intent.action) {
-                BluetoothLeServiceConstants.ACTION_GATT_CONNECTED -> {
-                    mConnected = 1
-                    Log.i(TAG, "ACTION_GATT_CONNECTED")
-                }
-                BluetoothLeServiceConstants.ACTION_GATT_DISCONNECTED -> {
-                    Log.i(TAG, "ACTION_GATT_DISCONNECTED")
-                    mConnected = -1
-                    if (mStage != 0) {
-                        mStage = 0
-                        mStep = 0
-                    }
-                    _connectionState.value = ConnectionState.DISCONNECTED
-                }
-                BluetoothLeServiceConstants.ACTION_GATT_SERVICES_DISCOVERED -> {
-                    Log.i(TAG, "ACTION_GATT_SERVICES_DISCOVERED")
-                    mConnected = 2
-                    mArrived = 0
-                    _connectionState.value = ConnectionState.CONNECTED
-                }
-                BluetoothLeServiceConstants.ACTION_GATT_ERROR -> {
-                    Log.i(TAG, "ACTION_GATT_ERROR")
-                    _connectionState.value = ConnectionState.FAILED
-                }
-                BluetoothLeServiceConstants.ACTION_DATA_AVAILABLE -> {
-                    Log.i(TAG, "ACTION_DATA_AVAILABLE")
-                    mData = intent.getByteArrayExtra(BluetoothLeServiceConstants.EXTRA_DATA) ?: ByteArray(0)
-                    mArrived++
-                }
-            }
-        }
-    }
-
-    // Service connection for BLE
-    private val mServiceConnection = object : ServiceConnection {
-        override fun onServiceConnected(componentName: ComponentName, service: IBinder) {
-            mBluetoothLeService = (service as BluetoothLeService.LocalBinder).service
-            if (mBluetoothLeService?.initialize() != true) {
-                Log.i(TAG, "Fail to initialize Bluetooth service.")
-                mServiceActive = false
-            } else {
-                Log.i(TAG, "Success to initialize Bluetooth service.")
-                mServiceActive = true
-            }
-        }
-
-        override fun onServiceDisconnected(componentName: ComponentName) {
-            mBluetoothLeService = null
-            mServiceActive = false
-            Log.i(TAG, "onServiceDisconnected")
-        }
-    }
+    // ✅ FIXED: BroadcastReceiver and ServiceConnection moved to BluetoothRepository to prevent memory leaks
 
     /**
      * Initialize the ViewModel with DLMS and Bluetooth
+     * ✅ FIXED: Uses Application Context to prevent memory leaks
      */
     fun initialize(context: Context) {
-        mContext = context
+        // ✅ FIXED: Store Application Context instead of Activity Context
+        appContext = context.applicationContext
 
-        // Initialize DLMS with Context
-        d = DLMS(context)
+        // Initialize DLMS with Application Context
+        d = DLMS(appContext)
 
         // Initialize device list
         mDeviceList = DeviceList()
 
         // Initialize Bluetooth adapter
-        val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+        val bluetoothManager = appContext.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
         mBluetoothAdapter = bluetoothManager?.adapter
 
-        Log.i(TAG, "MeterReadingViewModel initialized")
+        // Initialize Bluetooth Repository
+        bluetoothRepository = BluetoothRepository.getInstance(appContext)
+
+        Log.i(TAG, "MeterReadingViewModel initialized with Application Context")
     }
 
     /**
@@ -427,31 +361,51 @@ class MeterReadingViewModel : ViewModel() {
 
     /**
      * Start BLE operations
+     * ✅ FIXED: Uses BluetoothRepository to manage service lifecycle
      */
     fun startBLEOperations(context: Context) {
-        mContext = context
-
-        // Register broadcast receiver
-        val intentFilter = IntentFilter().apply {
-            addAction(BluetoothLeServiceConstants.ACTION_GATT_CONNECTED)
-            addAction(BluetoothLeServiceConstants.ACTION_GATT_DISCONNECTED)
-            addAction(BluetoothLeServiceConstants.ACTION_GATT_SERVICES_DISCOVERED)
-            addAction(BluetoothLeServiceConstants.ACTION_DATA_AVAILABLE)
-            addAction(BluetoothLeServiceConstants.ACTION_GATT_ERROR)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(mGattUpdateReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+        // Initialize if not already done
+        if (!::appContext.isInitialized) {
+            initialize(context)
         }
 
-        // Bind BLE service
-        val gattServiceIntent = Intent(context, BluetoothLeService::class.java)
-        context.bindService(gattServiceIntent, mServiceConnection, Context.BIND_AUTO_CREATE)
+        // Start BLE operations via repository
+        bluetoothRepository?.startBLEOperations()
 
-        Log.i(TAG, "BLE operations started")
+        // Observe connection state from repository
+        viewModelScope.launch {
+            bluetoothRepository?.connectionState?.collect { state ->
+                _connectionState.value = when (state) {
+                    com.example.meterkenshin.data.ConnectionState.DISCONNECTED -> ConnectionState.DISCONNECTED
+                    com.example.meterkenshin.data.ConnectionState.CONNECTED -> ConnectionState.CONNECTED
+                    com.example.meterkenshin.data.ConnectionState.FAILED -> ConnectionState.FAILED
+                }
+
+                // Reset stage/step on disconnect
+                if (state == com.example.meterkenshin.data.ConnectionState.DISCONNECTED) {
+                    if (mStage != 0) {
+                        mStage = 0
+                        mStep = 0
+                    }
+                }
+            }
+        }
+
+        // Observe data from repository
+        viewModelScope.launch {
+            bluetoothRepository?.dataReceived?.collect { data ->
+                if (data != null) {
+                    mData = data
+                }
+            }
+        }
+
+        Log.i(TAG, "BLE operations started via repository")
     }
 
     /**
      * Stop BLE operations
+     * ✅ FIXED: Uses BluetoothRepository for proper cleanup
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_SCAN)
     fun stopBLEOperations(context: Context) {
@@ -459,14 +413,10 @@ class MeterReadingViewModel : ViewModel() {
             // Stop scanning if active
             stopBLEScanning()
 
-            // Unregister receiver
-            context.unregisterReceiver(mGattUpdateReceiver)
+            // Stop BLE operations via repository
+            bluetoothRepository?.stopBLEOperations()
 
-            // Unbind service
-            context.unbindService(mServiceConnection)
-
-            mServiceActive = false
-            Log.i(TAG, "BLE operations stopped")
+            Log.i(TAG, "BLE operations stopped via repository")
         } catch (e: Exception) {
             Log.e(TAG, "Error stopping BLE operations", e)
         }
@@ -845,15 +795,17 @@ class MeterReadingViewModel : ViewModel() {
 
     /**
      * Update lastCommunication timestamp when meter discovered via BLE
+     * ✅ FIXED: Uses Application Context
      */
     private fun updateMeterLastCommunication(bluetoothMac: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val context = mContext ?: return@launch
-                val sessionManager = SessionManager.getInstance(context)
+                // ✅ FIXED: Use Application Context instead of Activity Context
+                if (!::appContext.isInitialized) return@launch
+                val sessionManager = SessionManager.getInstance(appContext)
                 val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
                 val filename = "${yearMonth}_meter.csv"
-                val meterFile = UserFileManager.getMeterFile(context, sessionManager, filename)
+                val meterFile = UserFileManager.getMeterFile(appContext, sessionManager, filename)
 
                 if (!meterFile.exists()) return@launch
 
@@ -897,7 +849,7 @@ class MeterReadingViewModel : ViewModel() {
                     meterFile.writeText(lines.joinToString("\n"))
                     // Update UI on main thread
                     withContext(Dispatchers.Main) {
-                        val updatedMeters = loadMeterDataFromFile(context, filename)
+                        val updatedMeters = loadMeterDataFromFile(appContext, filename)
                         if (updatedMeters is MeterLoadResult.Success) {
                             _uiState.update { it.copy(allMeters = updatedMeters.meters) }
                             reapplyCurrentState()
@@ -972,9 +924,37 @@ class MeterReadingViewModel : ViewModel() {
         Log.i(TAG, "Cleared meters and BLE scan results")
     }
 
+    /**
+     * ✅ FIXED: Proper cleanup to prevent memory leaks
+     * Called when ViewModel is destroyed
+     */
     override fun onCleared() {
         super.onCleared()
-        Log.i(TAG, "ViewModel cleared")
+
+        try {
+            // Stop BLE scanning if active
+            if (mScanning) {
+                try {
+                    bluetoothLeScanner?.stopScan(scanCallback)
+                    mScanning = false
+                    _isScanning.value = false
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error stopping scan during cleanup", e)
+                }
+            }
+
+            // Cleanup Bluetooth Repository (stops service and unregisters receiver)
+            bluetoothRepository?.cleanup()
+            bluetoothRepository = null
+
+            // Clear references to prevent leaks
+            mDeviceList = null
+            d = null
+
+            Log.i(TAG, "ViewModel cleaned up successfully - memory leaks prevented")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during ViewModel cleanup", e)
+        }
     }
 }
 

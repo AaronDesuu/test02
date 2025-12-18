@@ -74,8 +74,8 @@ class DLMSViewModel : ViewModel() {
     private lateinit var dlmsDataAccess: DLMSDataAccess
     private lateinit var dlmsFunctions: DLMSFunctions
 
-    @SuppressLint("StaticFieldLeak")
-    private var mContext: Context? = null
+    // ✅ FIXED: Use Application Context instead of static Activity Context to prevent memory leaks
+    private lateinit var appContext: Context
     private var meter: Meter? = null
 
     // ✅ FIXED: User-specific AND meter-specific log storage
@@ -117,14 +117,14 @@ class DLMSViewModel : ViewModel() {
     val pendingBillingData: StateFlow<Billing?> get() = readDataPrinting.pendingBillingData
 
     fun confirmPrint() {
-        mContext?.let { context ->
-            readDataPrinting.confirmPrint(context)
+        if (::appContext.isInitialized) {
+            readDataPrinting.confirmPrint(appContext)
         }
     }
 
     fun skipPrint() {
-        mContext?.let { context ->
-            readDataPrinting.skipPrint(context)
+        if (::appContext.isInitialized) {
+            readDataPrinting.skipPrint(appContext)
         }
     }
 
@@ -147,7 +147,8 @@ class DLMSViewModel : ViewModel() {
      * ✅ FIXED: Does NOT load logs here - logs are loaded per-meter in initializeDLMS
      */
     fun initializeForPrinting(context: Context, meterReadingViewModel: MeterReadingViewModel? = null) {
-        mContext = context
+        // ✅ FIXED: Store Application Context to prevent memory leaks
+        appContext = context.applicationContext
         this.meterReadingViewModel = meterReadingViewModel
         val sessionManager = SessionManager.getInstance(context)
         userSessionManager = sessionManager
@@ -167,7 +168,8 @@ class DLMSViewModel : ViewModel() {
      */
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     suspend fun initializeDLMS(context: Context, meter: Meter) {
-        mContext = context
+        // ✅ FIXED: Store Application Context to prevent memory leaks
+        appContext = context.applicationContext
         this@DLMSViewModel.meter = meter
 
         // ✅ FIXED: Set current meter serial number for per-meter logging
@@ -175,7 +177,7 @@ class DLMSViewModel : ViewModel() {
 
         dlmsInit.initialize(context, meter)
         dlmsDataAccess = DLMSDataAccess(dlmsInit)
-        dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, mContext) { appendLog(it) }
+        dlmsFunctions = DLMSFunctions(dlmsInit, dlmsDataAccess, appContext) { appendLog(it) }
         dlmsFunctions.setMeter(meter)
         sessionManager = DLMSSessionManager(dlmsInit)
         userSessionManager = SessionManager.getInstance(context)
@@ -287,7 +289,8 @@ class DLMSViewModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             var backupFile: File? = null
             try {
-                val context = mContext ?: return@launch
+                if (!::appContext.isInitialized) return@launch
+                val context = appContext
                 val sessionManager = SessionManager.getInstance(context)
                 val yearMonth = getCurrentYearMonth()
                 val filename = "${yearMonth}_meter.csv"
@@ -384,8 +387,9 @@ class DLMSViewModel : ViewModel() {
 
                 // Reload meters to update UI
                 withContext(Dispatchers.Main) {
-                    mContext?.let { ctx ->
-                        meterReadingViewModel?.reloadMeters(ctx)
+                    if (::appContext.isInitialized) {
+                        // ✅ FIXED: Force reload to ensure updated meter data is displayed
+                        meterReadingViewModel?.reloadMeters(appContext, forceReload = true)
                     }
                 }
 
@@ -397,7 +401,7 @@ class DLMSViewModel : ViewModel() {
                 backupFile?.let { backup ->
                     if (backup.exists()) {
                         try {
-                            val context = mContext
+                            val context = appContext
                             val sessionManager = context?.let { SessionManager.getInstance(it) }
                             val yearMonth = getCurrentYearMonth()
                             val filename = "${yearMonth}_meter.csv"
@@ -504,7 +508,8 @@ class DLMSViewModel : ViewModel() {
      * ✅ FIXED: Persists logs per user AND per meter
      */
     private fun saveLogToPreferences() {
-        val context = mContext ?: return
+        if (!::appContext.isInitialized) return
+        val context = appContext
         val sessionManager = userSessionManager ?: return
         val session = sessionManager.getSession() ?: return
         val meterSerial = currentMeterSerialNumber ?: return
@@ -524,7 +529,8 @@ class DLMSViewModel : ViewModel() {
      * This ensures complete isolation between users and meters
      */
     private fun loadLogFromPreferences() {
-        val context = mContext ?: return
+        if (!::appContext.isInitialized) return
+        val context = appContext
         val sessionManager = userSessionManager ?: return
         val session = sessionManager.getSession() ?: run {
             Log.w(TAG, "Cannot load logs - no valid session")
@@ -686,8 +692,9 @@ class DLMSViewModel : ViewModel() {
                     NotificationManager.showSuccess("Registration completed successfully")
 
                     withContext(Dispatchers.Main) {
-                        mContext?.let { ctx ->
-                            meterReadingViewModel?.reloadMeters(ctx)
+                        if (::appContext.isInitialized) {
+                            // ✅ FIXED: Force reload to ensure updated meter data is displayed
+                            meterReadingViewModel?.reloadMeters(appContext, forceReload = true)
                         }
                     }
 
@@ -887,15 +894,16 @@ class DLMSViewModel : ViewModel() {
 
                 // Reload meters to update UI with latest data
                 withContext(Dispatchers.Main) {
-                    mContext?.let { ctx ->
-                        meterReadingViewModel?.reloadMeters(ctx)
+                    if (::appContext.isInitialized) {
+                        // ✅ FIXED: Force reload to ensure updated meter data is displayed
+                        meterReadingViewModel?.reloadMeters(appContext, forceReload = true)
                     }
                 }
 
                 readDataPrinting.setPendingBillingData(billing)
                 readDataPrinting.setSavedRates(rates)
-                mContext?.let { context ->
-                    readDataPrinting.showPrintDialog(context)
+                if (::appContext.isInitialized) {
+                    readDataPrinting.showPrintDialog(appContext)
                 }
 
 
@@ -920,7 +928,8 @@ class DLMSViewModel : ViewModel() {
      */
     fun saveStoredBillingToJSON() {
         // Check if JSON saving is enabled
-        if (mContext?.let { AppPreferences.isJsonSavingEnabled(it) } == false) {
+        if (!::appContext.isInitialized) return
+        if (AppPreferences.isJsonSavingEnabled(appContext) == false) {
             appendLog("JSON saving is disabled in settings")
             return
         }
@@ -938,9 +947,9 @@ class DLMSViewModel : ViewModel() {
                     appendLog("✅ Success to save billing data to JSON")
                     appendLog("Data was ${30 - savedData.daysRemaining()} days old")
                     // Trigger share dialog if enabled
-                    mContext?.let { ctx ->
-                        if (AppPreferences.isAutoShareExportEnabled(ctx)) {
-                            DLMSJSONWriter.shareJSON(ctx, savedData.billing.SerialNumber)
+                    if (::appContext.isInitialized) {
+                        if (AppPreferences.isAutoShareExportEnabled(appContext)) {
+                            DLMSJSONWriter.shareJSON(appContext, savedData.billing.SerialNumber)
                         }
                     }
                 } else {
@@ -958,7 +967,8 @@ class DLMSViewModel : ViewModel() {
      */
     private fun saveReadDataToJSON() {
         // Check if JSON saving is enabled
-        if (mContext?.let { AppPreferences.isJsonSavingEnabled(it) } == false) {
+        if (!::appContext.isInitialized) return
+        if (AppPreferences.isJsonSavingEnabled(appContext) == false) {
             appendLog("JSON saving is disabled in settings")
             return
         }
@@ -974,9 +984,9 @@ class DLMSViewModel : ViewModel() {
                 if (success) {
                     appendLog("✅ Success to save billing data to JSON")
                     // Trigger share dialog if enabled
-                    mContext?.let { ctx ->
-                        if (AppPreferences.isAutoShareExportEnabled(ctx)) {
-                            DLMSJSONWriter.shareJSON(ctx, billing.SerialNumber)
+                    if (::appContext.isInitialized) {
+                        if (AppPreferences.isAutoShareExportEnabled(appContext)) {
+                            DLMSJSONWriter.shareJSON(appContext, billing.SerialNumber)
                         }
                     }
                 } else {
@@ -1003,7 +1013,8 @@ class DLMSViewModel : ViewModel() {
      * ✅ FIXED: Now uses user-specific preferences
      */
     private fun loadPreviousReading(serialNumber: String?): Billing? {
-        val context = mContext ?: return null
+        if (!::appContext.isInitialized) return null
+        val context = appContext
         val sessionManager = userSessionManager ?: return null
         val session = sessionManager.getSession() ?: return null
 
@@ -1024,7 +1035,8 @@ class DLMSViewModel : ViewModel() {
      */
     @SuppressLint("UseKtx")
     private fun savePreviousReading(serialNumber: String?, billing: Billing) {
-        val context = mContext ?: return
+        if (!::appContext.isInitialized) return
+        val context = appContext
         val sessionManager = userSessionManager ?: return
         val session = sessionManager.getSession() ?: return
 
@@ -1115,7 +1127,7 @@ class DLMSViewModel : ViewModel() {
             // Save to CSV
             if (allLoadProfileData.size > 5) {
                 val success = DLMSCSVWriter.saveToCSV(
-                    context = mContext,
+                    context = appContext,
                     type = DLMSCSVWriter.CSVType.LOAD_PROFILE,
                     serialNumber = meter.serialNumber,
                     data = allLoadProfileData
@@ -1230,7 +1242,7 @@ class DLMSViewModel : ViewModel() {
             if (allEventData != null) {
                 if (allEventData.size > 3) {
                     val success = DLMSCSVWriter.saveToCSV(
-                        context = mContext,
+                        context = appContext,
                         type = DLMSCSVWriter.CSVType.EVENT_LOG,
                         serialNumber = meter.serialNumber,
                         data = allEventData
@@ -1378,7 +1390,7 @@ class DLMSViewModel : ViewModel() {
                 dataWithTimestamp.addAll(allBillingData)
 
                 val success = DLMSCSVWriter.saveToCSV(
-                    context = mContext,
+                    context = appContext,
                     type = DLMSCSVWriter.CSVType.BILLING,
                     serialNumber = meter.serialNumber,
                     data = dataWithTimestamp,
@@ -1539,7 +1551,8 @@ class DLMSViewModel : ViewModel() {
             _pendingCsvUpdates.value++
             try {
                 Log.d(TAG, "updateMeterBillingPrintDate called for: $serialNumber")
-                val context = mContext ?: return@launch
+                if (!::appContext.isInitialized) return@launch
+                val context = appContext
                 val sessionManager = SessionManager.getInstance(context)
                 val yearMonth = getCurrentYearMonth()
                 val filename = "${yearMonth}_meter.csv"
@@ -1626,8 +1639,9 @@ class DLMSViewModel : ViewModel() {
                         // Only reload if this was the last pending update
                         // This prevents multiple redundant reloads during batch processing
                         if (_pendingCsvUpdates.value == 0) {
-                            mContext?.let { ctx ->
-                                meterReadingViewModel?.reloadMeters(ctx)
+                            if (::appContext.isInitialized) {
+                                // ✅ FIXED: Force reload to ensure updated meter data is displayed
+                                meterReadingViewModel?.reloadMeters(appContext, forceReload = true)
                                 Log.d(TAG, "Meters reloaded after all CSV updates completed")
                             }
                         } else {
@@ -1664,8 +1678,8 @@ class DLMSViewModel : ViewModel() {
             readDataPrinting.setPendingBillingData(savedData.billing)
             readDataPrinting.setSavedRates(savedData.rates)
             // For batch processing, auto-confirm print
-            mContext?.let { context ->
-                readDataPrinting.confirmPrint(context)
+            if (::appContext.isInitialized) {
+                readDataPrinting.confirmPrint(appContext)
             }
         } else {
             appendLog("ERROR: No valid billing data to print")
@@ -1683,8 +1697,8 @@ class DLMSViewModel : ViewModel() {
         if (savedData != null && savedData.isValid()) {
             readDataPrinting.setPendingBillingData(savedData.billing)
             readDataPrinting.setSavedRates(savedData.rates)
-            mContext?.let { context ->
-                readDataPrinting.showPrintDialog(context)
+            if (::appContext.isInitialized) {
+                readDataPrinting.showPrintDialog(appContext)
             }
         }
     }
@@ -1698,7 +1712,8 @@ class DLMSViewModel : ViewModel() {
      */
     private fun loadFixedDateFromCSV(serialNumber: String): String? {
         return try {
-            val context = mContext ?: return null
+            if (!::appContext.isInitialized) return null
+            val context = appContext
             val sessionManager = SessionManager.getInstance(context)
             val yearMonth = getCurrentYearMonth()
             val filename = "${yearMonth}_meter.csv"
@@ -1728,8 +1743,19 @@ class DLMSViewModel : ViewModel() {
         }
     }
 
+    /**
+     * ✅ FIXED: Proper cleanup to prevent memory leaks
+     * Called when ViewModel is destroyed
+     */
     override fun onCleared() {
         super.onCleared()
-        mContext?.let { cleanup(it) }
+        try {
+            if (::appContext.isInitialized) {
+                cleanup(appContext)
+            }
+            Log.i(TAG, "DLMSViewModel cleaned up successfully - memory leaks prevented")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during ViewModel cleanup", e)
+        }
     }
 }

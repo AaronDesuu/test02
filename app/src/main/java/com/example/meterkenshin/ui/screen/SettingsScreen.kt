@@ -719,7 +719,7 @@ fun HardResetConfirmationDialog(
         },
         title = { Text("Reset Your User Data?") },
         text = {
-            Text("This will reset only YOUR user data:\n\n• Your session (will be logged out)\n• Your app settings/preferences\n• Your DLMS logs\n\nShared data (meters, billing, printer configs) will NOT be affected.\n\nOther users can still access their data.")
+            Text("This will reset only YOUR user data:\n\n• Your app settings/preferences\n• Your DLMS logs\n\nYou will remain logged in.\n\nShared data (meters, billing, printer configs) will NOT be affected.\n\nOther users can still access their data.")
         },
         confirmButton = {
             TextButton(
@@ -980,8 +980,8 @@ private suspend fun performUserReset(context: Context, sessionManager: SessionMa
                 AppPreferences.clearCache()
             }
 
-            // Clear session data (logs out the user)
-            sessionManager.clearSession()
+            // ✅ FIXED: Don't clear session - keep user logged in after reset
+            // sessionManager.clearSession()
 
         } catch (e: Exception) {
             e.printStackTrace()
