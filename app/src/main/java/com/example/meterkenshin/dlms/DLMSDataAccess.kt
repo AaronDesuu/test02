@@ -78,7 +78,7 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
                     val res = IntArray(2)
                     mReceive = dlmsInitializer.dlms?.DataRes(res, dlmsInitializer.mData, modeling)
 
-                    if (mReceive == null || mReceive!!.isEmpty()) {
+                    if (mReceive?.isEmpty() != false) {
                         Log.e(TAG, "ERROR: mReceive is null or empty")
                         continueBlockTransfer = false  // ADDED: Reset on error
                         mStep = 0
@@ -91,9 +91,9 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
                         return false
                     }
 
-                    if (mode > 0 && mReceive!!.size > 1) {
-                        if (mReceive!![1] != "success (0)") {
-                            Log.e(TAG, "Operation failed: ${mReceive!![1]}")
+                    if (mode > 0 && (mReceive?.size ?: 0) > 1) {
+                        if (mReceive?.getOrNull(1) != "success (0)") {
+                            Log.e(TAG, "Operation failed: ${mReceive?.getOrNull(1)}")
                             continueBlockTransfer = false  // ADDED: Reset on operation failure
                             return false
                         }

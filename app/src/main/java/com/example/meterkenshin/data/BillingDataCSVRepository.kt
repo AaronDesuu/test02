@@ -34,6 +34,14 @@ class BillingDataCSVRepository(
 
     companion object {
         private const val TAG = "BillingDataCSVRepo"
+
+        // File locks for thread-safe CSV operations
+        private val fileLocks = mutableMapOf<String, Any>()
+
+        @Synchronized
+        private fun getLockForFile(filePath: String): Any {
+            return fileLocks.getOrPut(filePath) { Any() }
+        }
     }
 
     /**
@@ -61,15 +69,29 @@ class BillingDataCSVRepository(
             val timestamp = System.currentTimeMillis()
             val period = billing.Period ?: ""
 
-            // Create header if file doesn't exist
-            if (!csvFile.exists()) {
-                csvFile.writeText("Timestamp,Period,BillingData,Rates\n")
-                Log.d(TAG, "Created new billing file: ${csvFile.absolutePath}")
-            }
+            // Thread-safe file operations using file-specific lock
+            synchronized(getLockForFile(csvFile.absolutePath)) {
+                // Atomic check-and-create with header
+                if (!csvFile.exists()) {
+                    try {
+                        csvFile.parentFile?.mkdirs() // Ensure directory exists
+                        csvFile.writeText("Timestamp,Period,BillingData,Rates\n")
+                        Log.d(TAG, "Created new billing file: ${csvFile.absolutePath}")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to create billing file: ${e.message}", e)
+                        throw e
+                    }
+                }
 
-            // Append new billing record
-            val newLine = "$timestamp,\"$period\",\"${escapeJson(billingJson)}\",\"${escapeJson(ratesJson)}\"\n"
-            csvFile.appendText(newLine)
+                // Append new billing record
+                val newLine = "$timestamp,\"$period\",\"${escapeJson(billingJson)}\",\"${escapeJson(ratesJson)}\"\n"
+                try {
+                    csvFile.appendText(newLine)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to append billing data: ${e.message}", e)
+                    throw e
+                }
+            }
 
             Log.d(TAG, "Billing data saved for $serialNumber in ${csvFile.name}")
             true
@@ -319,11 +341,23 @@ class BillingDataCSVRepository(
      * Check if billing data exists for a meter
      */
     fun hasBillingData(serialNumber: String): Boolean {
-        // Get user-specific billing directory
-        val billingDir = UserFileManager.getBillingDir(context, sessionManager)
-        val csvFile = File(billingDir, "${serialNumber}_billing.csv")
+        return try {
+            // Get user-specific billing directory
+            val billingDir = UserFileManager.getBillingDir(context, sessionManager)
+            val csvFile = File(billingDir, "${serialNumber}_billing.csv")
 
-        return csvFile.exists() && csvFile.readLines().size > 1
+            if (!csvFile.exists()) {
+                return false
+            }
+
+            // Efficiently check for data without loading entire file
+            csvFile.useLines { lines ->
+                lines.take(2).count() > 1
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking billing data: ${e.message}", e)
+            false
+        }
     }
 
     /**

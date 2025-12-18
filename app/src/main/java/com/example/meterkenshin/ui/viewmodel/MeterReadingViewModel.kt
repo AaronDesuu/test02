@@ -221,11 +221,13 @@ class MeterReadingViewModel : ViewModel() {
                 SCAN_FAILED_FEATURE_UNSUPPORTED -> Log.e(TAG, "BLE scan not supported")
                 SCAN_FAILED_INTERNAL_ERROR -> Log.e(TAG, "Internal error")
                 SCAN_FAILED_OUT_OF_HARDWARE_RESOURCES -> {
-                    TODO()
+                    Log.e(TAG, "Out of BLE hardware resources - too many concurrent scans")
+                    updateErrorMessage("Bluetooth hardware busy. Please wait and try again.")
                 }
 
                 SCAN_FAILED_SCANNING_TOO_FREQUENTLY -> {
-                    TODO()
+                    Log.w(TAG, "Scanning too frequently - Android BLE rate limit hit")
+                    updateErrorMessage("Scanning paused to prevent battery drain. Please wait a moment before scanning again.")
                 }
             }
         }

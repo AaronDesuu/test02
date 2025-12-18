@@ -285,6 +285,7 @@ class DLMSViewModel : ViewModel() {
      */
     private fun clearMeterReadDate(serialNumber: String) {
         viewModelScope.launch(Dispatchers.IO) {
+            var backupFile: File? = null
             try {
                 val context = mContext ?: return@launch
                 val sessionManager = SessionManager.getInstance(context)
@@ -297,60 +298,89 @@ class DLMSViewModel : ViewModel() {
                     return@launch
                 }
 
-                val lines = meterFile.readLines().toMutableList()
-                val serialNoIndex = 2
+                // Create backup before modifying
+                synchronized(meterFile) {
+                    backupFile = File(meterFile.parent, "${meterFile.name}.backup")
+                    meterFile.copyTo(backupFile!!, overwrite = true)
 
-                // CSV column indices
-                val impKWhIndex = 5           // Clear meter reading data
-                val expKWhIndex = 6           // Clear meter reading data
-                val impMaxDemandKWIndex = 7   // Clear meter reading data
-                val expMaxDemandKWIndex = 8   // Clear meter reading data
-                val minVoltVIndex = 9         // Clear meter reading data
-                val alertIndex = 10           // Clear meter reading data
-                val readDateIndex = 11        // Clear readDate
-                val billingPrintDateIndex = 12 // Clear billingPrintDate
-
-                for (i in 1 until lines.size) {
-                    val columns = lines[i].split(',').toMutableList()
-                    val csvSerialNo = columns.getOrNull(serialNoIndex)
-                        ?.trim()
-                        ?.removeSurrounding("\"")
-
-                    if (csvSerialNo == serialNumber) {
-                        // Clear ALL meter reading data AND status fields
-                        if (columns.size > impKWhIndex) {
-                            columns[impKWhIndex] = "" // Clear impKWh
-                        }
-                        if (columns.size > expKWhIndex) {
-                            columns[expKWhIndex] = "" // Clear expKWh
-                        }
-                        if (columns.size > impMaxDemandKWIndex) {
-                            columns[impMaxDemandKWIndex] = "" // Clear impMaxDemandKW
-                        }
-                        if (columns.size > expMaxDemandKWIndex) {
-                            columns[expMaxDemandKWIndex] = "" // Clear expMaxDemandKW
-                        }
-                        if (columns.size > minVoltVIndex) {
-                            columns[minVoltVIndex] = "" // Clear minVoltV
-                        }
-                        if (columns.size > alertIndex) {
-                            columns[alertIndex] = "" // Clear alert
-                        }
-                        if (columns.size > readDateIndex) {
-                            columns[readDateIndex] = "" // Clear readDate
-                        }
-                        if (columns.size > billingPrintDateIndex) {
-                            columns[billingPrintDateIndex] = "" // Clear billingPrintDate
-                        }
-
-                        lines[i] = columns.joinToString(",")
-                        appendLog("✅ Reset meter to Not Inspected: cleared all reading data for $serialNumber")
-                        break
+                    // Read file with proper line ending preservation
+                    val fileContent = meterFile.readText()
+                    val lineEnding = when {
+                        fileContent.contains("\r\n") -> "\r\n"
+                        fileContent.contains("\n") -> "\n"
+                        else -> System.lineSeparator()
                     }
-                }
 
-                meterFile.writeText(lines.joinToString("\n"))
-                appendLog("✅ CSV updated successfully")
+                    val lines = fileContent.split(lineEnding).toMutableList()
+                    val serialNoIndex = 2
+
+                    // CSV column indices
+                    val impKWhIndex = 5           // Clear meter reading data
+                    val expKWhIndex = 6           // Clear meter reading data
+                    val impMaxDemandKWIndex = 7   // Clear meter reading data
+                    val expMaxDemandKWIndex = 8   // Clear meter reading data
+                    val minVoltVIndex = 9         // Clear meter reading data
+                    val alertIndex = 10           // Clear meter reading data
+                    val readDateIndex = 11        // Clear readDate
+                    val billingPrintDateIndex = 12 // Clear billingPrintDate
+
+                    var meterFound = false
+                    for (i in 1 until lines.size) {
+                        if (lines[i].isBlank()) continue
+
+                        // Parse CSV line properly (handles quoted fields with commas)
+                        val columns = parseCsvLine(lines[i]).toMutableList()
+                        val csvSerialNo = columns.getOrNull(serialNoIndex)
+                            ?.trim()
+                            ?.removeSurrounding("\"")
+
+                        if (csvSerialNo == serialNumber) {
+                            // Clear ALL meter reading data AND status fields
+                            if (columns.size > impKWhIndex) {
+                                columns[impKWhIndex] = "" // Clear impKWh
+                            }
+                            if (columns.size > expKWhIndex) {
+                                columns[expKWhIndex] = "" // Clear expKWh
+                            }
+                            if (columns.size > impMaxDemandKWIndex) {
+                                columns[impMaxDemandKWIndex] = "" // Clear impMaxDemandKW
+                            }
+                            if (columns.size > expMaxDemandKWIndex) {
+                                columns[expMaxDemandKWIndex] = "" // Clear expMaxDemandKW
+                            }
+                            if (columns.size > minVoltVIndex) {
+                                columns[minVoltVIndex] = "" // Clear minVoltV
+                            }
+                            if (columns.size > alertIndex) {
+                                columns[alertIndex] = "" // Clear alert
+                            }
+                            if (columns.size > readDateIndex) {
+                                columns[readDateIndex] = "" // Clear readDate
+                            }
+                            if (columns.size > billingPrintDateIndex) {
+                                columns[billingPrintDateIndex] = "" // Clear billingPrintDate
+                            }
+
+                            lines[i] = columns.joinToString(",")
+                            meterFound = true
+                            appendLog("✅ Reset meter to Not Inspected: cleared all reading data for $serialNumber")
+                            break
+                        }
+                    }
+
+                    if (!meterFound) {
+                        appendLog("⚠ Warning: Meter $serialNumber not found in CSV")
+                        backupFile?.delete()
+                        return@launch
+                    }
+
+                    // Write with original line ending
+                    meterFile.writeText(lines.joinToString(lineEnding))
+                    appendLog("✅ CSV updated successfully")
+
+                    // Delete backup on success
+                    backupFile?.delete()
+                }
 
                 // Reload meters to update UI
                 withContext(Dispatchers.Main) {
@@ -362,8 +392,54 @@ class DLMSViewModel : ViewModel() {
             } catch (e: Exception) {
                 appendLog("❌ Error clearing meter data: ${e.message}")
                 Log.e(TAG, "Error clearing meter read date", e)
+
+                // Restore from backup if it exists
+                backupFile?.let { backup ->
+                    if (backup.exists()) {
+                        try {
+                            val context = mContext
+                            val sessionManager = context?.let { SessionManager.getInstance(it) }
+                            val yearMonth = getCurrentYearMonth()
+                            val filename = "${yearMonth}_meter.csv"
+                            val meterFile = context?.let { sessionManager?.let { sm ->
+                                UserFileManager.getMeterFile(it, sm, filename)
+                            }}
+                            meterFile?.let { backup.copyTo(it, overwrite = true) }
+                            backup.delete()
+                            appendLog("⚠ Restored from backup after error")
+                        } catch (restoreError: Exception) {
+                            Log.e(TAG, "Failed to restore backup", restoreError)
+                        }
+                    }
+                }
             }
         }
+    }
+
+    /**
+     * Parse a CSV line handling quoted fields properly
+     */
+    private fun parseCsvLine(line: String): List<String> {
+        val result = mutableListOf<String>()
+        var current = StringBuilder()
+        var inQuotes = false
+
+        for (i in line.indices) {
+            val char = line[i]
+            when {
+                char == '"' && (i == 0 || line[i - 1] != '\\') -> {
+                    inQuotes = !inQuotes
+                    current.append(char)
+                }
+                char == ',' && !inQuotes -> {
+                    result.add(current.toString())
+                    current = StringBuilder()
+                }
+                else -> current.append(char)
+            }
+        }
+        result.add(current.toString())
+        return result
     }
 
     /**

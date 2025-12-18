@@ -41,8 +41,12 @@ class DLMSInit(
     var isServiceActive: Boolean = false
         private set
 
-    // Shared state variables
+    // Shared state variables - volatile for thread safety
+    // These are accessed from both BroadcastReceiver and DLMS operation threads
+    @Volatile
     var mData: ByteArray = ByteArray(0)
+
+    @Volatile
     var mArrived = 0
 
     private var mContext: Context? = null
@@ -66,14 +70,18 @@ class DLMSInit(
                 }
                 BluetoothLeService.Companion.ACTION_GATT_SERVICES_DISCOVERED -> {
                     Log.i(TAG, "!!! GATT Services Discovered - Setting mArrived = 0 !!!")
-                    mArrived = 0  // THIS IS THE KEY FLAG
+                    synchronized(this@DLMSInit) {
+                        mArrived = 0  // THIS IS THE KEY FLAG
+                    }
                     Log.i(TAG, "mArrived is now: $mArrived")
                 }
                 BluetoothLeService.Companion.ACTION_DATA_AVAILABLE -> {
                     val data = intent.getByteArrayExtra(BluetoothLeService.Companion.EXTRA_DATA)
                     if (data != null) {
-                        mData = data
-                        mArrived++
+                        synchronized(this@DLMSInit) {
+                            mData = data
+                            mArrived++
+                        }
                         Log.d(TAG, "Data received: ${data.size} bytes, mArrived=$mArrived")
                     }
                 }
@@ -170,6 +178,8 @@ class DLMSInit(
         if (!isServiceBound) {
             onLogAppend("ERROR: Service binding timeout")
             Log.e(TAG, "Service binding timeout")
+            // Clean up registered receiver before returning on error
+            cleanup(context)
             return
         }
 

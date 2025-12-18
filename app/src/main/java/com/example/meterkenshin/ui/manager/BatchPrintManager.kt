@@ -652,10 +652,8 @@ class BatchPrintManager(
                                         failedSerialsList.add(meter.serialNumber)
                                         _errorCount.value++
                                         continue  // ✅ FIXED: Skip to next meter, don't execute success path
-                                    } else {
-                                        // Retry succeeded, fall through to success path
-                                        processedSerials.add(meter.serialNumber)
                                     }
+                                    // Retry succeeded, fall through to success path (will be added to processedSerials at line 688)
                                 }
                                 PrinterErrorAction.SKIP -> {
                                     Log.w(TAG, "User skipped printing for ${meter.serialNumber}")
@@ -684,8 +682,10 @@ class BatchPrintManager(
                         // ✅ FIXED: Only execute success path if print succeeded (first try or retry)
                         delay(PRINT_DELAY_MS)
 
-                        // Track successful print in progress (only reached if printSuccess OR retry succeeded)
-                        if (printSuccess || meter.serialNumber !in failedSerialsList) {
+                        // Track successful print - only reached if:
+                        // 1. Initial print succeeded (printSuccess = true)
+                        // 2. Retry succeeded (didn't add to failedSerialsList)
+                        if (meter.serialNumber !in failedSerialsList) {
                             processedSerials.add(meter.serialNumber)
                         }
 
@@ -895,9 +895,13 @@ class BatchPrintManager(
             Log.i(TAG, "Cancelling batch printing")
             scope.launch {
                 processingJob?.cancelAndJoin()
-                // Recreate channels to clear any pending messages
-                confirmationChannel.cancel()
-                printerErrorResolvedChannel.cancel()
+                // Properly close and recreate channels to prevent leaks
+                try {
+                    confirmationChannel.close()
+                    printerErrorResolvedChannel.close()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error closing channels: ${e.message}")
+                }
                 confirmationChannel = Channel(Channel.CONFLATED)
                 printerErrorResolvedChannel = Channel(Channel.CONFLATED)  // PrinterErrorAction type
                 Log.i(TAG, "Batch printing cancellation complete")
@@ -923,9 +927,13 @@ class BatchPrintManager(
         _printerErrorMessage.value = ""
         _waitingForConfirmation.value = false
 
-        // Recreate channels to ensure clean state
-        confirmationChannel.cancel()
-        printerErrorResolvedChannel.cancel()
+        // Properly close and recreate channels to prevent leaks
+        try {
+            confirmationChannel.close()
+            printerErrorResolvedChannel.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error closing channels in reset: ${e.message}")
+        }
         confirmationChannel = Channel(Channel.CONFLATED)
         printerErrorResolvedChannel = Channel(Channel.CONFLATED)  // PrinterErrorAction type
 

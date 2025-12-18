@@ -1,5 +1,6 @@
 package com.example.meterkenshin.utils
 
+import android.util.Log
 import com.example.meterkenshin.model.Billing
 
 /**
@@ -10,8 +11,37 @@ fun calculateBillingData(
     billingData: Billing,
     rates: FloatArray
 ): Billing {
-    val totalUse = (billingData.PresReading ?: 0f) - (billingData.PrevReading ?: 0f)
-    val maxDemand = billingData.MaxDemand ?: 0f
+    // Validate that both readings exist before calculating
+    val presReading = billingData.PresReading
+    val prevReading = billingData.PrevReading
+
+    val totalUse = when {
+        presReading == null || prevReading == null -> {
+            Log.w("CalculateBillingData", "Missing readings: PresReading=$presReading, PrevReading=$prevReading for ${billingData.SerialNumber}")
+            0f
+        }
+        presReading < prevReading -> {
+            Log.w("CalculateBillingData", "Invalid readings: Current ($presReading) < Previous ($prevReading) for ${billingData.SerialNumber}")
+            0f
+        }
+        presReading < 0f || prevReading < 0f -> {
+            Log.w("CalculateBillingData", "Negative readings detected: PresReading=$presReading, PrevReading=$prevReading for ${billingData.SerialNumber}")
+            0f
+        }
+        else -> presReading - prevReading
+    }
+
+    val maxDemand = when {
+        billingData.MaxDemand == null -> {
+            Log.w("CalculateBillingData", "MaxDemand is null for ${billingData.SerialNumber}, using 0")
+            0f
+        }
+        billingData.MaxDemand!! < 0f -> {
+            Log.w("CalculateBillingData", "Negative MaxDemand detected: ${billingData.MaxDemand} for ${billingData.SerialNumber}")
+            0f
+        }
+        else -> billingData.MaxDemand!!
+    }
 
     val genTransCharges = totalUse * rates[0] + maxDemand * rates[1] + totalUse * rates[2]
     val distributionCharges = maxDemand * rates[3] + 1f * rates[4] + 1f * rates[5]
