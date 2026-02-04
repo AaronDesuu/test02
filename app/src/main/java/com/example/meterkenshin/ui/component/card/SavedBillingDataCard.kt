@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -204,6 +205,7 @@ fun SavedBillingDataCard(
                         onClick = { attemptPrint() },
                         enabled = isPrintButtonEnabled, // Only disabled during cooldown
                         modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
@@ -211,10 +213,10 @@ fun SavedBillingDataCard(
                         Icon(
                             imageVector = Icons.Default.Print,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Print")
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("Print", style = MaterialTheme.typography.labelMedium)
                     }
                 }
 
@@ -222,15 +224,16 @@ fun SavedBillingDataCard(
                 if (isJsonSavingEnabled) {
                     OutlinedButton(
                         onClick = onSaveJSON,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Save,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("JSON")
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text("JSON", style = MaterialTheme.typography.labelMedium)
                     }
                 }
 
@@ -238,6 +241,7 @@ fun SavedBillingDataCard(
                 OutlinedButton(
                     onClick = { showDeleteConfirmDialog = true },
                     modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error
                     )
@@ -245,10 +249,10 @@ fun SavedBillingDataCard(
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Clear")
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text("Clear", style = MaterialTheme.typography.labelMedium)
                 }
             }
         }

@@ -46,10 +46,11 @@ class BluetoothLeService : Service() {
                 if (mConnectionState == STATE_CONNECTING) {
                     mConnectionState = STATE_CONNECTED
                     broadcastUpdate(ACTION_GATT_CONNECTED)
-                    if (mBluetoothGatt != null) {
-                        mBluetoothGatt?.discoverServices()
+                    // Use let binding for thread-safe null check and access
+                    mBluetoothGatt?.let { bluetoothGatt ->
+                        bluetoothGatt.discoverServices()
                         Log.i(TAG, "Connected to GATT server and call discoverServices.")
-                    } else {
+                    } ?: run {
                         Log.e(TAG, "mBluetoothGatt is null, cannot discover services")
                         broadcastUpdate(ACTION_GATT_ERROR)
                     }
@@ -71,27 +72,31 @@ class BluetoothLeService : Service() {
         @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                if (mBluetoothGatt == null) {
+                // Capture mBluetoothGatt once to avoid race conditions
+                val bluetoothGatt = mBluetoothGatt
+                if (bluetoothGatt == null) {
                     Log.e(TAG, "mBluetoothGatt is null in onServicesDiscovered")
                     broadcastUpdate(ACTION_GATT_ERROR)
                     return
                 }
 
-                mService = mBluetoothGatt?.getService(uuidService)
-                if (mService == null) {
+                val service = bluetoothGatt.getService(uuidService)
+                if (service == null) {
                     Log.e(TAG, "Required service not found: $uuidService")
                     broadcastUpdate(ACTION_GATT_ERROR)
                     return
                 }
+                mService = service
 
-                mCharacteristic = mService?.getCharacteristic(uuidRead)
-                if (mCharacteristic == null) {
+                val characteristic = service.getCharacteristic(uuidRead)
+                if (characteristic == null) {
                     Log.e(TAG, "Required characteristic not found: $uuidRead")
                     broadcastUpdate(ACTION_GATT_ERROR)
                     return
                 }
+                mCharacteristic = characteristic
 
-                val descriptor = mCharacteristic?.getDescriptor(uuidConfig)
+                val descriptor = characteristic.getDescriptor(uuidConfig)
                 if (descriptor == null) {
                     Log.e(TAG, "Required descriptor not found: $uuidConfig")
                     broadcastUpdate(ACTION_GATT_ERROR)
@@ -99,10 +104,9 @@ class BluetoothLeService : Service() {
                 }
 
                 mConnectionState = STATE_DISCOVERED
-                //              mBluetoothGatt.requestConnectionPriority(CONNECTION_PRIORITY_HIGH);
-                mBluetoothGatt?.setCharacteristicNotification(mCharacteristic, true)
+                bluetoothGatt.setCharacteristicNotification(characteristic, true)
                 descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)
-                mBluetoothGatt?.writeDescriptor(descriptor)
+                bluetoothGatt.writeDescriptor(descriptor)
                 broadcastUpdate(ACTION_GATT_SERVICES_DISCOVERED)
             } else {
                 broadcastUpdate(ACTION_GATT_ERROR)
@@ -138,9 +142,11 @@ class BluetoothLeService : Service() {
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun write(`in`: ByteArray): Boolean {
-        if (mConnectionState == STATE_DISCOVERED && mBluetoothGatt != null) {
+        // Capture mBluetoothGatt once to avoid race conditions
+        val bluetoothGatt = mBluetoothGatt
+        if (mConnectionState == STATE_DISCOVERED && bluetoothGatt != null) {
             Log.i(TAG, String.format("write:%d", `in`.size))
-            val service = mBluetoothGatt?.getService(uuidService)
+            val service = bluetoothGatt.getService(uuidService)
             if (service == null) {
                 Log.e(TAG, "Service not available for write")
                 return false
@@ -151,10 +157,10 @@ class BluetoothLeService : Service() {
                 return false
             }
             characteristic.setValue(`in`)
-            mBluetoothGatt?.writeCharacteristic(characteristic)
+            bluetoothGatt.writeCharacteristic(characteristic)
             return true
         } else {
-            Log.i(TAG, "Dose not ready to write")
+            Log.i(TAG, "Does not ready to write")
             return false
         }
     }
@@ -264,11 +270,10 @@ class BluetoothLeService : Service() {
      */
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun close() {
-        if (mBluetoothGatt == null) {
-            return
-        }
         mBluetoothGatt?.close()
         mBluetoothGatt = null
+        mService = null
+        mCharacteristic = null
         mConnectionState = STATE_DISCONNECTED
     }
 

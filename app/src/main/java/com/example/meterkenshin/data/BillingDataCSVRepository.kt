@@ -130,13 +130,18 @@ class BillingDataCSVRepository(
             val columns = parseCSVLine(lastLine)
 
             if (columns.size >= 4) {
-                val timestamp = columns[0].toLongOrNull() ?: return null
-                val billingJson = columns[2]
-                val ratesJson = columns[3]
+                val timestamp = columns.getOrNull(0)?.toLongOrNull() ?: return null
+                val billingJson = columns.getOrNull(2) ?: return null
+                val ratesJson = columns.getOrNull(3) ?: return null
 
                 val gson = Gson()
                 val billing = gson.fromJson(billingJson, Billing::class.java)
                 val rates = gson.fromJson(ratesJson, FloatArray::class.java)
+
+                if (billing == null || rates == null) {
+                    Log.w(TAG, "Failed to parse billing/rates JSON for $serialNumber")
+                    return null
+                }
 
                 Log.d(TAG, "Loaded most recent billing data for $serialNumber")
                 return SavedBillingData(
@@ -144,6 +149,8 @@ class BillingDataCSVRepository(
                     timestamp = timestamp,
                     rates = rates
                 )
+            } else {
+                Log.w(TAG, "Insufficient columns (${columns.size}) in billing data for $serialNumber")
             }
 
             null
@@ -179,21 +186,23 @@ class BillingDataCSVRepository(
 
                 if (columns.size >= 4) {
                     try {
-                        val timestamp = columns[0].toLongOrNull() ?: continue
-                        val billingJson = columns[2]
-                        val ratesJson = columns[3]
+                        val timestamp = columns.getOrNull(0)?.toLongOrNull() ?: continue
+                        val billingJson = columns.getOrNull(2) ?: continue
+                        val ratesJson = columns.getOrNull(3) ?: continue
 
                         val gson = Gson()
                         val billing = gson.fromJson(billingJson, Billing::class.java)
                         val rates = gson.fromJson(ratesJson, FloatArray::class.java)
 
-                        result.add(
-                            SavedBillingData(
-                                billing = billing,
-                                timestamp = timestamp,
-                                rates = rates
+                        if (billing != null && rates != null) {
+                            result.add(
+                                SavedBillingData(
+                                    billing = billing,
+                                    timestamp = timestamp,
+                                    rates = rates
+                                )
                             )
-                        )
+                        }
                     } catch (e: Exception) {
                         Log.w(TAG, "Error parsing line $i: ${e.message}")
                     }
@@ -315,11 +324,17 @@ class BillingDataCSVRepository(
             val firstColumns = parseCSVLine(firstLine)
             val lastColumns = parseCSVLine(lastLine)
 
-            val firstTimestamp = firstColumns[0].toLongOrNull() ?: return null
-            val lastTimestamp = lastColumns[0].toLongOrNull() ?: return null
+            // Bounds check before accessing indices
+            if (firstColumns.isEmpty() || lastColumns.isEmpty()) {
+                Log.w(TAG, "Empty columns in billing data for $serialNumber")
+                return null
+            }
 
-            val firstPeriod = if (firstColumns.size > 1) firstColumns[1].removeSurrounding("\"") else ""
-            val lastPeriod = if (lastColumns.size > 1) lastColumns[1].removeSurrounding("\"") else ""
+            val firstTimestamp = firstColumns.getOrNull(0)?.toLongOrNull() ?: return null
+            val lastTimestamp = lastColumns.getOrNull(0)?.toLongOrNull() ?: return null
+
+            val firstPeriod = firstColumns.getOrNull(1)?.removeSurrounding("\"") ?: ""
+            val lastPeriod = lastColumns.getOrNull(1)?.removeSurrounding("\"") ?: ""
 
             BillingDataSummary(
                 serialNumber = serialNumber,

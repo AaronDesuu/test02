@@ -15,6 +15,7 @@ import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.manager.SessionManager
 import kotlinx.coroutines.delay
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Handles DLMS initialization, Bluetooth service connection, and broadcast receiver management
@@ -41,13 +42,24 @@ class DLMSInit(
     var isServiceActive: Boolean = false
         private set
 
-    // Shared state variables - volatile for thread safety
+    // Shared state variables - thread-safe access
     // These are accessed from both BroadcastReceiver and DLMS operation threads
-    @Volatile
-    var mData: ByteArray = ByteArray(0)
+    // Using lock object for ByteArray and AtomicInteger for counter
+    private val dataLock = Any()
+    private var _mData: ByteArray = ByteArray(0)
 
-    @Volatile
-    var mArrived = 0
+    // Thread-safe getter/setter for mData
+    var mData: ByteArray
+        get() = synchronized(dataLock) { _mData.copyOf() }
+        set(value) = synchronized(dataLock) { _mData = value }
+
+    // AtomicInteger for thread-safe increment/read without synchronization issues
+    private val _mArrived = AtomicInteger(0)
+
+    // Public accessor that maintains compatibility with existing code
+    var mArrived: Int
+        get() = _mArrived.get()
+        set(value) = _mArrived.set(value)
 
     private var mContext: Context? = null
     private var mReceiverRegistered = false
@@ -70,19 +82,17 @@ class DLMSInit(
                 }
                 BluetoothLeService.Companion.ACTION_GATT_SERVICES_DISCOVERED -> {
                     Log.i(TAG, "!!! GATT Services Discovered - Setting mArrived = 0 !!!")
-                    synchronized(this@DLMSInit) {
-                        mArrived = 0  // THIS IS THE KEY FLAG
-                    }
-                    Log.i(TAG, "mArrived is now: $mArrived")
+                    _mArrived.set(0)  // Atomic set
+                    Log.i(TAG, "mArrived is now: ${_mArrived.get()}")
                 }
                 BluetoothLeService.Companion.ACTION_DATA_AVAILABLE -> {
                     val data = intent.getByteArrayExtra(BluetoothLeService.Companion.EXTRA_DATA)
                     if (data != null) {
-                        synchronized(this@DLMSInit) {
-                            mData = data
-                            mArrived++
+                        synchronized(dataLock) {
+                            _mData = data
                         }
-                        Log.d(TAG, "Data received: ${data.size} bytes, mArrived=$mArrived")
+                        val newCount = _mArrived.incrementAndGet()  // Atomic increment
+                        Log.d(TAG, "Data received: ${data.size} bytes, mArrived=$newCount")
                     }
                 }
                 else -> {
