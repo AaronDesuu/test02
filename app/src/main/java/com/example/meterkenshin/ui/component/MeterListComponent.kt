@@ -83,10 +83,6 @@ import com.example.meterkenshin.utils.InspectionStatus
 import com.example.meterkenshin.utils.getInspectionStatus
 import com.example.meterkenshin.utils.loadMeterRates
 import kotlinx.coroutines.launch
-import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 
 /**
@@ -122,10 +118,6 @@ fun MeterListComponent(
     // Check if meter.csv is uploaded
     val meterCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.METER }
     val isMeterCsvUploaded = meterCsvFile?.isUploaded == true
-
-    val currentYearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
-    val currentMeterFile = "${currentYearMonth}_meter.csv"
-    val fallbackFile = "meter.csv"
 
     val dlmsViewModel: DLMSViewModel = viewModel()
     val batchProcessor = remember(dlmsViewModel, meterReadingViewModel, scope, context) {
@@ -206,19 +198,10 @@ fun MeterListComponent(
         loadMeterRates(context, fileUploadViewModel)
     }
     // Load meters when CSV is available
+    // Uses reloadMeters() to load from {YYYYMM}_meter.csv (which has DLMS-updated data)
     LaunchedEffect(isMeterCsvUploaded, Unit) {
         if (isMeterCsvUploaded && uiState.allMeters.isEmpty()) {
-            val fileToLoad = if (File(
-                    context.getExternalFilesDir(null),
-                    "app_files/$currentMeterFile"
-                ).exists()
-            ) {
-                currentMeterFile
-            } else {
-                fallbackFile
-            }
-
-            meterReadingViewModel.loadMeters(context, fileToLoad)
+            meterReadingViewModel.reloadMeters(context)
         }
     }
 
@@ -247,7 +230,7 @@ fun MeterListComponent(
             uiState.errorMessage != null -> {
                 ErrorCard(
                     message = uiState.errorMessage!!,
-                    onRetry = { meterReadingViewModel.loadMeters(context, "meter.csv") }
+                    onRetry = { meterReadingViewModel.reloadMeters(context, forceReload = true) }
                 )
             }
 

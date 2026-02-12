@@ -737,7 +737,7 @@ class DLMSViewModel : ViewModel() {
         performReadData(meter, rates)
     }
 
-    fun performReadData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
+    fun performReadData(meter: Meter, rates: FloatArray, showDialogAfterRead: Boolean = true) = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Read Data already running")
             return@launch
@@ -900,10 +900,13 @@ class DLMSViewModel : ViewModel() {
                     }
                 }
 
-                readDataPrinting.setPendingBillingData(billing)
-                readDataPrinting.setSavedRates(rates)
-                if (::appContext.isInitialized) {
-                    readDataPrinting.showPrintDialog(appContext)
+                // Only show print/save dialogs for single-meter reads, not batch processing
+                if (showDialogAfterRead) {
+                    readDataPrinting.setPendingBillingData(billing)
+                    readDataPrinting.setSavedRates(rates)
+                    if (::appContext.isInitialized) {
+                        readDataPrinting.showPrintDialog(appContext)
+                    }
                 }
 
 
@@ -1593,19 +1596,19 @@ class DLMSViewModel : ViewModel() {
                     appendLog("Updating meter CSV for Serial: $serialNumber")
                     appendLog("Found meter with UID: ${meterRow[0]}")
 
-                    // ✅ FIXED: Update CSV directly without using dlmsFunctions
-                    // This works even when dlmsFunctions is not initialized (batch printing)
+                    // Update CSV directly without using dlmsFunctions
+                    // Write unquoted values (consistent with exportMeterData format)
                     val updatedLine = buildString {
-                        // Columns 0-11 from existing data
+                        // Columns 0-11 from existing data (strip any existing quotes)
                         for (i in 0..11) {
                             if (i > 0) append(",")
-                            append("\"${meterRow[i].trim().removeSurrounding("\"")}\"")
+                            append(meterRow[i].trim().removeSurrounding("\""))
                         }
                         // Column 12: billingPrintDate (new value)
-                        append(",\"$billingPrintDate\"")
+                        append(",$billingPrintDate")
                         // Column 13: lastCommunication (keep existing if present)
                         if (meterRow.size >= 14) {
-                            append(",\"${meterRow[13].trim().removeSurrounding("\"")}\"")
+                            append(",${meterRow[13].trim().removeSurrounding("\"")}")
                         }
                     }
 

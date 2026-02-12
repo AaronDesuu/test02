@@ -108,11 +108,11 @@ fun HomeScreen(
     }
 
     // ✅ FIXED: Load meter data when CSV is uploaded OR when user changes
+    // Uses reloadMeters() to load from {YYYYMM}_meter.csv (which has DLMS-updated data)
+    // instead of meter.csv (which is never updated after initial upload)
     LaunchedEffect(session?.username, isMeterCsvUploaded) {
         if (isMeterCsvUploaded && session != null) {
-            if (meterCsvFile != null) {
-                meterReadingViewModel.loadMeters(context, meterCsvFile.fileName)
-            }
+            meterReadingViewModel.reloadMeters(context)
         } else if (!isMeterCsvUploaded) {
             // ✅ FIXED: Clear meters when CSV is not available
             meterReadingViewModel.clearMeters()

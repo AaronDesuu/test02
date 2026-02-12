@@ -480,21 +480,35 @@ class MeterReadingViewModel : ViewModel() {
             lastLoadedFileName = fileName
             lastLoadedFileTimestamp = if (meterFile.exists()) meterFile.lastModified() else 0
 
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            // Only show loading state on initial load (when no meters exist yet)
+            // For force reloads, silently swap the data to avoid full page refresh
+            val isInitialLoad = _uiState.value.allMeters.isEmpty()
+            if (isInitialLoad) {
+                _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            }
 
             try {
                 when (val result = loadMeterDataFromFile(context, fileName)) {
                     is MeterLoadResult.Success -> {
-                        // ✅ FIXED: Add small delay to ensure data is fully composed before showing
-                        // This prevents the flash of "Not Inspected" status while UI is initializing
-                        delay(150)
+                        if (isInitialLoad) {
+                            // Small delay only on first load to prevent flash of uninitialized status
+                            delay(150)
 
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            allMeters = result.meters,
-                            filteredMeters = result.meters,
-                            errorMessage = null
-                        )
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                allMeters = result.meters,
+                                filteredMeters = result.meters,
+                                errorMessage = null
+                            )
+                        } else {
+                            // Silently swap data, then reapply current filters/sorting
+                            _uiState.value = _uiState.value.copy(
+                                allMeters = result.meters,
+                                errorMessage = null
+                            )
+                            reapplyCurrentState()
+                        }
+
                         Log.d(TAG, "Successfully loaded ${result.meters.size} meters from CSV")
 
                         // Count how many have Bluetooth

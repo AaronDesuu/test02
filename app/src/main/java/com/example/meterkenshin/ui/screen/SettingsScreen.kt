@@ -42,6 +42,7 @@ fun SettingsScreen(
     sessionManager: SessionManager,
     fileUploadViewModel: FileUploadViewModel,
     meterReadingViewModel: MeterReadingViewModel,
+    onLogout: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
@@ -306,11 +307,10 @@ fun SettingsScreen(
                 isResetting = true
                 scope.launch {
                     performFullHardReset(context, deleteExported = true)
-                    fileUploadViewModel.checkExistingFiles(context)
                     meterReadingViewModel.clearMeters()
-                    meterReadingViewModel.reloadMeters(context)
                     isResetting = false
-                    NotificationManager.showSuccess("Full hard reset complete")
+                    NotificationManager.showSuccess("Full hard reset complete. Logging out...")
+                    onLogout()
                 }
             },
             onNo = {
@@ -318,11 +318,10 @@ fun SettingsScreen(
                 isResetting = true
                 scope.launch {
                     performFullHardReset(context, deleteExported = false)
-                    fileUploadViewModel.checkExistingFiles(context)
                     meterReadingViewModel.clearMeters()
-                    meterReadingViewModel.reloadMeters(context)
                     isResetting = false
-                    NotificationManager.showSuccess("Full hard reset complete")
+                    NotificationManager.showSuccess("Full hard reset complete. Logging out...")
+                    onLogout()
                 }
             }
         )

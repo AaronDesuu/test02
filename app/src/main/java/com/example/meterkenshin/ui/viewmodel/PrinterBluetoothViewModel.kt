@@ -287,13 +287,16 @@ class PrinterBluetoothViewModel(application: Application) : AndroidViewModel(app
                 }
             }
         }
-        statusHandler?.post(statusRunnable!!)
+        statusRunnable?.let { statusHandler?.post(it) }
         Log.d(TAG, "Status monitoring started - querying every ${statusCheckInterval}ms")
     }
 
     fun stopStatusMonitoring() {
-        statusHandler?.removeCallbacks(statusRunnable!!)
+        statusRunnable?.let { runnable ->
+            statusHandler?.removeCallbacks(runnable)
+        }
         statusHandler = null
+        statusRunnable = null
         Log.d(TAG, "Status monitoring stopped")
     }
 

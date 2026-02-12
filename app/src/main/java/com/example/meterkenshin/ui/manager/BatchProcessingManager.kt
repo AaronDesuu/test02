@@ -239,7 +239,7 @@ class BatchProcessingManager(
                                 // User chose to read again
                                 updateProgressWithStep(3, "Reading meter data...")
                                 Log.i(TAG, "Reading data for ${meter.serialNumber}")
-                                dlmsViewModel.performReadData(meter, rates)
+                                dlmsViewModel.performReadData(meter, rates, showDialogAfterRead = false)
 
                                 if (!waitForOperationComplete()) {
                                     Log.e(TAG, "Read timeout for ${meter.serialNumber}")
@@ -250,7 +250,7 @@ class BatchProcessingManager(
                                     if (retryChoice == UserChoice.RETRY) {
                                         // Retry the read operation
                                         Log.i(TAG, "Retrying read for ${meter.serialNumber}")
-                                        dlmsViewModel.performReadData(meter, rates)
+                                        dlmsViewModel.performReadData(meter, rates, showDialogAfterRead = false)
 
                                         if (!waitForOperationComplete()) {
                                             // Still failed after retry
@@ -281,7 +281,7 @@ class BatchProcessingManager(
                             // ✅ ADD THIS ELSE BLOCK for meters WITHOUT existing data
                             updateProgressWithStep(3, "Reading meter data...")
                             Log.i(TAG, "Reading data for ${meter.serialNumber} (no existing data)")
-                            dlmsViewModel.performReadData(meter, rates)
+                            dlmsViewModel.performReadData(meter, rates, showDialogAfterRead = false)
 
                             if (!waitForOperationComplete()) {
                                 Log.e(TAG, "Read timeout for ${meter.serialNumber}")
@@ -291,7 +291,7 @@ class BatchProcessingManager(
 
                                 if (retryChoice == UserChoice.RETRY) {
                                     Log.i(TAG, "Retrying read for ${meter.serialNumber}")
-                                    dlmsViewModel.performReadData(meter, rates)  // Fixed from readData
+                                    dlmsViewModel.performReadData(meter, rates, showDialogAfterRead = false)  // Fixed from readData
 
                                     if (!waitForOperationComplete()) {
                                         Log.e(TAG, "Read failed after retry for ${meter.serialNumber}")

@@ -7,6 +7,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,7 +30,6 @@ import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.ui.screen.ExportScreen
-import kotlinx.coroutines.delay
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("MissingPermission")
@@ -83,17 +83,19 @@ fun MeterKenshinApp(
         }
     }
 
-    // ✅ NEW: Start BLE scanning automatically when logged in
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) {
-            try {
-                // Wait a bit for initialization
-                delay(1000)
+    // Start BLE scanning reactively when meters are loaded
+    // Previous approach used a fixed 1-second delay which caused a race condition:
+    // scanning started before meters were loaded, failed silently, and never retried
+    val meterUiState by meterReadingViewModel.uiState.collectAsState()
+    val metersLoaded = isLoggedIn && meterUiState.allMeters.isNotEmpty()
 
-                Log.i("MeterKenshinApp", "User logged in - starting automatic BLE scan")
+    LaunchedEffect(metersLoaded) {
+        if (metersLoaded) {
+            try {
+                Log.i("MeterKenshinApp", "Meters loaded (${meterUiState.allMeters.size}) - starting BLE scan")
                 meterReadingViewModel.startBLEScanning()
             } catch (e: Exception) {
-                Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
+                Log.e("MeterKenshinApp", "Error starting BLE scan", e)
             }
         }
     }
@@ -162,14 +164,7 @@ fun MeterKenshinApp(
                             currentScreen = "home"
                             // Initialize file checking after successful login (preserve original)
                             fileUploadViewModel.checkExistingFiles(context)
-
-                            // ✅ NEW: Start BLE scanning immediately after successful login
-                            try {
-                                Log.i("MeterKenshinApp", "Login successful - starting BLE scan")
-                                meterReadingViewModel.startBLEScanning()
-                            } catch (e: Exception) {
-                                Log.e("MeterKenshinApp", "Error starting BLE scan after login", e)
-                            }
+                            // BLE scanning starts automatically via LaunchedEffect when meters are loaded
                         }
                     )
                 }
@@ -268,6 +263,15 @@ fun MeterKenshinApp(
                         sessionManager = sessionManager,
                         fileUploadViewModel = fileUploadViewModel,
                         meterReadingViewModel = meterReadingViewModel,
+                        onLogout = {
+                            try {
+                                meterReadingViewModel.stopBLEScanning()
+                            } catch (_: Exception) {}
+                            AppPreferences.clearCache()
+                            sessionManager.logout()
+                            isLoggedIn = false
+                            currentScreen = "login"
+                        }
                     )
                 }
 

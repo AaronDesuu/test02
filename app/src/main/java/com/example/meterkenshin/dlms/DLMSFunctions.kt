@@ -347,11 +347,14 @@ class DLMSFunctions(
 
                 // Find and replace or keep existing lines
                 val updatedLines = lines.map { line ->
-                    if (line.startsWith("UID,")) {
+                    if (line.startsWith("UID,") || line.startsWith("\"UID\"")) {
                         line // Keep header
                     } else {
                         val columns = line.split(',')
-                        if (columns.size > serialNoIndex && columns[uidIndex] == uid && columns[serialNoIndex] == serialNo) {
+                        // Strip quotes when comparing to handle rows written by updateMeterBillingPrintDate
+                        val csvUid = columns.getOrNull(uidIndex)?.trim()?.removeSurrounding("\"") ?: ""
+                        val csvSerialNo = columns.getOrNull(serialNoIndex)?.trim()?.removeSurrounding("\"") ?: ""
+                        if (columns.size > serialNoIndex && csvUid == uid && csvSerialNo == serialNo) {
                             wasRowUpdated = true
                             newRowString // Replace with new data
                         } else {
