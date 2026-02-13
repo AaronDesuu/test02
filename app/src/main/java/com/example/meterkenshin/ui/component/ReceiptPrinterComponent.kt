@@ -78,9 +78,9 @@ fun printReceipt(
         receiptData.period, receiptData.commercial).toByteArray())
     commands.add(String.format("Meter      :%s       Multiplier    :%.1f\n",
         receiptData.serialNumber, receiptData.multiplier).toByteArray())
-    commands.add(String.format("Period To  :%s                Pres Reading  : %6.3f\n",
+    commands.add(String.format("Period To  :%s                \nPres Reading  : %6.3f\n",
         receiptData.periodTo, receiptData.presReading).toByteArray())
-    commands.add(String.format("Period From:%s                Prev Reading  : %6.3f\n",
+    commands.add(String.format("Period From:%s                \nPrev Reading  : %6.3f\n",
         receiptData.periodFrom, receiptData.prevReading).toByteArray())
     commands.add(String.format("Max Demand :%.2f                    Total Use     : %6.3f\n",
         receiptData.maxDemand, receiptData.totalUse).toByteArray())
@@ -268,7 +268,7 @@ fun printReceipt(
     commands.add("NOTE:Please pay this electric bill on or before DUE DATE otherwise,\n".toByteArray())
     commands.add("     we will be forced to discontinue serving your electric needs.\n\n".toByteArray())
     commands.add("This is not an Official Receipt.\n".toByteArray())
-    commands.add("Payment of this bill does not mean \n".toByteArray())
+    commands.add("Payment of this bill does not mean ".toByteArray())
     commands.add("payment of previous delinquencies if any.\n\n".toByteArray())
     commands.add("             **PLEASE PRESENT THIS STATEMENT UPON PAYMENT**\n".toByteArray())
     commands.add(String.format("Reader:%s\n\n", receiptData.reader).toByteArray())
