@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.util.Log
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.utils.formattedMonthDay
+import com.example.meterkenshin.utils.getCurrentDateTime
 import com.woosim.printer.WoosimCmd
 
 // Data class for receipt printing
@@ -26,14 +28,19 @@ data class ReceiptData(
     val otherCharges: Float,
     val universalCharges: Float,
     val valueAddedTax: Float,
-    val totalAmount: Float
+    val totalAmount: Float,
+    val dueDate: String,
+    val discoDate: String,
+    val readDatetime: String
 )
 
 // Print function that handles the actual printing with WoosimLib
 @SuppressLint("DefaultLocale")
 fun printReceipt(
     receiptData: ReceiptData,
-    printerBluetoothViewModel: PrinterBluetoothViewModel
+    printerBluetoothViewModel: PrinterBluetoothViewModel,
+    rates: FloatArray? = null,
+    isSample: Boolean = false
 ) {
     val commands = mutableListOf<ByteArray>()
 
@@ -41,10 +48,12 @@ fun printReceipt(
     commands.add(WoosimCmd.initPrinter())
     commands.add(WoosimCmd.PM_setPosition(0, 0))
 
-    // Title 1 - SAMPLE RECEIPT (FONT_MEDIUM, bold)
-    commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
-    commands.add("SAMPLE RECEIPT\n\n\n".toByteArray())
+    // Title 1 - SAMPLE RECEIPT (only for template screen)
+    if (isSample) {
+        commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
+        commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
+        commands.add("SAMPLE RECEIPT\n\n\n".toByteArray())
+    }
 
     // Title 2 - Address (FONT_MEDIUM, bold)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
@@ -83,12 +92,21 @@ fun printReceipt(
 
     // Details under Gen/Trans (FONT_MEDIUM)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(String.format("  Generation                                  %,8.2f\n",
-        receiptData.genTransCharges * 0.6f).toByteArray())
-    commands.add(String.format("  Transmission                                %,8.2f\n",
-        receiptData.genTransCharges * 0.3f).toByteArray())
-    commands.add(String.format("  System Loss                                 %,8.2f\n",
-        receiptData.genTransCharges * 0.1f).toByteArray())
+    if (rates != null && rates.size >= 23) {
+        commands.add(String.format("  Generation System Charge                    %,8.2f\n",
+            receiptData.totalUse * rates[0]).toByteArray())
+        commands.add(String.format("  Transmission Demand Charge                  %,8.2f\n",
+            receiptData.maxDemand * rates[1]).toByteArray())
+        commands.add(String.format("  System Loss Charge                          %,8.2f\n",
+            receiptData.totalUse * rates[2]).toByteArray())
+    } else {
+        commands.add(String.format("  Generation                                  %,8.2f\n",
+            receiptData.genTransCharges * 0.6f).toByteArray())
+        commands.add(String.format("  Transmission                                %,8.2f\n",
+            receiptData.genTransCharges * 0.3f).toByteArray())
+        commands.add(String.format("  System Loss                                 %,8.2f\n",
+            receiptData.genTransCharges * 0.1f).toByteArray())
+    }
     commands.add("                                                ----------------\n".toByteArray())
     commands.add(String.format("                                       SUB TOTAL      %,6.2f\n\n",
         receiptData.genTransCharges).toByteArray())
@@ -100,12 +118,21 @@ fun printReceipt(
 
     // Details (FONT_MEDIUM)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(String.format("  Demand Charge                               %,8.2f\n",
-        receiptData.distributionCharges * 0.7f).toByteArray())
-    commands.add(String.format("  Distribution System Charge                  %,8.2f\n",
-        receiptData.distributionCharges * 0.2f).toByteArray())
-    commands.add(String.format("  Metering Fix Charge                         %,8.2f\n",
-        receiptData.distributionCharges * 0.1f).toByteArray())
+    if (rates != null && rates.size >= 23) {
+        commands.add(String.format("  Distribution Demand Charge                  %,8.2f\n",
+            receiptData.maxDemand * rates[3]).toByteArray())
+        commands.add(String.format("  Supply Fix Charge                           %,8.2f\n",
+            1f * rates[4]).toByteArray())
+        commands.add(String.format("  Metering Fix Charge                         %,8.2f\n",
+            1f * rates[5]).toByteArray())
+    } else {
+        commands.add(String.format("  Demand Charge                               %,8.2f\n",
+            receiptData.distributionCharges * 0.7f).toByteArray())
+        commands.add(String.format("  Distribution System Charge                  %,8.2f\n",
+            receiptData.distributionCharges * 0.2f).toByteArray())
+        commands.add(String.format("  Metering Fix Charge                         %,8.2f\n",
+            receiptData.distributionCharges * 0.1f).toByteArray())
+    }
     commands.add("                                                ----------------\n".toByteArray())
     commands.add(String.format("                                       SUB TOTAL      %,6.2f\n\n",
         receiptData.distributionCharges).toByteArray())
@@ -118,10 +145,17 @@ fun printReceipt(
 
     // Details (FONT_MEDIUM)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(String.format("  Reinvestment Fund for CAPEX                 %,8.2f\n",
-        receiptData.sustainableCapex * 0.6f).toByteArray())
-    commands.add(String.format("  Member's CAPEX Contribution                 %,8.2f\n",
-        receiptData.sustainableCapex * 0.4f).toByteArray())
+    if (rates != null && rates.size >= 23) {
+        commands.add(String.format("  Reinvestment Fund for CAPEX                 %,8.2f\n",
+            receiptData.totalUse * rates[6]).toByteArray())
+        commands.add(String.format("  Member's CAPEX Contribution                 %,8.2f\n",
+            receiptData.totalUse * rates[7]).toByteArray())
+    } else {
+        commands.add(String.format("  Reinvestment Fund for CAPEX                 %,8.2f\n",
+            receiptData.sustainableCapex * 0.6f).toByteArray())
+        commands.add(String.format("  Member's CAPEX Contribution                 %,8.2f\n",
+            receiptData.sustainableCapex * 0.4f).toByteArray())
+    }
     commands.add("                                                ----------------\n".toByteArray())
     commands.add(String.format("                                       SUB TOTAL        %,6.2f\n\n",
         receiptData.sustainableCapex).toByteArray())
@@ -133,8 +167,15 @@ fun printReceipt(
 
     // Details (FONT_MEDIUM)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(String.format("  Other Charges                               %,8.2f\n",
-        receiptData.otherCharges).toByteArray())
+    if (rates != null && rates.size >= 23) {
+        commands.add(String.format("  Lifeline Discount/Subsidy                   %,8.2f\n",
+            receiptData.totalUse * rates[8]).toByteArray())
+        commands.add(String.format("  Senior Citizen Subsidy                      %,8.2f\n",
+            receiptData.totalUse * rates[9]).toByteArray())
+    } else {
+        commands.add(String.format("  Other Charges                               %,8.2f\n",
+            receiptData.otherCharges).toByteArray())
+    }
     commands.add("                                                ----------------\n".toByteArray())
     commands.add(String.format("                                       SUB TOTAL        %,6.2f\n\n",
         receiptData.otherCharges).toByteArray())
@@ -146,8 +187,23 @@ fun printReceipt(
 
     // Details (FONT_MEDIUM)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(String.format("  Universal Charges                           %,8.2f\n",
-        receiptData.universalCharges).toByteArray())
+    if (rates != null && rates.size >= 23) {
+        commands.add(String.format("  Missionary Elec(NPC-SPUG)                   %,8.2f\n",
+            receiptData.totalUse * rates[10]).toByteArray())
+        commands.add(String.format("  Missionary Elec(RED)                        %,8.2f\n",
+            receiptData.totalUse * rates[11]).toByteArray())
+        commands.add(String.format("  Environmental Charge                        %,8.2f\n",
+            receiptData.totalUse * rates[12]).toByteArray())
+        commands.add(String.format("  Feed In Tariff Allowance                    %,8.2f\n",
+            receiptData.totalUse * rates[13]).toByteArray())
+        commands.add(String.format("  NPC Stranded Contract                       %,8.2f\n",
+            receiptData.totalUse * rates[14]).toByteArray())
+        commands.add(String.format("  NPC Stranded Debts                          %,8.2f\n",
+            receiptData.totalUse * rates[15]).toByteArray())
+    } else {
+        commands.add(String.format("  Universal Charges                           %,8.2f\n",
+            receiptData.universalCharges).toByteArray())
+    }
     commands.add("                                                ----------------\n".toByteArray())
     commands.add(String.format("                                       SUB TOTAL        %,6.2f\n\n",
         receiptData.universalCharges).toByteArray())
@@ -159,16 +215,33 @@ fun printReceipt(
 
     // Details (FONT_MEDIUM)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
-    commands.add(String.format("  Generation VAT                              %,8.2f\n",
-        receiptData.valueAddedTax * 0.3f).toByteArray())
-    commands.add(String.format("  Transmission VAT                            %,8.2f\n",
-        receiptData.valueAddedTax * 0.2f).toByteArray())
-    commands.add(String.format("  System Loss VAT                             %,8.2f\n",
-        receiptData.valueAddedTax * 0.2f).toByteArray())
-    commands.add(String.format("  Distribution VAT                            %,8.2f\n",
-        receiptData.valueAddedTax * 0.2f).toByteArray())
-    commands.add(String.format("  Other VAT                                   %,8.2f\n",
-        receiptData.valueAddedTax * 0.1f).toByteArray())
+    if (rates != null && rates.size >= 23) {
+        commands.add(String.format("  Sustainable CAPEX VAT                       %,8.2f\n",
+            receiptData.totalUse * rates[16]).toByteArray())
+        commands.add(String.format("  Transmission VAT                            %,8.2f\n",
+            receiptData.totalUse * rates[17]).toByteArray())
+        commands.add(String.format("  Generation VAT                              %,8.2f\n",
+            receiptData.totalUse * rates[18]).toByteArray())
+        commands.add(String.format("  System Loss VAT                             %,8.2f\n",
+            receiptData.totalUse * rates[19]).toByteArray())
+        commands.add(String.format("  Universal Charges VAT                       %,8.2f\n",
+            receiptData.totalUse * rates[20]).toByteArray())
+        commands.add(String.format("  Distribution VAT                            %,8.2f\n",
+            receiptData.distributionCharges * rates[21]).toByteArray())
+        commands.add(String.format("  Other VAT                                   %,8.2f\n",
+            receiptData.otherCharges * rates[22]).toByteArray())
+    } else {
+        commands.add(String.format("  Generation VAT                              %,8.2f\n",
+            receiptData.valueAddedTax * 0.3f).toByteArray())
+        commands.add(String.format("  Transmission VAT                            %,8.2f\n",
+            receiptData.valueAddedTax * 0.2f).toByteArray())
+        commands.add(String.format("  System Loss VAT                             %,8.2f\n",
+            receiptData.valueAddedTax * 0.2f).toByteArray())
+        commands.add(String.format("  Distribution VAT                            %,8.2f\n",
+            receiptData.valueAddedTax * 0.2f).toByteArray())
+        commands.add(String.format("  Other VAT                                   %,8.2f\n",
+            receiptData.valueAddedTax * 0.1f).toByteArray())
+    }
     commands.add("                                                ----------------\n".toByteArray())
     commands.add(String.format("                                       SUB TOTAL        %,6.2f\n\n",
         receiptData.valueAddedTax).toByteArray())
@@ -187,8 +260,8 @@ fun printReceipt(
     // Additional info (FONT_LARGE, bold)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
     commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
-    commands.add("     DUE DATE     :Dec 31, 2024\n".toByteArray())
-    commands.add("     DISCO DATE   :Jan 15, 2025\n\n".toByteArray())
+    commands.add(String.format("     DUE DATE     :%s\n", receiptData.dueDate).toByteArray())
+    commands.add(String.format("     DISCO DATE   :%s\n\n", receiptData.discoDate).toByteArray())
 
     // Footer notes (FONT_SMALL)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_SMALL))
@@ -230,22 +303,25 @@ fun createSampleReceiptData(
         0.2504f, 0.1632f,
         -0.0020f, 0.0002f,
         0.1805f, 0.12f, 0.0010f, 0.0636f, 0.0000f, 0.0896f,
-        0.0000f, 0.0428f, 0.0000f, 0.15f, 0.0000f
+        0.0000f, 0.0428f, 0.8692f, 0.13f, 0.0000f,   // VAT per kWh (16-20)
+        0.12f, 0.12f                                    // VAT multipliers (21-22)
     )
 
     val genTransCharges = totalUse * rates[0] + maxDemand * rates[1] + totalUse * rates[2]
     val distributionCharges = maxDemand * rates[3] + 1 * rates[4] + 1 * rates[5]
     val sustainableCapex = totalUse * rates[6] + totalUse * rates[7]
     val otherCharges = totalUse * rates[8] + totalUse * rates[9]
-    val universalCharges = totalUse * rates[10] + sustainableCapex * rates[11] +
+    val universalCharges = totalUse * rates[10] + totalUse * rates[11] +
             totalUse * rates[12] + totalUse * rates[13] +
             totalUse * rates[14] + totalUse * rates[15]
     val valueAddedTax = totalUse * rates[16] + totalUse * rates[17] + totalUse * rates[18] +
-            distributionCharges * rates[19] + otherCharges * rates[20]
+            totalUse * rates[19] + totalUse * rates[20] +
+            distributionCharges * rates[21] + otherCharges * rates[22]
 
     val totalAmount = genTransCharges + distributionCharges + sustainableCapex +
             otherCharges + universalCharges + valueAddedTax
 
+    val now = java.util.Date()
     return ReceiptData(
         period = period,
         commercial = "Type A",
@@ -265,7 +341,10 @@ fun createSampleReceiptData(
         otherCharges = otherCharges,
         universalCharges = universalCharges,
         valueAddedTax = valueAddedTax,
-        totalAmount = totalAmount
+        totalAmount = totalAmount,
+        dueDate = formattedMonthDay(now, 1, 0),
+        discoDate = formattedMonthDay(now, 1, 15),
+        readDatetime = getCurrentDateTime()
     )
 }
 
@@ -291,6 +370,9 @@ fun createReceiptDataFromBilling(
         otherCharges = billingData.OtherCharges ?: 0f,
         universalCharges = billingData.UniversalCharges ?: 0f,
         valueAddedTax = billingData.ValueAddedTax ?: 0f,
-        totalAmount = billingData.TotalAmount ?: 0f
+        totalAmount = billingData.TotalAmount ?: 0f,
+        dueDate = billingData.DueDate ?: formattedMonthDay(1, 0),
+        discoDate = billingData.DiscoDate ?: formattedMonthDay(1, 15),
+        readDatetime = billingData.ReadDatetime ?: getCurrentDateTime()
     )
 }

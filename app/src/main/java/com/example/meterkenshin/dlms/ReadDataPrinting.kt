@@ -132,7 +132,7 @@ class ReadDataPrinting(
                         }
 
                         val receiptData = createReceiptDataFromBilling(billing)
-                        sendReceiptToPrinter(receiptData, printer)
+                        sendReceiptToPrinter(receiptData, printer, rates)
 
                         appendLog("✅ Receipt sent to printer successfully")
                         printSuccess = true

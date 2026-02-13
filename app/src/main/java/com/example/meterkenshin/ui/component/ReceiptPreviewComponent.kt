@@ -28,7 +28,8 @@ import com.example.meterkenshin.utils.getCurrentDateTime
 fun ReceiptPreview(
     billingData: Billing,
     rateData: FloatArray?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSample: Boolean = false
 ) {
     val rates = rateData ?: getDefaultRates()
 
@@ -40,15 +41,17 @@ fun ReceiptPreview(
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         // Header
-        Text(
-            text = "SAMPLE RECEIPT",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (isSample) {
+            Text(
+                text = "SAMPLE RECEIPT",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         Text(
             text = "H.V Dela Costa St Salcedo Village Makati 1227,",
@@ -132,8 +135,8 @@ fun ReceiptPreview(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        ReceiptLine("DUE DATE", getCurrentDate(1, 0))
-        ReceiptLine("DISCO DATE", getCurrentDate(1, 1))
+        ReceiptLine("DUE DATE", billingData.DueDate ?: getCurrentDate(1, 0))
+        ReceiptLine("DISCO DATE", billingData.DiscoDate ?: getCurrentDate(1, 15))
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -159,7 +162,7 @@ fun ReceiptPreview(
             modifier = Modifier.fillMaxWidth()
         )
 
-        ReceiptLine("Reader", "${billingData.Reader}       ${getCurrentDateTime()}")
+        ReceiptLine("Reader", "${billingData.Reader}       ${billingData.ReadDatetime ?: getCurrentDateTime()}")
         ReceiptLine("Version", billingData.Version ?: "v1.00.2")
     }
 }
@@ -221,11 +224,13 @@ private fun ChargesSection(
             ChargeDetailLine("NPC Stranded Debts", rates[15], totalUse * rates[15], "/kwh")
         }
         "VALUE ADDED TAX" -> {
-            ChargeDetailLine("Generation VAT", rates[16], totalUse * rates[16], "/kwh")
+            ChargeDetailLine("Sustainable CAPEX VAT", rates[16], totalUse * rates[16], "/kwh")
             ChargeDetailLine("Transmission VAT", rates[17], totalUse * rates[17], "/kwh")
-            ChargeDetailLine("System Loss VAT", rates[18], totalUse * rates[18], "/kwh")
-            ChargeDetailLine("Distribution VAT", rates[19], distributionCharges * rates[19], "%%")
-            ChargeDetailLine("Other VAT", rates[20], otherCharges * rates[20], "%%")
+            ChargeDetailLine("Generation VAT", rates[18], totalUse * rates[18], "/kwh")
+            ChargeDetailLine("System Loss VAT", rates[19], totalUse * rates[19], "/kwh")
+            ChargeDetailLine("Universal Charges VAT", rates[20], totalUse * rates[20], "/kwh")
+            ChargeDetailLine("Distribution VAT", rates[21], distributionCharges * rates[21], "%%")
+            ChargeDetailLine("Other VAT", rates[22], otherCharges * rates[22], "%%")
         }
     }
 

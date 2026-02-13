@@ -73,3 +73,22 @@ fun formattedMonthDay(monthOffset: Int, dayOffset: Int): String {
 
     return String.format("%s %2d, %4d", MonthList[monthIndex], day, year)
 }
+
+/**
+ * Format month and day offset from a base date
+ * Returns format: "Month DD, YYYY"
+ * @param baseDate the reference date to offset from
+ */
+@SuppressLint("DefaultLocale")
+fun formattedMonthDay(baseDate: Date, monthOffset: Int, dayOffset: Int): String {
+    val calendar = Calendar.getInstance()
+    calendar.time = baseDate
+    calendar.add(Calendar.MONTH, monthOffset)
+    calendar.add(Calendar.DATE, dayOffset)
+
+    val monthIndex = calendar.get(Calendar.MONTH) + 1
+    val day = calendar.get(Calendar.DATE)
+    val year = calendar.get(Calendar.YEAR)
+
+    return String.format("%s %2d, %4d", MonthList[monthIndex], day, year)
+}

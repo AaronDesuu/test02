@@ -724,7 +724,7 @@ class DLMSViewModel : ViewModel() {
      * Read Data - Performs demand reset and billing data retrieval
      * Exports JSON with single billing period
      */
-    fun readData(meter: Meter, rates: FloatArray) {
+    fun readData(meter: Meter, rates: FloatArray, rateType: String = "LARGE") {
         // Check if savedBillingData exists and is valid
         val savedData = _savedBillingData.value
         if (savedData != null && savedData.isValid() && savedData.billing.SerialNumber == meter.serialNumber) {
@@ -734,10 +734,10 @@ class DLMSViewModel : ViewModel() {
         }
 
         // No saved data, proceed with read
-        performReadData(meter, rates)
+        performReadData(meter, rates, rateType = rateType)
     }
 
-    fun performReadData(meter: Meter, rates: FloatArray, showDialogAfterRead: Boolean = true) = viewModelScope.launch {
+    fun performReadData(meter: Meter, rates: FloatArray, showDialogAfterRead: Boolean = true, rateType: String = "LARGE") = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Read Data already running")
             return@launch
@@ -828,17 +828,19 @@ class DLMSViewModel : ViewModel() {
             if (billingData != null && billingData.size >= 10) {
                 appendLog("Success to read data")
 
-                // Parse current reading
+                // Parse current reading - indices match DLMSFunctions.performGetSingleBillingData()
+                // [0]=readDate, [1]=fixedDate, [2]=imp, [3]=exp, [6]=impMaxDemand, [7]=expMaxDemand, [8]=minVolt, [9]=alert
+                // Values are raw integers that need division (kWh/kW by 1000, V by 100)
                 val currentRecord = BillingRecord(
                     clock = billingData[0],
-                    imp = billingData[1].toFloatOrNull() ?: 0f,
-                    exp = billingData[2].toFloatOrNull() ?: 0f,
-                    abs = billingData[3].toFloatOrNull() ?: 0f,
-                    net = billingData[4].toFloatOrNull() ?: 0f,
-                    maxImp = billingData[5].toFloatOrNull() ?: 0f,
-                    maxExp = billingData[6].toFloatOrNull() ?: 0f,
-                    minVolt = billingData[7].toFloatOrNull() ?: 0f,
-                    alert = billingData.getOrNull(8) ?: ""
+                    imp = (billingData[2].toLongOrNull() ?: 0L) / 1000f,
+                    exp = (billingData[3].toLongOrNull() ?: 0L) / 1000f,
+                    abs = (billingData[4].toLongOrNull() ?: 0L) / 1000f,
+                    net = (billingData[5].toLongOrNull() ?: 0L) / 1000f,
+                    maxImp = (billingData[6].toLongOrNull() ?: 0L) / 1000f,
+                    maxExp = (billingData[7].toLongOrNull() ?: 0L) / 1000f,
+                    minVolt = (billingData[8].toLongOrNull() ?: 0L) / 100f,
+                    alert = billingData.getOrNull(9) ?: ""
                 )
 
                 appendLog("Current reading: ${currentRecord.imp} kWh")
@@ -860,20 +862,21 @@ class DLMSViewModel : ViewModel() {
                 // Create Billing object with current and previous data
                 val billing = Billing().apply {
                     Period = dateTimeToMonth(billingData[1])
-                    Commercial = "LARGE"
+                    Commercial = rateType
                     SerialNumber = meter.serialNumber
                     Multiplier = 1.0f
                     PeriodFrom = effectivePeriodFrom
                     PeriodTo = currentRecord.clock
                     PrevReading = effectivePrevReading?.toString()?.toFloatOrNull() ?: 0f
                     PresReading = currentRecord.imp
-                    MaxDemand = currentRecord.maxImp / 1000f
-                    DueDate = formattedMonthDay(1, 0)
-                    DiscoDate = formattedMonthDay(1, 1)
+                    MaxDemand = currentRecord.maxImp  // Already in kW from BillingRecord parsing
                     Discount = 10.0f
                     Interest = 10.0f
                     Reader = "Fuji Taro"
-                    ReadDatetime = getCurrentDateTime()  // Use existing function
+                    ReadDatetime = getCurrentDateTime()
+                    val readDate = java.util.Date()
+                    DueDate = formattedMonthDay(readDate, 1, 0)
+                    DiscoDate = formattedMonthDay(readDate, 1, 15)
                     Version = "v1.00.2"
                 }
 
@@ -1275,7 +1278,7 @@ class DLMSViewModel : ViewModel() {
     /**
      * Billing Data - Retrieves ALL billing records using block transfer and calculates charges
      */
-    fun billingData(meter: Meter, rates: FloatArray) = viewModelScope.launch {
+    fun billingData(meter: Meter, rates: FloatArray, rateType: String = "LARGE") = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Billing Data already running")
             return@launch
@@ -1689,9 +1692,9 @@ class DLMSViewModel : ViewModel() {
         }
     }
 
-    fun proceedWithNewRead(meter: Meter, rates: FloatArray) {
+    fun proceedWithNewRead(meter: Meter, rates: FloatArray, rateType: String = "LARGE") {
         _showReadDataOptionsDialog.value = false
-        performReadData(meter, rates)
+        performReadData(meter, rates, rateType = rateType)
     }
 
     fun printExistingData() {

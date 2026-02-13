@@ -194,7 +194,7 @@ fun MeterListComponent(
     }
 
     // Other existing states
-    val rates = remember(fileUploadViewModel) {
+    val rateData = remember(fileUploadViewModel) {
         loadMeterRates(context, fileUploadViewModel)
     }
     // Load meters when CSV is available
@@ -258,7 +258,7 @@ fun MeterListComponent(
                             onBatchRead = { selectedMeterList ->
                                 batchProcessor.processBatch(
                                     meters = selectedMeterList,
-                                    rates = rates,
+                                    rates = rateData.rates,
                                     onComplete = { success, failedMeters ->
                                         meterReadingViewModel.clearSelection()
                                         if (success) {
@@ -331,7 +331,7 @@ fun MeterListComponent(
                                         // Start batch processing with NOT_INSPECTED online registered meters only
                                         batchProcessor.processBatch(
                                             meters = notInspectedOnlineMeters,
-                                            rates = rates,
+                                            rates = rateData.rates,
                                             onComplete = { success, failedMeters ->
                                                 if (success) {
                                                     NotificationManager.showSuccess("All ${notInspectedOnlineMeters.size} meters processed!")

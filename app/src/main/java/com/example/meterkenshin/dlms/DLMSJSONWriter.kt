@@ -61,7 +61,8 @@ object DLMSJSONWriter {
     fun saveBillingToJSON(
         serialNumber: String?,
         records: List<BillingRecord>,
-        rates: FloatArray
+        rates: FloatArray,
+        rateType: String = "LARGE"
     ): Boolean {
         return try {
             if (serialNumber.isNullOrEmpty()) {
@@ -101,7 +102,7 @@ object DLMSJSONWriter {
                 // Create and populate Billing object
                 val billing = Billing().apply {
                     Period = period
-                    Commercial = "LARGE"
+                    Commercial = rateType
                     SerialNumber = serialNumber
                     Multiplier = 1.0f
                     PeriodFrom = periodFrom
@@ -109,12 +110,13 @@ object DLMSJSONWriter {
                     PrevReading = prevRecord.imp
                     PresReading = currentRecord.imp
                     MaxDemand = currentRecord.maxImp / 1000f  // Convert W to kW
-                    DueDate = formattedMonthDay(1, 0)
-                    DiscoDate = formattedMonthDay(1, 1)
                     Discount = 10.0f
                     Interest = 10.0f
                     Reader = "Fuji Taro"
                     ReadDatetime = getCurrentDateTime()
+                    val readDate = java.util.Date()
+                    DueDate = formattedMonthDay(readDate, 1, 0)
+                    DiscoDate = formattedMonthDay(readDate, 1, 15)
                     Version = "v1.00.2"
                 }
 

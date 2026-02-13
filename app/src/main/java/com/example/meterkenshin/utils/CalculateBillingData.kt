@@ -47,11 +47,12 @@ fun calculateBillingData(
     val distributionCharges = maxDemand * rates[3] + 1f * rates[4] + 1f * rates[5]
     val sustainableCapex = totalUse * rates[6] + totalUse * rates[7]
     val otherCharges = totalUse * rates[8] + totalUse * rates[9]
-    val universalCharges = totalUse * rates[10] + sustainableCapex * rates[11] +
+    val universalCharges = totalUse * rates[10] + totalUse * rates[11] +
             totalUse * rates[12] + totalUse * rates[13] +
             totalUse * rates[14] + totalUse * rates[15]
     val valueAddedTax = totalUse * rates[16] + totalUse * rates[17] + totalUse * rates[18] +
-            distributionCharges * rates[19] + otherCharges * rates[20]
+            totalUse * rates[19] + totalUse * rates[20] +
+            distributionCharges * rates[21] + otherCharges * rates[22]
 
     val totalAmount = genTransCharges + distributionCharges + sustainableCapex +
             otherCharges + universalCharges + valueAddedTax

@@ -133,8 +133,8 @@ fun MeterDetailScreen(
             },
             confirmButton = {
                 Button(onClick = {
-                    val rates = loadMeterRates(context, fileUploadViewModel)
-                    registrationViewModel.proceedWithNewRead(meter, rates)
+                    val rateData = loadMeterRates(context, fileUploadViewModel)
+                    registrationViewModel.proceedWithNewRead(meter, rateData.rates, rateData.rateType)
                 }) {
                     Text("perform Read Data")
                 }
@@ -221,8 +221,8 @@ fun MeterDetailScreen(
                 },
                 onReadData = {
                     if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                        val rates = loadMeterRates(context, fileUploadViewModel)
-                        registrationViewModel.readData(meter, rates)
+                        val rateData = loadMeterRates(context, fileUploadViewModel)
+                        registrationViewModel.readData(meter, rateData.rates, rateData.rateType)
                     }
                 },
                 onLoadProfile = {
@@ -237,8 +237,8 @@ fun MeterDetailScreen(
                 },
                 onBillingData = {
                     if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
-                        val rates = loadMeterRates(context, fileUploadViewModel)
-                        registrationViewModel.billingData(meter, rates)
+                        val rateData = loadMeterRates(context, fileUploadViewModel)
+                        registrationViewModel.billingData(meter, rateData.rates, rateData.rateType)
                     }
                 },
                 onSetClock = {

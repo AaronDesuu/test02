@@ -19,14 +19,32 @@ import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import java.io.BufferedReader
-import java.io.File
 import java.io.FileReader
-import java.lang.NumberFormatException
+
+/**
+ * Holds rate data parsed from rate.csv: the numeric rates and the rate type string.
+ */
+data class RateData(
+    val rates: FloatArray,
+    val rateType: String
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is RateData) return false
+        return rates.contentEquals(other.rates) && rateType == other.rateType
+    }
+
+    override fun hashCode(): Int {
+        return 31 * rates.contentHashCode() + rateType.hashCode()
+    }
+}
+
+private const val DEFAULT_RATE_TYPE = "LARGE"
 
 fun loadMeterRates(
     context: Context,
     fileUploadViewModel: FileUploadViewModel
-): FloatArray {
+): RateData {
     val uploadState = fileUploadViewModel.uploadState.value
     val rateCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.RATE }
 
@@ -40,6 +58,7 @@ fun loadMeterRates(
                 Log.d("MeterDetail", "Loading rates from: ${rateFile.absolutePath}")
 
                 val rates = mutableListOf<Float>()
+                var rateType = DEFAULT_RATE_TYPE
                 val reader = BufferedReader(FileReader(rateFile))
 
                 var isFirstLine = true
@@ -47,31 +66,35 @@ fun loadMeterRates(
                     lines.forEach { line ->
                         if (line.isNotBlank() && !line.startsWith("#")) {
                             if (isFirstLine) {
-                                val firstCell = line.split(",").firstOrNull()?.trim()
-                                if (firstCell != null) {
-                                    try {
-                                        rates.add(firstCell.toFloat())
-                                        line.split(",").drop(1).forEach { cell ->
-                                            rates.add(cell.trim().toFloatOrNull() ?: 0f)
-                                        }
-                                    } catch (e: NumberFormatException) {
-                                        // First row is headers
-                                    }
-                                }
+                                // First line is headers — skip it
                                 isFirstLine = false
                             } else {
-                                line.split(",").forEach { cell ->
-                                    rates.add(cell.trim().toFloatOrNull() ?: 0f)
+                                // Data row: first column is Rate Type string, rest are numeric rates
+                                val cells = line.split(",")
+                                if (cells.isNotEmpty()) {
+                                    // Extract Rate Type from first column (e.g., "LARGE COMMERCIAL")
+                                    val firstCell = cells[0].trim()
+                                    if (firstCell.toFloatOrNull() != null) {
+                                        // No rate type column — all numeric
+                                        rates.add(firstCell.toFloat())
+                                    } else {
+                                        // First cell is the rate type string
+                                        rateType = firstCell.substringBefore(" ").uppercase()
+                                    }
+                                    // Parse remaining cells as numeric rates
+                                    cells.drop(1).forEach { cell ->
+                                        rates.add(cell.trim().toFloatOrNull() ?: 0f)
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
-                Log.d("MeterDetail", "Parsed ${rates.size} rate values from CSV")
+                Log.d("MeterDetail", "Parsed ${rates.size} rate values from CSV, rateType=$rateType")
 
-                if (rates.size >= 21) {
-                    return rates.take(21).toFloatArray()
+                if (rates.size >= 23) {
+                    return RateData(rates.take(23).toFloatArray(), rateType)
                 }
             }
         } catch (e: Exception) {
@@ -80,7 +103,7 @@ fun loadMeterRates(
     }
 
     Log.i("MeterDetail", "Using default rates")
-    return getDefaultRates()
+    return RateData(getDefaultRates(), DEFAULT_RATE_TYPE)
 }
 
 @SuppressLint("DefaultLocale")
@@ -90,27 +113,29 @@ fun RateDataDialog(
     onDismiss: () -> Unit
 ) {
     val rateLabels = listOf(
-        "Gen/Trans: kWh Rate" to 0,
-        "Gen/Trans: Demand Rate" to 1,
-        "Gen/Trans: Additional kWh" to 2,
-        "Distribution: Demand Rate" to 3,
-        "Distribution: Fixed Charge 1" to 4,
-        "Distribution: Fixed Charge 2" to 5,
-        "Sustainable CAPEX: kWh Rate 1" to 6,
-        "Sustainable CAPEX: kWh Rate 2" to 7,
-        "Other Charges: kWh Rate 1" to 8,
-        "Other Charges: kWh Rate 2" to 9,
-        "Universal: kWh Base" to 10,
-        "Universal: CAPEX Multiplier" to 11,
-        "Universal: kWh Rate 1" to 12,
-        "Universal: kWh Rate 2" to 13,
-        "Universal: kWh Rate 3" to 14,
-        "Universal: kWh Rate 4" to 15,
-        "VAT: kWh Rate 1" to 16,
-        "VAT: kWh Rate 2" to 17,
-        "VAT: kWh Rate 3" to 18,
-        "VAT: Distribution Multiplier" to 19,
-        "VAT: Other Charges Multiplier" to 20
+        "Gen/Trans: Generation System" to 0,
+        "Gen/Trans: Transmission Demand" to 1,
+        "Gen/Trans: System Loss" to 2,
+        "Distribution: Demand Charge" to 3,
+        "Distribution: Supply Fix" to 4,
+        "Distribution: Metering Fix" to 5,
+        "Sustainable CAPEX: Reinvestment" to 6,
+        "Sustainable CAPEX: Member CAPEX" to 7,
+        "Other: Lifeline Discount" to 8,
+        "Other: Senior Citizen Subsidy" to 9,
+        "Universal: Missionary(NPC-SPUG)" to 10,
+        "Universal: Missionary(RED)" to 11,
+        "Universal: Environmental" to 12,
+        "Universal: Feed In Tariff" to 13,
+        "Universal: NPC Stranded Contract" to 14,
+        "Universal: NPC Stranded Debts" to 15,
+        "VAT: Sustainable CAPEX" to 16,
+        "VAT: Transmission" to 17,
+        "VAT: Generation" to 18,
+        "VAT: System Loss" to 19,
+        "VAT: Universal Charges" to 20,
+        "VAT: Distribution Multiplier" to 21,
+        "VAT: Other Charges Multiplier" to 22
     )
 
     AlertDialog(
