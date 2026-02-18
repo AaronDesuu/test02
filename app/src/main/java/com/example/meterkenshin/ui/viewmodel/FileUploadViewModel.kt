@@ -11,8 +11,10 @@ import com.example.meterkenshin.R
 import com.example.meterkenshin.data.FileUploadState
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.manager.SessionManager
+import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.utils.UserFileManager
 import com.example.meterkenshin.utils.getCurrentYearMonth
+import com.example.meterkenshin.utils.validateRateCsv
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -162,6 +164,28 @@ class FileUploadViewModel : ViewModel() {
             }
 
             try {
+                // Validate rate.csv before upload
+                if (fileType == RequiredFile.FileType.RATE) {
+                    val validation = validateRateCsv(context, currentFile.selectedUri!!)
+                    if (!validation.isValid) {
+                        val errorMsg = "Rate CSV validation failed:\n${validation.errors.joinToString("\n")}"
+                        Log.e(TAG, errorMsg)
+                        NotificationManager.showError(errorMsg)
+                        updateFileStatus(
+                            fileType,
+                            FileUploadState.FileStatus.ERROR,
+                            errorMessage = validation.errors.first()
+                        )
+                        return@launch
+                    }
+                    if (validation.warnings.isNotEmpty()) {
+                        val warnMsg = validation.warnings.joinToString("\n")
+                        Log.w(TAG, "Rate CSV warnings: $warnMsg")
+                        NotificationManager.showWarning("Rate CSV: $warnMsg")
+                    }
+                    Log.i(TAG, "Rate CSV validated: type=${validation.rateType}, rates=${validation.rateCount}")
+                }
+
                 // Update status to uploading
                 updateFileStatus(fileType, FileUploadState.FileStatus.UPLOADING)
                 Log.i(TAG, "Starting upload for: ${currentFile.fileName}")

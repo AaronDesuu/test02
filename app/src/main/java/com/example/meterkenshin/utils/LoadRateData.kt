@@ -19,7 +19,9 @@ import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import java.io.BufferedReader
+import java.io.File
 import java.io.FileReader
+import java.io.InputStreamReader
 
 /**
  * Holds rate data parsed from rate.csv: the numeric rates and the rate type string.
@@ -40,6 +42,145 @@ data class RateData(
 }
 
 private const val DEFAULT_RATE_TYPE = "LARGE"
+private const val EXPECTED_RATE_COUNT = 23
+
+private val EXPECTED_HEADERS = listOf(
+    "Rate Type", "Generation System Charge", "Transmission Demand Charge",
+    "System Loss Charge", "Distribution Demand Charge", "Supply Fix Charge",
+    "Metering Fix Charge", "Reinvestment Fund for CAPEX", "Member CAPEX Contribution",
+    "Lifeline Discount Subsidy", "Senior Citizen Subsidy", "Missionary Elec(NPC-SPUG)",
+    "Missionary Elec(RED)", "Environmetal Charge", "Feed In Tariff Allowance",
+    "NPC Stranded Contract", "NPC Stranded Debts", "Sustainable CAPEX VAT",
+    "Transmisson VAT", "Generation VAT", "System Loss VAT", "Universal Charges VAT",
+    "Distribution VAT", "Other VAT"
+)
+
+/**
+ * Validation result for rate CSV files
+ */
+data class RateValidationResult(
+    val isValid: Boolean,
+    val errors: List<String> = emptyList(),
+    val warnings: List<String> = emptyList(),
+    val rateType: String? = null,
+    val rateCount: Int = 0
+) {
+    fun summary(): String {
+        val parts = mutableListOf<String>()
+        if (errors.isNotEmpty()) parts.addAll(errors)
+        if (warnings.isNotEmpty()) parts.addAll(warnings)
+        return parts.joinToString("\n")
+    }
+}
+
+/**
+ * Validate a rate CSV file before upload.
+ * Checks: header columns, data row count, rate type presence, numeric values, expected count of 23 rates.
+ */
+fun validateRateCsv(context: Context, uri: android.net.Uri): RateValidationResult {
+    val errors = mutableListOf<String>()
+    val warnings = mutableListOf<String>()
+    var rateType: String? = null
+    var rateCount = 0
+
+    try {
+        val reader = BufferedReader(InputStreamReader(context.contentResolver.openInputStream(uri)))
+        val lines = reader.readLines().filter { it.isNotBlank() && !it.startsWith("#") }
+        reader.close()
+
+        if (lines.isEmpty()) {
+            return RateValidationResult(false, listOf("File is empty"))
+        }
+
+        // Validate header row
+        val headerCells = lines[0].split(",").map { it.trim() }
+        val expectedColumnCount = EXPECTED_RATE_COUNT + 1 // +1 for Rate Type column
+
+        if (headerCells.size < expectedColumnCount) {
+            errors.add("Header has ${headerCells.size} columns, expected $expectedColumnCount")
+        }
+
+        // Check for missing headers
+        val missingHeaders = EXPECTED_HEADERS.filter { expected ->
+            headerCells.none { it.equals(expected, ignoreCase = true) }
+        }
+        if (missingHeaders.isNotEmpty()) {
+            warnings.add("Missing headers: ${missingHeaders.joinToString(", ")}")
+        }
+
+        // Validate data rows
+        val dataLines = lines.drop(1) // skip header
+        if (dataLines.isEmpty()) {
+            errors.add("No data rows found (only header)")
+            return RateValidationResult(false, errors, warnings)
+        }
+
+        if (dataLines.size > 1) {
+            warnings.add("Found ${dataLines.size} data rows, only the first row will be used")
+        }
+
+        // Validate first data row
+        val dataCells = dataLines[0].split(",").map { it.trim() }
+
+        // Check rate type column
+        val firstCell = dataCells.getOrNull(0) ?: ""
+        if (firstCell.toFloatOrNull() != null) {
+            warnings.add("First column appears numeric ($firstCell), expected Rate Type text (e.g. 'LARGE COMMERCIAL')")
+        } else if (firstCell.isBlank()) {
+            errors.add("Rate Type column is empty")
+        } else {
+            rateType = firstCell.substringBefore(" ").uppercase()
+        }
+
+        // Parse and validate numeric rate values
+        val rateValues = mutableListOf<Float>()
+        val invalidCells = mutableListOf<String>()
+
+        dataCells.drop(1).forEachIndexed { index, cell ->
+            val value = cell.toFloatOrNull()
+            if (value != null) {
+                rateValues.add(value)
+            } else {
+                invalidCells.add("Column ${index + 2} ('$cell')")
+            }
+        }
+
+        rateCount = rateValues.size
+
+        if (invalidCells.isNotEmpty()) {
+            errors.add("Non-numeric values: ${invalidCells.joinToString(", ")}")
+        }
+
+        if (rateCount < EXPECTED_RATE_COUNT) {
+            errors.add("Found $rateCount rate values, expected $EXPECTED_RATE_COUNT")
+        } else if (rateCount > EXPECTED_RATE_COUNT) {
+            warnings.add("Found $rateCount rate values, expected $EXPECTED_RATE_COUNT (extra values will be ignored)")
+        }
+
+        // Validate VAT multipliers (rates[21] and rates[22]) should be between 0 and 1
+        if (rateValues.size >= 23) {
+            val distVat = rateValues[21]
+            val otherVat = rateValues[22]
+            if (distVat > 1f || distVat < 0f) {
+                warnings.add("Distribution VAT multiplier ($distVat) should be between 0 and 1 (e.g. 0.12 for 12%)")
+            }
+            if (otherVat > 1f || otherVat < 0f) {
+                warnings.add("Other VAT multiplier ($otherVat) should be between 0 and 1 (e.g. 0.12 for 12%)")
+            }
+        }
+
+    } catch (e: Exception) {
+        return RateValidationResult(false, listOf("Failed to read file: ${e.message}"))
+    }
+
+    return RateValidationResult(
+        isValid = errors.isEmpty(),
+        errors = errors,
+        warnings = warnings,
+        rateType = rateType,
+        rateCount = rateCount
+    )
+}
 
 fun loadMeterRates(
     context: Context,

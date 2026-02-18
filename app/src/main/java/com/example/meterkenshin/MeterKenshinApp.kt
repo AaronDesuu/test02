@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.example.meterkenshin.ui.manager.AppPreferences
+import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.AppScreen
@@ -88,6 +89,8 @@ fun MeterKenshinApp(
     // scanning started before meters were loaded, failed silently, and never retried
     val meterUiState by meterReadingViewModel.uiState.collectAsState()
     val metersLoaded = isLoggedIn && meterUiState.allMeters.isNotEmpty()
+    val uploadState by fileUploadViewModel.uploadState.collectAsState()
+    val allFilesUploaded = uploadState.allFilesUploaded
 
     LaunchedEffect(metersLoaded) {
         if (metersLoaded) {
@@ -97,6 +100,13 @@ fun MeterKenshinApp(
             } catch (e: Exception) {
                 Log.e("MeterKenshinApp", "Error starting BLE scan", e)
             }
+        }
+    }
+
+    // Show scanning notification only when all required files are uploaded
+    LaunchedEffect(allFilesUploaded) {
+        if (allFilesUploaded && metersLoaded) {
+            NotificationManager.showInfo("Scanning for nearby meters...")
         }
     }
 

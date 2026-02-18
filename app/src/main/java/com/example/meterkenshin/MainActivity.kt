@@ -166,8 +166,6 @@ class MainActivity : ComponentActivity() {
 
                     Log.i("MainActivity", "Starting automatic BLE scan after login")
                     meterReadingViewModel.startBLEScanning()
-
-                    NotificationManager.showInfo("Scanning for nearby meters...")
                 } catch (e: Exception) {
                     Log.e("MainActivity", "Error starting BLE scan", e)
                 }
