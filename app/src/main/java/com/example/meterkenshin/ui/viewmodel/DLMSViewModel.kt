@@ -1377,7 +1377,7 @@ class DLMSViewModel : ViewModel() {
                         val billing = Billing().apply {
                             PresReading = currentRecord.imp
                             PrevReading = prevRecord.imp
-                            MaxDemand = currentRecord.maxImp / 1000f  // Convert W to kW
+                            MaxDemand = currentRecord.maxImp  // Already in kW from parseBillingRecords
                         }
 
                         // Calculate and populate billing fields
@@ -1429,6 +1429,7 @@ class DLMSViewModel : ViewModel() {
     /**
      * Parse billing data entries: Clock, Imp, Exp, Abs, Net, MaxImp, MaxExp, MinVolt, Alert1, Alert2
      * Each record = 10 consecutive entries
+     * Values are raw integers: energy/demand divided by 1000, voltage divided by 100
      */
     private fun parseBillingRecords(data: ArrayList<String>): List<BillingRecord> {
         val records = mutableListOf<BillingRecord>()
@@ -1438,13 +1439,13 @@ class DLMSViewModel : ViewModel() {
             records.add(
                 BillingRecord(
                     clock = data[i],
-                    imp = data[i + 1].toFloatOrNull() ?: 0f,
-                    exp = data[i + 2].toFloatOrNull() ?: 0f,
-                    abs = data[i + 3].toFloatOrNull() ?: 0f,
-                    net = data[i + 4].toFloatOrNull() ?: 0f,
-                    maxImp = data[i + 5].toFloatOrNull() ?: 0f,
-                    maxExp = data[i + 6].toFloatOrNull() ?: 0f,
-                    minVolt = data[i + 7].toFloatOrNull() ?: 0f,
+                    imp = (data[i + 1].toLongOrNull() ?: 0L) / 1000f,
+                    exp = (data[i + 2].toLongOrNull() ?: 0L) / 1000f,
+                    abs = (data[i + 3].toLongOrNull() ?: 0L) / 1000f,
+                    net = (data[i + 4].toLongOrNull() ?: 0L) / 1000f,
+                    maxImp = (data[i + 5].toLongOrNull() ?: 0L) / 1000f,
+                    maxExp = (data[i + 6].toLongOrNull() ?: 0L) / 1000f,
+                    minVolt = (data[i + 7].toLongOrNull() ?: 0L) / 100f,
                     alert = data[i + 8]
                 )
             )
