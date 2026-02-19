@@ -14,6 +14,7 @@ import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.utils.UserFileManager
 import com.example.meterkenshin.utils.getCurrentYearMonth
+import com.example.meterkenshin.utils.CompanyInfo
 import com.example.meterkenshin.utils.validateRateCsv
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +66,13 @@ class FileUploadViewModel : ViewModel() {
                 displayName = "Rate CSV File",
                 description = "Contains rate tables and calculation parameters",
                 fileName = "rate.csv",
+                status = FileUploadState.FileStatus.PENDING
+            ),
+            RequiredFile(
+                type = RequiredFile.FileType.COMPANY,
+                displayName = "Company CSV File (Optional)",
+                description = "Contains company branding for receipts",
+                fileName = "company.csv",
                 status = FileUploadState.FileStatus.PENDING
             )
         )
@@ -184,6 +192,28 @@ class FileUploadViewModel : ViewModel() {
                         NotificationManager.showWarning("Rate CSV: $warnMsg")
                     }
                     Log.i(TAG, "Rate CSV validated: type=${validation.rateType}, rates=${validation.rateCount}")
+                }
+
+                // Validate company.csv before upload
+                if (fileType == RequiredFile.FileType.COMPANY) {
+                    val validation = CompanyInfo.validateCompanyCsv(context, currentFile.selectedUri!!)
+                    if (!validation.isValid) {
+                        val errorMsg = "Company CSV validation failed:\n${validation.errors.joinToString("\n")}"
+                        Log.e(TAG, errorMsg)
+                        NotificationManager.showError(errorMsg)
+                        updateFileStatus(
+                            fileType,
+                            FileUploadState.FileStatus.ERROR,
+                            errorMessage = validation.errors.first()
+                        )
+                        return@launch
+                    }
+                    if (validation.warnings.isNotEmpty()) {
+                        val warnMsg = validation.warnings.joinToString("\n")
+                        Log.w(TAG, "Company CSV warnings: $warnMsg")
+                        NotificationManager.showWarning("Company CSV: $warnMsg")
+                    }
+                    Log.i(TAG, "Company CSV validated: ${validation.fieldCount} fields found")
                 }
 
                 // Update status to uploading
@@ -595,6 +625,7 @@ class FileUploadViewModel : ViewModel() {
             fileName.contains("meter", ignoreCase = true) -> RequiredFile.FileType.METER
             fileName.contains("printer", ignoreCase = true) -> RequiredFile.FileType.PRINTER
             fileName.contains("rate", ignoreCase = true) -> RequiredFile.FileType.RATE
+            fileName.contains("company", ignoreCase = true) -> RequiredFile.FileType.COMPANY
             else -> null
         }
     }

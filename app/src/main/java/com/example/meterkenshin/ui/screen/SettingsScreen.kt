@@ -34,8 +34,10 @@ import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.manager.MeterExportManager
 import com.example.meterkenshin.ui.manager.NotificationManager
+import com.example.meterkenshin.ui.component.dialog.CompanyEditDialog
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import com.example.meterkenshin.utils.CompanyInfo
 
 @Composable
 fun SettingsScreen(
@@ -52,6 +54,10 @@ fun SettingsScreen(
     var showFullHardResetDialog by remember { mutableStateOf(false) }
     var showDeleteExportedDialog by remember { mutableStateOf(false) }
     var isResetting by remember { mutableStateOf(false) }
+
+    // Company info / receipt branding states
+    var showCompanyEditDialog by remember { mutableStateOf(false) }
+    var companyInfo by remember { mutableStateOf(CompanyInfo.load(context)) }
 
     // Meter export states
     var showMeterExportDialog by remember { mutableStateOf(false) }
@@ -201,6 +207,20 @@ fun SettingsScreen(
                     },
                     isExporting = isExportingMeters
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                ReceiptBrandingCard(
+                    companyName = companyInfo.companyName,
+                    hasEdits = CompanyInfo.hasEdits(context),
+                    hasCsv = CompanyInfo.hasCsvFile(context),
+                    onEditClick = { showCompanyEditDialog = true },
+                    onResetToDefault = {
+                        CompanyInfo.clearEdits(context)
+                        companyInfo = CompanyInfo.load(context)
+                        NotificationManager.showSuccess("Reset to ${if (CompanyInfo.hasCsvFile(context)) "CSV" else "default"} branding")
+                    }
+                )
             }
         }
 
@@ -262,6 +282,19 @@ fun SettingsScreen(
                 onHelpClick = { showHelpDialog = true }
             )
         }
+    }
+
+    if (showCompanyEditDialog) {
+        CompanyEditDialog(
+            currentInfo = companyInfo,
+            onSave = { newInfo ->
+                CompanyInfo.saveToPrefs(context, newInfo)
+                companyInfo = newInfo
+                showCompanyEditDialog = false
+                NotificationManager.showSuccess("Receipt branding saved")
+            },
+            onDismiss = { showCompanyEditDialog = false }
+        )
     }
 
     if (showHelpDialog) {
@@ -736,6 +769,99 @@ fun HardResetConfirmationDialog(
             }
         }
     )
+}
+
+@Composable
+fun ReceiptBrandingCard(
+    companyName: String,
+    hasEdits: Boolean,
+    hasCsv: Boolean,
+    onEditClick: () -> Unit,
+    onResetToDefault: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Receipt,
+                    contentDescription = "Receipt Branding",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Receipt Branding",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        text = companyName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    if (hasEdits) {
+                        Text(
+                            text = "Custom edits applied",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onEditClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Edit Branding")
+                }
+
+                if (hasEdits) {
+                    OutlinedButton(
+                        onClick = onResetToDefault,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = "Reset",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (hasCsv) "Reset to CSV" else "Reset")
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

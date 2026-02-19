@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.data.getDefaultRates
+import com.example.meterkenshin.utils.CompanyInfo
 import com.example.meterkenshin.utils.calculateBillingData
 import com.example.meterkenshin.utils.getCurrentDate
 import com.example.meterkenshin.utils.getCurrentDateTime
@@ -29,7 +30,8 @@ fun ReceiptPreview(
     billingData: Billing,
     rateData: FloatArray?,
     modifier: Modifier = Modifier,
-    isSample: Boolean = false
+    isSample: Boolean = false,
+    companyInfo: CompanyInfo = CompanyInfo()
 ) {
     val rates = rateData ?: getDefaultRates()
 
@@ -54,26 +56,26 @@ fun ReceiptPreview(
         }
 
         Text(
-            text = "H.V Dela Costa St Salcedo Village Makati 1227,",
+            text = companyInfo.addressLine1,
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "Metro Manila Philippines",
+            text = companyInfo.addressLine2,
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "Electric Philippines Inc.",
+            text = companyInfo.companyName,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
         )
         Text(
-            text = "TEL:000-000-0000",
+            text = companyInfo.phone,
             style = MaterialTheme.typography.bodySmall,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
@@ -141,12 +143,12 @@ fun ReceiptPreview(
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Please pay on time to avoid disconnection.",
+            text = companyInfo.paymentNote,
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace
         )
         Text(
-            text = "This is a computer generated receipt.",
+            text = companyInfo.disclaimer,
             style = MaterialTheme.typography.bodySmall,
             fontFamily = FontFamily.Monospace
         )

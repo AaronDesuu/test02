@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.util.Log
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.utils.CompanyInfo
 import com.example.meterkenshin.utils.formattedMonthDay
 import com.example.meterkenshin.utils.getCurrentDateTime
 import com.woosim.printer.WoosimCmd
@@ -40,7 +41,8 @@ fun printReceipt(
     receiptData: ReceiptData,
     printerBluetoothViewModel: PrinterBluetoothViewModel,
     rates: FloatArray? = null,
-    isSample: Boolean = false
+    isSample: Boolean = false,
+    companyInfo: CompanyInfo = CompanyInfo()
 ) {
     val commands = mutableListOf<ByteArray>()
 
@@ -55,21 +57,27 @@ fun printReceipt(
         commands.add("SAMPLE RECEIPT\n\n\n".toByteArray())
     }
 
-    // Title 2 - Address (FONT_MEDIUM, bold)
+    // Helper to center text within a given line width
+    fun centerText(text: String, lineWidth: Int): String {
+        val padding = ((lineWidth - text.length) / 2).coerceAtLeast(0)
+        return " ".repeat(padding) + text
+    }
+
+    // Title 2 - Address (FONT_MEDIUM = 64 chars wide, bold)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
     commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 1))
-    commands.add("           H.V Dela Costa St Salcedo Village Makati 1227,\n".toByteArray())
-    commands.add("          Metro Manila Philippines\n".toByteArray())
+    commands.add("${centerText(companyInfo.addressLine1, 64)}\n".toByteArray())
+    commands.add("${centerText(companyInfo.addressLine2, 64)}\n".toByteArray())
 
-    // Title 3 - Company Name (FONT_LARGE, bold, double height)
+    // Title 3 - Company Name (FONT_LARGE = 42 chars wide, bold, double height)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_LARGE))
     commands.add(WoosimCmd.setTextStyle(true, false, false, 1, 2))
-    commands.add("        Fuji Electric Sales Philippines Inc.\n".toByteArray())
+    commands.add("${centerText(companyInfo.companyName, 42)}\n".toByteArray())
 
-    // Title 4 - Phone (FONT_MEDIUM, normal)
+    // Title 4 - Phone (FONT_MEDIUM = 64 chars wide, normal)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
     commands.add(WoosimCmd.setTextStyle(false, false, false, 1, 1))
-    commands.add("                TEL:000-000-0000\n".toByteArray())
+    commands.add("${centerText(companyInfo.phone, 64)}\n".toByteArray())
 
     // Separator and billing info (FONT_MEDIUM)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_MEDIUM))
@@ -265,11 +273,8 @@ fun printReceipt(
 
     // Footer notes (FONT_SMALL)
     commands.add(WoosimCmd.setCodeTable(WoosimCmd.MCU_RX, WoosimCmd.CT_CP437, WoosimCmd.FONT_SMALL))
-    commands.add("NOTE:Please pay this electric bill on or before DUE DATE otherwise,\n".toByteArray())
-    commands.add("     we will be forced to discontinue serving your electric needs.\n\n".toByteArray())
-    commands.add("This is not an Official Receipt.\n".toByteArray())
-    commands.add("Payment of this bill does not mean ".toByteArray())
-    commands.add("payment of previous delinquencies if any.\n\n".toByteArray())
+    commands.add("${companyInfo.paymentNote}\n\n".toByteArray())
+    commands.add("${companyInfo.disclaimer}\n\n".toByteArray())
     commands.add("             **PLEASE PRESENT THIS STATEMENT UPON PAYMENT**\n".toByteArray())
     commands.add(String.format("Reader:%s\n\n", receiptData.reader).toByteArray())
     commands.add(String.format("Version : %s\n\n\n\n", receiptData.version).toByteArray())

@@ -14,7 +14,9 @@ data class FileUploadState(
         get() = requiredFiles.count { it.status == FileStatus.UPLOADED }
 
     val allFilesUploaded: Boolean
-        get() = requiredFiles.isNotEmpty() && requiredFiles.all { it.status == FileStatus.UPLOADED }
+        get() = requiredFiles.isNotEmpty() && requiredFiles
+            .filter { it.type != RequiredFile.FileType.COMPANY }
+            .all { it.status == FileStatus.UPLOADED }
 
     enum class FileStatus {
         PENDING,    // No file selected
@@ -44,7 +46,8 @@ data class RequiredFile(
     enum class FileType {
         METER,
         PRINTER,
-        RATE
+        RATE,
+        COMPANY
     }
 
     val isUploaded: Boolean

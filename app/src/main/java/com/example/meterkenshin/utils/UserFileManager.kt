@@ -110,6 +110,13 @@ object UserFileManager {
     }
 
     /**
+     * Get the current user's company.csv file path
+     */
+    fun getCompanyFile(context: Context, sessionManager: SessionManager): File {
+        return File(getAppFilesDir(context, sessionManager), "company.csv")
+    }
+
+    /**
      * Get a billing CSV file for a specific meter serial number
      * @param context Application context
      * @param sessionManager Session manager

@@ -5,6 +5,7 @@ import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.ui.component.createReceiptDataFromBilling
 import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.component.printReceipt as sendReceiptToPrinter
+import com.example.meterkenshin.utils.CompanyInfo
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.PrinterStatusHelper
 import com.example.meterkenshin.utils.calculateBillingData
@@ -132,7 +133,8 @@ class ReadDataPrinting(
                         }
 
                         val receiptData = createReceiptDataFromBilling(billing)
-                        sendReceiptToPrinter(receiptData, printer, rates)
+                        val companyInfo = contextRef?.let { CompanyInfo.load(it) } ?: CompanyInfo()
+                        sendReceiptToPrinter(receiptData, printer, rates, companyInfo = companyInfo)
 
                         appendLog("✅ Receipt sent to printer successfully")
                         printSuccess = true

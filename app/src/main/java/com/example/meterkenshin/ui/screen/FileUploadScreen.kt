@@ -143,8 +143,10 @@ fun FileUploadScreen(
                         )
                     }
 
+                    val requiredCount = uploadState.requiredFiles.count { it.type != RequiredFile.FileType.COMPANY }
+                    val requiredUploadedCount = uploadState.requiredFiles.count { it.type != RequiredFile.FileType.COMPANY && it.isUploaded }
                     Text(
-                        text = "${uploadState.uploadedFilesCount} of ${uploadState.requiredFiles.size} files uploaded",
+                        text = "$requiredUploadedCount of $requiredCount required files uploaded",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp)
@@ -152,11 +154,18 @@ fun FileUploadScreen(
                 }
             }
 
-            // File list
+            // Required file list
+            val requiredFiles = uploadState.requiredFiles.filter {
+                it.type != RequiredFile.FileType.COMPANY
+            }
+            val optionalFiles = uploadState.requiredFiles.filter {
+                it.type == RequiredFile.FileType.COMPANY
+            }
+
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(uploadState.requiredFiles) { file ->
+                items(requiredFiles) { file ->
                     FileUploadCard(
                         file = file,
                         onSelectFile = { filePickerLauncher.launch("*/*") },
@@ -171,6 +180,37 @@ fun FileUploadScreen(
                         onRemoveFile = { showDeleteDialog = file.type },
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+
+                // Optional files section
+                if (optionalFiles.isNotEmpty()) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Optional Files",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+
+                    items(optionalFiles) { file ->
+                        FileUploadCard(
+                            file = file,
+                            onSelectFile = { filePickerLauncher.launch("*/*") },
+                            onUploadFile = { viewModel.uploadFile(file.type, context) },
+                            onReplaceFile = {
+                                if (file.isUploaded) {
+                                    showReplaceDialog = file.type
+                                } else {
+                                    filePickerLauncher.launch("*/*")
+                                }
+                            },
+                            onRemoveFile = { showDeleteDialog = file.type },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             }
         }

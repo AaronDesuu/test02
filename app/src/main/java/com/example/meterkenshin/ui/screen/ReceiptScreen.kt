@@ -56,6 +56,7 @@ import com.example.meterkenshin.ui.component.createSampleReceiptData
 import com.example.meterkenshin.ui.component.printReceipt
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import com.example.meterkenshin.utils.CompanyInfo
 import com.example.meterkenshin.utils.RateData
 import com.example.meterkenshin.utils.RateDataDialog
 import com.example.meterkenshin.utils.calculateBillingData
@@ -76,6 +77,7 @@ fun ReceiptScreen(
 
     var rateData by remember { mutableStateOf<RateData?>(null) }
     var showRateDialog by remember { mutableStateOf(false) }
+    val companyInfo = remember { CompanyInfo.load(context) }
 
     val rateCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.RATE }
     val isRateCsvUploaded = rateCsvFile?.isUploaded == true
@@ -285,7 +287,8 @@ fun ReceiptScreen(
                         printerBluetoothViewModel = printerBluetoothViewModel,
                         bluetoothConnectionState = bluetoothConnectionState,
                         isBluetoothEnabled = isBluetoothEnabled,
-                        rates = rateData?.rates
+                        rates = rateData?.rates,
+                        companyInfo = companyInfo
                     )
                 }
 
@@ -302,7 +305,8 @@ fun ReceiptScreen(
                         billingData = billingData,
                         rateData = rateData?.rates,
                         modifier = Modifier.padding(16.dp),
-                        isSample = true
+                        isSample = true,
+                        companyInfo = companyInfo
                     )
                 }
             }
@@ -326,6 +330,7 @@ fun ReceiptPrintButton(
     isBluetoothEnabled: Boolean,
     onNavigateToHome: () -> Unit = {},
     rates: FloatArray? = null,
+    companyInfo: CompanyInfo = CompanyInfo(),
 ) {
     val isPrinterReady = bluetoothConnectionState == BluetoothPrinterManager.ConnectionState.CONNECTED
     val canPrint = isPrinterReady && isBluetoothEnabled
@@ -333,7 +338,7 @@ fun ReceiptPrintButton(
     Button(
         onClick = {
             if (canPrint) {
-                printReceipt(receiptData, printerBluetoothViewModel, rates, isSample = true)
+                printReceipt(receiptData, printerBluetoothViewModel, rates, isSample = true, companyInfo = companyInfo)
             } else if (!isPrinterReady) {
                 // Navigate to home when "Connect Printer" is clicked
                 onNavigateToHome()
