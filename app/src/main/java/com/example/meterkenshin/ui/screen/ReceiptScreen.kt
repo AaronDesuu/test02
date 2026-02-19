@@ -41,11 +41,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.meterkenshin.R
 import com.example.meterkenshin.model.Billing
 import com.example.meterkenshin.data.RequiredFile
 import com.example.meterkenshin.printer.BluetoothPrinterManager
@@ -127,7 +125,7 @@ fun ReceiptScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = MaterialTheme.colorScheme.surface
             ),
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -147,7 +145,7 @@ fun ReceiptScreen(
                         Icon(
                             imageVector = Icons.Default.FileUpload,
                             contentDescription = null,
-                            tint = Color(0xFF1976D2),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(28.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -162,7 +160,7 @@ fun ReceiptScreen(
                     if (isRateCsvUploaded) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFFE8F5E9)
+                            color = Color(0xFF4CAF50).copy(alpha = 0.12f)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -189,7 +187,7 @@ fun ReceiptScreen(
                 Text(
                     text = "Upload a CSV file containing billing rate data to preview how the receipt will be calculated with your custom rates.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 if (isRateCsvUploaded && rateData != null) {
@@ -200,7 +198,7 @@ fun ReceiptScreen(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFF1976D2)
+                            contentColor = MaterialTheme.colorScheme.primary
                         ),
                     ) {
                         Icon(
@@ -221,7 +219,7 @@ fun ReceiptScreen(
                     onClick = onNavigateToFileUpload,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1976D2)
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Icon(
@@ -243,7 +241,7 @@ fun ReceiptScreen(
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = MaterialTheme.colorScheme.surface
             ),
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -259,7 +257,7 @@ fun ReceiptScreen(
                     Icon(
                         imageVector = Icons.Default.Receipt,
                         contentDescription = null,
-                        tint = Color.Black,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -267,7 +265,7 @@ fun ReceiptScreen(
                         text = "Receipt Preview",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Spacer(modifier = Modifier.weight(1f))
@@ -296,10 +294,10 @@ fun ReceiptScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = MaterialTheme.colorScheme.surface
                     ),
                     shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(1.dp, Color.LightGray)
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     ReceiptPreview(
                         billingData = billingData,
@@ -346,9 +344,10 @@ fun ReceiptPrintButton(
         },
         enabled = canPrint,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (canPrint) colorResource(R.color.print_button_background)
-            else colorResource(R.color.print_button_disabled),
-            contentColor = colorResource(R.color.print_button_text)
+            containerColor = if (canPrint) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = if (canPrint) MaterialTheme.colorScheme.onPrimary
+            else MaterialTheme.colorScheme.onSurfaceVariant
         ),
         modifier = modifier.height(36.dp)
     ) {

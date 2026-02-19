@@ -102,11 +102,11 @@ fun PrinterStatusErrorDialog(
                 Text(
                     text = errorMessage,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color(0xFFD32F2F),
+                    color = MaterialTheme.colorScheme.error,
                     fontWeight = FontWeight.Medium
                 )
 
-                HorizontalDivider(color = Color.LightGray)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // 2. Printer Status Title with Connection Status
                 Row(
@@ -132,7 +132,7 @@ fun PrinterStatusErrorDialog(
                         color = when {
                             isConnecting -> Color(0xFFFF9800)
                             isConnected -> Color(0xFF4CAF50)
-                            else -> Color(0xFFF44336)
+                            else -> MaterialTheme.colorScheme.error
                         }
                     )
                 }
@@ -143,10 +143,10 @@ fun PrinterStatusErrorDialog(
                         .fillMaxWidth()
                         .border(
                             width = 1.dp,
-                            color = Color(0xFFE0E0E0),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             shape = RoundedCornerShape(8.dp)
                         ),
-                    color = Color(0xFFF5F5F5),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     if (isConnected) {
@@ -170,7 +170,7 @@ fun PrinterStatusErrorDialog(
                                             0xFFF44336
                                         )
 
-                                        else -> Color.Gray
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -188,7 +188,7 @@ fun PrinterStatusErrorDialog(
                                             0xFFF44336
                                         )
 
-                                        else -> Color.Gray
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
                                     fontWeight = when (paperStatus) {
                                         PrinterBluetoothViewModel.PaperStatus.OUT -> FontWeight.Bold
@@ -215,7 +215,7 @@ fun PrinterStatusErrorDialog(
                                             0xFFFF9800
                                         )
 
-                                        else -> Color.Gray
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -236,7 +236,7 @@ fun PrinterStatusErrorDialog(
                                             0xFFFF9800
                                         )
 
-                                        else -> Color.Gray
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
                                     fontWeight = when (coverStatus) {
                                         PrinterBluetoothViewModel.CoverStatus.OPEN -> FontWeight.Bold
@@ -285,7 +285,7 @@ fun PrinterStatusErrorDialog(
             Button(
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1976D2)
+                    containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Icon(

@@ -38,7 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,7 +58,7 @@ fun BluetoothStatusComponent(
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = colorResource(R.color.printer_card_background)
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         shape = RoundedCornerShape(12.dp)
@@ -92,7 +91,7 @@ fun BluetoothStatusComponent(
                         else -> Icons.Default.Bluetooth
                     },
                     contentDescription = null,
-                    tint = colorResource(R.color.primary_light),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -135,39 +134,41 @@ private fun BluetoothConnectionStatusCard(
     connectedDevice: android.bluetooth.BluetoothDevice?,
     statusMessage: String?
 ) {
+    val connectedGreen = Color(0xFF4CAF50)
+    val connectingOrange = Color(0xFFFF9800)
     val (backgroundColor, foregroundColor, borderColor, statusText, statusIcon) = when {
         !isBluetoothEnabled -> listOf(
-            colorResource(R.color.bluetooth_disabled_background),
-            colorResource(R.color.bluetooth_disabled_foreground),
-            colorResource(R.color.bluetooth_disabled_border),
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.outline,
             "Bluetooth Disabled",
             Icons.Default.BluetoothDisabled
         )
         connectionState == BluetoothPrinterManager.ConnectionState.CONNECTED -> listOf(
-            colorResource(R.color.bluetooth_connected_background),
-            colorResource(R.color.bluetooth_connected_foreground),
-            colorResource(R.color.bluetooth_connected_border),
+            connectedGreen.copy(alpha = 0.12f),
+            connectedGreen,
+            connectedGreen.copy(alpha = 0.5f),
             stringResource(R.string.connection_state_connected),
             Icons.Default.CheckCircle
         )
         connectionState == BluetoothPrinterManager.ConnectionState.CONNECTING -> listOf(
-            colorResource(R.color.bluetooth_connecting_background),
-            colorResource(R.color.bluetooth_connecting_foreground),
-            colorResource(R.color.bluetooth_connecting_border),
+            connectingOrange.copy(alpha = 0.12f),
+            connectingOrange,
+            connectingOrange.copy(alpha = 0.5f),
             stringResource(R.string.connection_state_connecting),
             Icons.Default.Sync
         )
         connectionState == BluetoothPrinterManager.ConnectionState.ERROR -> listOf(
-            colorResource(R.color.bluetooth_error_background),
-            colorResource(R.color.bluetooth_error_foreground),
-            colorResource(R.color.bluetooth_error_border),
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
+            MaterialTheme.colorScheme.error,
             stringResource(R.string.connection_state_error),
             Icons.Default.Error
         )
         else -> listOf(
-            colorResource(R.color.bluetooth_disconnected_background),
-            colorResource(R.color.bluetooth_disconnected_foreground),
-            colorResource(R.color.bluetooth_disconnected_border),
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
+            MaterialTheme.colorScheme.error,
             stringResource(R.string.connection_state_disconnected),
             Icons.Default.Warning
         )
@@ -256,10 +257,10 @@ private fun PrinterStatusIndicators(
             .fillMaxWidth()
             .border(
                 width = 1.dp,
-                color = Color(0xFFE0E0E0),
+                color = MaterialTheme.colorScheme.outlineVariant,
                 shape = RoundedCornerShape(8.dp)
             ),
-        color = Color(0xFFF5F5F5),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(
@@ -278,7 +279,7 @@ private fun PrinterStatusIndicators(
                     tint = when (paperStatus) {
                         PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
                         PrinterBluetoothViewModel.PaperStatus.OUT -> Color(0xFFF44336)
-                        else -> Color.Gray
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     modifier = Modifier.size(18.dp)
                 )
@@ -293,7 +294,7 @@ private fun PrinterStatusIndicators(
                     color = when (paperStatus) {
                         PrinterBluetoothViewModel.PaperStatus.OK -> Color(0xFF4CAF50)
                         PrinterBluetoothViewModel.PaperStatus.OUT -> Color(0xFFF44336)
-                        else -> Color.Gray
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     fontWeight = when (paperStatus) {
                         PrinterBluetoothViewModel.PaperStatus.OUT -> FontWeight.Bold
@@ -316,7 +317,7 @@ private fun PrinterStatusIndicators(
                     tint = when (coverStatus) {
                         PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(0xFF4CAF50)
                         PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(0xFFFF9800)
-                        else -> Color.Gray
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     modifier = Modifier.size(18.dp)
                 )
@@ -331,7 +332,7 @@ private fun PrinterStatusIndicators(
                     color = when (coverStatus) {
                         PrinterBluetoothViewModel.CoverStatus.CLOSED -> Color(0xFF4CAF50)
                         PrinterBluetoothViewModel.CoverStatus.OPEN -> Color(0xFFFF9800)
-                        else -> Color.Gray
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
                     },
                     fontWeight = when (coverStatus) {
                         PrinterBluetoothViewModel.CoverStatus.OPEN -> FontWeight.Bold

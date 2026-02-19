@@ -41,7 +41,7 @@ fun AppSettingsCard(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isEnabled) enabledColor else Color.Gray
+                tint = if (isEnabled) enabledColor else MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Spacer(modifier = Modifier.width(16.dp))

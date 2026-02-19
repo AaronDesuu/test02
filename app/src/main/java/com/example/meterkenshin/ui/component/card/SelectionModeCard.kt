@@ -8,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.meterkenshin.model.Meter
@@ -105,7 +104,7 @@ fun SelectionModeCard(
                     onClick = onCancel,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = Color.Red
+                        contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
                     Text("Cancel", style = MaterialTheme.typography.bodyMedium)

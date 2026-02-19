@@ -48,7 +48,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -127,7 +126,7 @@ fun AppWithDrawer(
                                     text = stringResource(currentScreen.titleRes),
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = colorResource(R.color.black)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = remember {
@@ -136,7 +135,7 @@ fun AppWithDrawer(
                                         )
                                     },
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = colorResource(R.color.on_surface_light)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         },

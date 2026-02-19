@@ -5,10 +5,10 @@ import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 
 /**
@@ -31,7 +31,7 @@ fun PrintReceiptDialog(
             Icon(
                 imageVector = Icons.Default.Print,
                 contentDescription = null,
-                tint = Color(0xFF1976D2)
+                tint = MaterialTheme.colorScheme.primary
             )
         },
         text = {

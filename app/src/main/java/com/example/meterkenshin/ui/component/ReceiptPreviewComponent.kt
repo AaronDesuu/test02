@@ -12,7 +12,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,7 +83,7 @@ fun ReceiptPreview(
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         // Billing Information
@@ -97,7 +96,7 @@ fun ReceiptPreview(
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         // Charges breakdown - now using Billing fields directly
@@ -111,7 +110,7 @@ fun ReceiptPreview(
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         // Total amounts
@@ -126,7 +125,7 @@ fun ReceiptPreview(
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 12.dp),
             thickness = 1.dp,
-            color = Color.Black
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         // Payment terms

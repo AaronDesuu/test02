@@ -46,8 +46,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -112,7 +112,7 @@ fun FileUploadScreen(
                     .padding(bottom = 16.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = if (uploadState.allFilesUploaded)
-                        colorResource(R.color.upload_success_background)
+                        Color(0xFF4CAF50).copy(alpha = 0.12f)
                     else
                         MaterialTheme.colorScheme.surfaceVariant
                 )
@@ -127,7 +127,7 @@ fun FileUploadScreen(
                             imageVector = if (uploadState.allFilesUploaded) Icons.Default.CheckCircle else Icons.Default.Upload,
                             contentDescription = null,
                             tint = if (uploadState.allFilesUploaded)
-                                colorResource(R.color.upload_success_foreground)
+                                Color(0xFF4CAF50)
                             else
                                 MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(end = 8.dp)
@@ -282,25 +282,28 @@ fun FileUploadCard(
     onRemoveFile: () -> Unit,
     modifier: Modifier
 ) {
+    val uploadedGreen = Color(0xFF4CAF50)
+    val pendingOrange = Color(0xFFFF9800)
+    val selectedPurple = Color(0xFF9C27B0)
     val cardColors = when (file.status) {
         FileUploadState.FileStatus.PENDING -> CardDefaults.cardColors(
-            containerColor = colorResource(R.color.file_pending_background)
+            containerColor = pendingOrange.copy(alpha = 0.08f)
         )
 
         FileUploadState.FileStatus.SELECTED -> CardDefaults.cardColors(
-            containerColor = colorResource(R.color.file_selected_background)
+            containerColor = selectedPurple.copy(alpha = 0.10f)
         )
 
         FileUploadState.FileStatus.UPLOADING -> CardDefaults.cardColors(
-            containerColor = colorResource(R.color.upload_progress_background)
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
         )
 
         FileUploadState.FileStatus.UPLOADED -> CardDefaults.cardColors(
-            containerColor = colorResource(R.color.file_uploaded_background)
+            containerColor = uploadedGreen.copy(alpha = 0.10f)
         )
 
         FileUploadState.FileStatus.ERROR -> CardDefaults.cardColors(
-            containerColor = colorResource(R.color.file_error_background)
+            containerColor = MaterialTheme.colorScheme.errorContainer
         )
     }
 
@@ -310,11 +313,11 @@ fun FileUploadCard(
         border = BorderStroke(
             width = 1.dp,
             color = when (file.status) {
-                FileUploadState.FileStatus.PENDING -> colorResource(R.color.file_pending_border)
-                FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
-                FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
-                FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.file_uploaded_border)
-                FileUploadState.FileStatus.ERROR -> colorResource(R.color.file_error_border)
+                FileUploadState.FileStatus.PENDING -> pendingOrange.copy(alpha = 0.6f)
+                FileUploadState.FileStatus.SELECTED -> selectedPurple
+                FileUploadState.FileStatus.UPLOADING -> MaterialTheme.colorScheme.primary
+                FileUploadState.FileStatus.UPLOADED -> uploadedGreen
+                FileUploadState.FileStatus.ERROR -> MaterialTheme.colorScheme.error
             }
         )
     ) {
@@ -352,10 +355,10 @@ fun FileUploadCard(
                     contentDescription = null,
                     tint = when (file.status) {
                         FileUploadState.FileStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
-                        FileUploadState.FileStatus.SELECTED -> colorResource(R.color.file_selected_border)
-                        FileUploadState.FileStatus.UPLOADING -> colorResource(R.color.upload_progress_foreground)
-                        FileUploadState.FileStatus.UPLOADED -> colorResource(R.color.upload_success_foreground)
-                        FileUploadState.FileStatus.ERROR -> colorResource(R.color.upload_error_foreground)
+                        FileUploadState.FileStatus.SELECTED -> selectedPurple
+                        FileUploadState.FileStatus.UPLOADING -> MaterialTheme.colorScheme.primary
+                        FileUploadState.FileStatus.UPLOADED -> uploadedGreen
+                        FileUploadState.FileStatus.ERROR -> MaterialTheme.colorScheme.error
                     }
                 )
             }
@@ -426,8 +429,8 @@ fun FileUploadCard(
                     LinearProgressIndicator(
                         progress = { file.uploadProgress / 100f },
                         modifier = Modifier.fillMaxWidth(),
-                        color = colorResource(R.color.upload_progress_foreground),
-                        trackColor = colorResource(R.color.progress_track),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                     )
                 }
@@ -440,7 +443,7 @@ fun FileUploadCard(
                 Text(
                     text = file.errorMessage,
                     style = MaterialTheme.typography.bodySmall,
-                    color = colorResource(R.color.upload_error_foreground),
+                    color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
             }
@@ -527,7 +530,7 @@ fun FileUploadCard(
                             onClick = onRemoveFile,
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.outlinedButtonColors(
-                                contentColor = colorResource(R.color.upload_error_foreground)
+                                contentColor = MaterialTheme.colorScheme.error
                             )
                         ) {
                             Icon(
