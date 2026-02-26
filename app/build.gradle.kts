@@ -118,7 +118,7 @@ dependencies {
     implementation("com.opencsv:opencsv:5.8")
 
     // Bluetooth and networking
-    implementation("androidx.concurrent:concurrent-futures-ktx:1.1.0")
+    implementation("androidx.concurrent:concurrent-futures-ktx:1.3.0")
 
     // Additional lifecycle components
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
