@@ -107,6 +107,7 @@ object DLMSCSVWriter {
      * Generate Load Profile CSV content
      * Format: Clock,Status,AveVolt,BlockImp,BlockExp
      */
+    @SuppressLint("DefaultLocale")
     private fun generateLoadProfileCSV(data: ArrayList<String>): String {
         val csvContent = StringBuilder()
 
@@ -120,9 +121,11 @@ object DLMSCSVWriter {
         // Write data rows (5 fields per row)
         var i = 0
         while (i + 4 < profileData.size) {
+            val rawVolt = profileData[i+2].trim().toIntOrNull()
+            val aveVolt = if (rawVolt != null) String.format("%.2f", rawVolt / 100.0) else profileData[i+2]
             csvContent.append("${profileData[i]},")      // Clock
             csvContent.append("${profileData[i+1]},")    // Status
-            csvContent.append("${profileData[i+2]},")    // AveVolt
+            csvContent.append("$aveVolt,")               // AveVolt (divided by 100)
             csvContent.append("${profileData[i+3]},")    // BlockImp
             csvContent.append("${profileData[i+4]}\n")   // BlockExp
             i += 5
