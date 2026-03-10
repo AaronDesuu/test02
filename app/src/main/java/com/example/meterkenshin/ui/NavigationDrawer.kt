@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AdminPanelSettings
@@ -193,7 +195,7 @@ private fun DrawerContentWithTest(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // User Profile Section
+            // User Profile Section (pinned at top)
             UserProfileSection(session = session)
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -263,38 +265,43 @@ private fun DrawerContentWithTest(
                 allNavigationItems
             }
 
-            // Render main navigation items
-            navigationItems.forEach { item ->
-                val isSelected = currentScreen == item.screen
-                NavigationDrawerItem(
-                    label = {
-                        Text(
-                            text = item.title,
-                            style = MaterialTheme.typography.bodyLarge
+            // Render main navigation items (scrollable section)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                navigationItems.forEach { item ->
+                    val isSelected = currentScreen == item.screen
+                    NavigationDrawerItem(
+                        label = {
+                            Text(
+                                text = item.title,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        },
+                        icon = {
+                            Icon(
+                                imageVector = item.icon,
+                                contentDescription = item.title
+                            )
+                        },
+                        selected = isSelected,
+                        onClick = item.action,
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            unselectedContainerColor = MaterialTheme.colorScheme.surface,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = item.icon,
-                            contentDescription = item.title
-                        )
-                    },
-                    selected = isSelected,
-                    onClick = item.action,
-                    modifier = Modifier.padding(horizontal = 12.dp),
-                    colors = NavigationDrawerItemDefaults.colors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                        unselectedContainerColor = MaterialTheme.colorScheme.surface,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                )
+                }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
+            // Logout pinned at bottom
             LogoutSection(
                 onLogout = {
                     onCloseDrawer()

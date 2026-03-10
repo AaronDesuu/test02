@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,9 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -30,6 +33,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import com.example.meterkenshin.ui.component.dialog.CompanyEditDialog
+import com.example.meterkenshin.ui.manager.NotificationManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -75,7 +80,8 @@ fun ReceiptScreen(
 
     var rateData by remember { mutableStateOf<RateData?>(null) }
     var showRateDialog by remember { mutableStateOf(false) }
-    val companyInfo = remember { CompanyInfo.load(context) }
+    var companyInfo by remember { mutableStateOf(CompanyInfo.load(context)) }
+    var showCompanyEditDialog by remember { mutableStateOf(false) }
 
     val rateCsvFile = uploadState.requiredFiles.find { it.type == RequiredFile.FileType.RATE }
     val isRateCsvUploaded = rateCsvFile?.isUploaded == true
@@ -140,7 +146,8 @@ fun ReceiptScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.FileUpload,
@@ -153,14 +160,15 @@ fun ReceiptScreen(
                             text = "Upload Rate CSV",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1
                         )
                     }
 
                     if (isRateCsvUploaded) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
-                            color = Color(0xFF4CAF50).copy(alpha = 0.12f)
+                            color = Color(0xFF4CAF50).copy(alpha = 0.25f)
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -177,18 +185,13 @@ fun ReceiptScreen(
                                     text = "Uploaded",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color(0xFF4CAF50),
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1
                                 )
                             }
                         }
                     }
                 }
-
-                Text(
-                    text = "Upload a CSV file containing billing rate data to preview how the receipt will be calculated with your custom rates.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
                 if (isRateCsvUploaded && rateData != null) {
                     OutlinedButton(
@@ -236,6 +239,19 @@ fun ReceiptScreen(
                 }
             }
         }
+
+        // Receipt Branding Card
+        ReceiptBrandingCard(
+            companyName = companyInfo.companyName,
+            hasEdits = CompanyInfo.hasEdits(context),
+            hasCsv = CompanyInfo.hasCsvFile(context),
+            onEditClick = { showCompanyEditDialog = true },
+            onResetToDefault = {
+                CompanyInfo.clearEdits(context)
+                companyInfo = CompanyInfo.load(context)
+                NotificationManager.showSuccess("Reset to ${if (CompanyInfo.hasCsvFile(context)) "CSV" else "default"} branding")
+            }
+        )
 
         // Receipt Preview Card (matching screenshot)
         Card(
@@ -317,6 +333,19 @@ fun ReceiptScreen(
             onDismiss = { showRateDialog = false }
         )
     }
+
+    if (showCompanyEditDialog) {
+        CompanyEditDialog(
+            currentInfo = companyInfo,
+            onSave = { newInfo ->
+                CompanyInfo.saveToPrefs(context, newInfo)
+                companyInfo = newInfo
+                showCompanyEditDialog = false
+                NotificationManager.showSuccess("Receipt branding saved")
+            },
+            onDismiss = { showCompanyEditDialog = false }
+        )
+    }
 }
 
 @Composable
@@ -342,14 +371,14 @@ fun ReceiptPrintButton(
                 onNavigateToHome()
             }
         },
-        enabled = canPrint,
         colors = ButtonDefaults.buttonColors(
             containerColor = if (canPrint) MaterialTheme.colorScheme.primary
             else MaterialTheme.colorScheme.surfaceVariant,
             contentColor = if (canPrint) MaterialTheme.colorScheme.onPrimary
             else MaterialTheme.colorScheme.onSurfaceVariant
         ),
-        modifier = modifier.height(36.dp)
+        modifier = modifier,
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Icon(
             imageVector = Icons.Default.Print,
@@ -363,7 +392,102 @@ fun ReceiptPrintButton(
                 !isPrinterReady -> "Connect"
                 else -> "Print"
             },
-            style = MaterialTheme.typography.bodySmall
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1
         )
+    }
+}
+
+@Composable
+fun ReceiptBrandingCard(
+    companyName: String,
+    hasEdits: Boolean,
+    hasCsv: Boolean,
+    onEditClick: () -> Unit,
+    onResetToDefault: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Receipt,
+                    contentDescription = "Receipt Branding",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(28.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Receipt Branding",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    Text(
+                        text = companyName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                    if (hasEdits) {
+                        Text(
+                            text = "Custom edits applied",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onEditClick,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Edit Branding")
+                }
+
+                if (hasEdits) {
+                    OutlinedButton(
+                        onClick = onResetToDefault,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.RestartAlt,
+                            contentDescription = "Reset",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (hasCsv) "Reset to CSV" else "Reset")
+                    }
+                }
+            }
+        }
     }
 }
