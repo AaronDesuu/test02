@@ -226,6 +226,11 @@ class FileUploadViewModel : ViewModel() {
                 }
 
                 if (success) {
+                    // When meter.csv is replaced, clear all existing billing data
+                    if (fileType == RequiredFile.FileType.METER) {
+                        clearAllBillingData(context)
+                        Log.i(TAG, "Cleared billing data after meter.csv replacement")
+                    }
                     updateFileStatus(fileType, FileUploadState.FileStatus.UPLOADED)
                     updateFileUploadedAt(fileType, System.currentTimeMillis())
                     Log.i(TAG, "File uploaded successfully: ${currentFile.fileName}")
@@ -366,17 +371,27 @@ class FileUploadViewModel : ViewModel() {
     private suspend fun clearAllBillingData(context: Context): Boolean {
         return withContext(Dispatchers.IO) {
             try {
-                // Clear user-specific SharedPreferences: MeterReadings (stores prev_SerialNumber readings)
-                // ✅ FIXED: Now uses user-specific preferences
                 val sessionManager = SessionManager.getInstance(context)
                 val session = sessionManager.getSession()
                 val username = session?.username ?: "default"
 
+                // Delete all *_billing.csv files from the billing directory
+                val billingDir = UserFileManager.getBillingDir(context, sessionManager)
+                if (billingDir.exists()) {
+                    billingDir.listFiles()?.forEach { file ->
+                        if (file.isFile && file.name.endsWith("_billing.csv")) {
+                            file.delete()
+                            Log.i(TAG, "Deleted billing file: ${file.name}")
+                        }
+                    }
+                }
+
+                // Clear user-specific SharedPreferences: MeterReadings
                 val meterReadingsPrefs = context.getSharedPreferences("MeterReadings_$username", Context.MODE_PRIVATE)
                 meterReadingsPrefs.edit { clear() }
-                Log.i(TAG, "Cleared user-specific MeterReadings SharedPreferences for $username")
+                Log.i(TAG, "Cleared MeterReadings SharedPreferences for $username")
 
-                // Clear SharedPreferences: BillingDataStorage (stores 30-day billing data)
+                // Clear SharedPreferences: BillingDataStorage
                 val billingStoragePrefs = context.getSharedPreferences("BillingDataStorage", Context.MODE_PRIVATE)
                 billingStoragePrefs.edit { clear() }
                 Log.i(TAG, "Cleared BillingDataStorage SharedPreferences")

@@ -219,13 +219,14 @@ class DLMSViewModel : ViewModel() {
         val serialNumber = meter?.serialNumber
         if (serialNumber.isNullOrEmpty()) {
             Log.d(TAG, "No meter serial number available")
+            _savedBillingData.value = null
             return
         }
 
         val data = billingRepository?.loadBillingData(serialNumber)
         Log.d(TAG, "loadSavedBillingData: data = ${data != null} for $serialNumber")
+        _savedBillingData.value = data
         if (data != null) {
-            _savedBillingData.value = data
             appendLog("Loaded billing data for $serialNumber")
         } else {
             Log.d(TAG, "No billing data found in CSV for $serialNumber")
