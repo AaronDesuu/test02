@@ -33,7 +33,7 @@ data class Meter(
     )
 
 enum class MeterType(val displayName: String) {
-    Type01("FT5"),
+    Type01("FT5AA"),
 }
 
 enum class MeterStatus() {  // Currently used in MeterTestViewmodel

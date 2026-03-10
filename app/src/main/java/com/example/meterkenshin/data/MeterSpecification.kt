@@ -29,7 +29,7 @@ object MeterSpecifications {
         protocol = "IEC 62056-21",
         communication = "DLMS/COSEM",
         voltageAmperageRating = "240V/100A",
-        frequency = "50Hz",
+        frequency = "60Hz",
         pulseConstant = "1600imp/kWh",
         bleVersion = "5.1"
     )
@@ -42,7 +42,7 @@ object MeterSpecifications {
         protocol = "IEC 62056-21",
         communication = "DLMS/COSEM",
         voltageAmperageRating = "240V/100A",
-        frequency = "50Hz",
+        frequency = "60Hz",
         pulseConstant = "1600imp/kWh",
         bleVersion = "5.1"
     )
@@ -55,7 +55,7 @@ object MeterSpecifications {
         protocol = "IEC 62056-21",
         communication = "DLMS/COSEM",
         voltageAmperageRating = "240V/100A",
-        frequency = "50Hz",
+        frequency = "60Hz",
         pulseConstant = "1600imp/kWh",
         bleVersion = "5.1"
     )
