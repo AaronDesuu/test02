@@ -36,6 +36,8 @@ import com.example.meterkenshin.ui.manager.MeterExportManager
 import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
+import androidx.core.graphics.toColorInt
+import androidx.core.content.edit
 
 @Composable
 fun SettingsScreen(
@@ -43,11 +45,13 @@ fun SettingsScreen(
     fileUploadViewModel: FileUploadViewModel,
     meterReadingViewModel: MeterReadingViewModel,
     onLogout: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val session = sessionManager.getSession()
     val scope = rememberCoroutineScope()
     var showHelpDialog by remember { mutableStateOf(false) }
+    var showTutorialDialog by remember { mutableStateOf(false) }
     var showHardResetDialog by remember { mutableStateOf(false) }
     var showFullHardResetDialog by remember { mutableStateOf(false) }
     var showDeleteExportedDialog by remember { mutableStateOf(false) }
@@ -260,6 +264,10 @@ fun SettingsScreen(
 
         // Help & Support Section
         SettingsSection(title = "Help & Support") {
+            TutorialCard(
+                onTutorialClick = { showTutorialDialog = true }
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             HelpSupportCard(
                 onHelpClick = { showHelpDialog = true }
             )
@@ -268,6 +276,16 @@ fun SettingsScreen(
 
     if (showHelpDialog) {
         HelpDialog(onDismiss = { showHelpDialog = false })
+    }
+
+    if (showTutorialDialog) {
+        AppTutorialDialog(
+            onDismiss = { showTutorialDialog = false },
+            onGetStarted = {
+                showTutorialDialog = false
+                onNavigateToHome()
+            }
+        )
     }
 
     // Hard Reset Confirmation Dialog (User-scoped)
@@ -540,6 +558,50 @@ fun AppVersionCard() {
 }
 
 @Composable
+fun TutorialCard(onTutorialClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onTutorialClick)
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayCircle,
+                    contentDescription = "App Tutorial",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text(
+                        text = "App Tutorial",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "Step-by-step guide to using MeterKenshin",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun HelpSupportCard(onHelpClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -642,7 +704,7 @@ fun HelpDialog(onDismiss: () -> Unit) {
                         settings.useWideViewPort = true
                         settings.builtInZoomControls = true
                         settings.displayZoomControls = false
-                        setBackgroundColor(android.graphics.Color.parseColor("#0d1117"))
+                        setBackgroundColor("#0d1117".toColorInt())
                         loadUrl("file:///android_asset/documentation.html")
                     }
                 },
@@ -998,7 +1060,7 @@ private suspend fun performUserReset(context: Context, sessionManager: SessionMa
             if (username != null) {
                 // Clear user-specific DLMS logs
                 val dlmsLogPrefs = context.getSharedPreferences("DLMSLog_$username", Context.MODE_PRIVATE)
-                dlmsLogPrefs.edit().clear().apply()
+                dlmsLogPrefs.edit {clear()}
 
                 // Clear user-specific app preferences (already user-scoped)
                 AppPreferences.clearAll(context)

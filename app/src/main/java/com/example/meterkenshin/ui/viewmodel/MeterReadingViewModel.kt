@@ -571,7 +571,7 @@ class MeterReadingViewModel : ViewModel() {
                 else
                     currentMeters.sortedByDescending { it.location }
             }
-            SortField.LAST_MAINTENANCE_DATE -> {
+            SortField.LAST_INSPECTION_DATE -> {
                 if (_sortConfig.value.order == SortOrder.ASCENDING)
                     currentMeters.sortedWith(compareBy(nullsLast()) { it.readDate })
                 else
@@ -710,7 +710,7 @@ class MeterReadingViewModel : ViewModel() {
                 else
                     filtered.sortedByDescending { it.location }
             }
-            SortField.LAST_MAINTENANCE_DATE -> {
+            SortField.LAST_INSPECTION_DATE -> {
                 if (_sortConfig.value.order == SortOrder.ASCENDING)
                     filtered.sortedWith(compareBy(nullsLast()) { it.readDate })
                 else

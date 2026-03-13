@@ -1,5 +1,39 @@
 MeterKenshin — Release Notes
 
+Version 1.01.0 — March 13, 2026
+
+New Features:
+
+Add New Meter
+- Users can now add new meters directly from the app
+- Date picker support for Load Profile (LP), Event Data (ED), and Billing Data (BD)
+
+App Tutorial
+- Interactive step-by-step tutorial accessible from Settings → Help & Support
+- Animated walkthrough using HorizontalPager with page indicators
+- "Get Started" action navigates directly to the home screen
+
+Help & Documentation
+- In-app documentation viewer via WebView with responsive CSS styling
+- Dark-themed HTML documentation embedded in app assets
+
+Bug Fixes:
+
+- Fixed: Reset Meter no longer leaves saved billing data behind — billing data is now properly cleared on reset
+- Fixed: Average voltage values in Load Profile now display with correct decimal points
+- Fixed: Updated meter specification field types for accuracy
+
+Improvements:
+
+- Enforced portrait-only orientation for consistent layout
+- MeterCard now shows "Last Inspection" label instead of previous wording
+- Receipt branding configuration moved from Settings to the Receipt screen for better discoverability
+- Refined Receipt screen layout and presentation
+- Upgraded Gradle and Android Gradle Plugin to latest versions
+- Replaced deprecated API calls with modern Kotlin equivalents (`toColorInt()`, `edit {}`)
+
+---
+
 Version 1.00.0 — February 25, 2026
 
 Initial Release

@@ -3,7 +3,7 @@ package com.example.meterkenshin.ui.viewmodel
 enum class SortField {
     SERIAL_NUMBER,
     LOCATION,
-    LAST_MAINTENANCE_DATE
+    LAST_INSPECTION_DATE
 }
 
 enum class SortOrder {

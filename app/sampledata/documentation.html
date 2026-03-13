@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Markdown Export</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.3.0/github-markdown-dark.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <style>
+      body {
+          background-color: #0d1117;
+          color: #c9d1d9;
+      }
+      .markdown-body {
+          box-sizing: border-box;
+          min-width: 200px;
+          max-width: 980px;
+          margin: 0 auto;
+          padding: 45px;
+          background-color: #0d1117;
+          color: #c9d1d9;
+      }
+      @media (max-width: 767px) {
+          .markdown-body {
+              padding: 15px;
+          }
+      }
+  </style>
+</head>
+<body>
+  <article class="markdown-body">
+      <h1>MeterKenshin — User Documentation</h1>
+<blockquote>
+<p><strong>Version:</strong> 1.00.0 | <strong>Platform:</strong> Android 11.0+ | <strong>Last Updated:</strong> 2026-02-25</p>
+</blockquote>
+<hr>
+<h2>Table of Contents</h2>
+<ol>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#getting-started">Getting Started</a></li>
+<li><a href="#user-roles">User Roles</a></li>
+<li><a href="#required-files">Required Files</a></li>
+<li><a href="#navigation">Navigation</a></li>
+<li><a href="#screens--features">Screens &amp; Features</a><ul>
+<li><a href="#home-screen">Home Screen</a></li>
+<li><a href="#meter-reading-screen">Meter Reading Screen</a></li>
+<li><a href="#meter-detail-screen">Meter Detail Screen</a></li>
+<li><a href="#receipt-screen">Receipt Screen</a></li>
+<li><a href="#import-data-screen">Import Data Screen</a></li>
+<li><a href="#export-data-screen">Export Data Screen</a></li>
+<li><a href="#settings-screen">Settings Screen</a></li>
+</ul>
+</li>
+<li><a href="#workflows">Workflows</a><ul>
+<li><a href="#reading-a-meter">Reading a Meter</a></li>
+<li><a href="#printing-a-receipt">Printing a Receipt</a></li>
+<li><a href="#batch-printing">Batch Printing</a></li>
+<li><a href="#exporting-meters-admin">Exporting Meters (Admin)</a></li>
+</ul>
+</li>
+<li><a href="#receipt-branding">Receipt Branding</a></li>
+<li><a href="#billing-calculation">Billing Calculation</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ol>
+<hr>
+<h2>Overview</h2>
+<p><strong>MeterKenshin</strong> is an Android application for reading and managing electricity meters via Bluetooth Low Energy (BLE). It communicates with meters using the <strong>DLMS/COSEM protocol</strong>, generates billing receipts, and supports printing via <strong>Woosim Bluetooth printers</strong>.</p>
+<h3>Key Capabilities</h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Meter Scan</td>
+<td>Scans for BLE meters and matches them against a registered meter list</td>
+</tr>
+<tr>
+<td>DLMS Reading</td>
+<td>Reads energy, demand, voltage, and billing data from meters</td>
+</tr>
+<tr>
+<td>Billing Calculation</td>
+<td>Applies rate tables to compute charges automatically</td>
+</tr>
+<tr>
+<td>Receipt Printing</td>
+<td>Prints thermal receipts via Woosim Bluetooth printer</td>
+</tr>
+<tr>
+<td>Batch Printing</td>
+<td>Prints receipts for multiple meters automatically</td>
+</tr>
+<tr>
+<td>Data Export</td>
+<td>Exports billing data as CSV/JSON files</td>
+</tr>
+<tr>
+<td>Multi-user</td>
+<td>Supports Admin and Reader roles with different access levels</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Getting Started</h2>
+<h3>Step 1 — Install &amp; Launch</h3>
+<p>Install the MeterKenshin APK on Android device and open the app.</p>
+<h3>Step 2 — Log In</h3>
+<p>Enter <strong>username</strong> and <strong>password</strong> on the Login screen. Tap the eye icon to toggle password visibility.</p>
+<h3>Step 3 — Upload Required Files</h3>
+<p>Before using the app, upload three required CSV files via <strong>Upload Data</strong> in the navigation drawer. (meter.csv, rate.csv, printer.csv)</p>
+<h3>Step 4 — Connect Bluetooth Printer (Optional)</h3>
+<p>To print receipts, ensure <strong>Woosim Bluetooth printer</strong> is powered on. The app will auto-connect using the MAC address from <code>printer.csv</code>. 
+(Pair it first with the phone inside bluetooth settings)</p>
+<h3>Step 5 — Start Reading Meters</h3>
+<p>Navigate to <strong>Meter Reading</strong>, select a nearby meter, and tap <strong>Read Data</strong> in the Meter Detail screen.</p>
+<hr>
+<h2>User Roles</h2>
+<p>MeterKenshin supports two user roles. User role is shown in the navigation drawer under username.</p>
+<h3>Admin</h3>
+<table>
+<thead>
+<tr>
+<th>Access</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>All screens</td>
+<td>Full access including Export Data</td>
+</tr>
+<tr>
+<td>Receipt Branding</td>
+<td>Edit company info on receipts</td>
+</tr>
+<tr>
+<td>Export Meters</td>
+<td>Create CSV backup of registered meters</td>
+</tr>
+<tr>
+<td>Full Hard Reset</td>
+<td>Delete all data for all users</td>
+</tr>
+<tr>
+<td>DLMS Rank</td>
+<td>1 (highest privileges on meter)</td>
+</tr>
+</tbody></table>
+<h3>Reader</h3>
+<table>
+<thead>
+<tr>
+<th>Access</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Home, Meter Reading, Receipt, Settings</td>
+<td>Standard access</td>
+</tr>
+<tr>
+<td>Upload Data</td>
+<td>Upload and manage CSV files</td>
+</tr>
+<tr>
+<td>Hard Reset</td>
+<td>Reset only personal data</td>
+</tr>
+<tr>
+<td>DLMS Rank</td>
+<td>3 (read-only access on meter)</td>
+</tr>
+<tr>
+<td>Restrictions</td>
+<td>Cannot access Export Data, cannot edit receipt branding</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Required Files</h2>
+<p>Three CSV files must be uploaded before the app can read meters. Upload them via <strong>Navigation → Upload Data</strong>.</p>
+<h3>1. <code>meter.csv</code> — Meter Registry</h3>
+<p>Defines all meters in the system. The app matches Bluetooth-discovered devices against this file.</p>
+<p><strong>Required columns (header row):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>uid</code></td>
+<td>Integer</td>
+<td>Unique row ID</td>
+</tr>
+<tr>
+<td><code>activate</code></td>
+<td>0 or 1</td>
+<td>1 = active meter</td>
+</tr>
+<tr>
+<td><code>serialNumber</code></td>
+<td>String</td>
+<td>Meter serial number</td>
+</tr>
+<tr>
+<td><code>bluetoothId</code></td>
+<td>String</td>
+<td>BLE MAC address (e.g., <code>AA:BB:CC:DD:EE:FF</code>)</td>
+</tr>
+<tr>
+<td><code>fixedDate</code></td>
+<td>Date</td>
+<td>Billing schedule date</td>
+</tr>
+<tr>
+<td><code>impKWh</code></td>
+<td>Decimal</td>
+<td>Import energy baseline (kWh)</td>
+</tr>
+<tr>
+<td><code>expKWh</code></td>
+<td>Decimal</td>
+<td>Export energy baseline (kWh)</td>
+</tr>
+<tr>
+<td><code>impMaxDemandKW</code></td>
+<td>Decimal</td>
+<td>Max import demand (kW)</td>
+</tr>
+<tr>
+<td><code>expMaxDemandKW</code></td>
+<td>Decimal</td>
+<td>Max export demand (kW)</td>
+</tr>
+<tr>
+<td><code>minVoltV</code></td>
+<td>Decimal</td>
+<td>Minimum voltage alert threshold (V)</td>
+</tr>
+<tr>
+<td><code>alert</code></td>
+<td>Decimal</td>
+<td>Alert threshold</td>
+</tr>
+<tr>
+<td><code>readDate</code></td>
+<td>Date or empty</td>
+<td>Last reading date (empty = not yet read)</td>
+</tr>
+<tr>
+<td><code>billingPrintDate</code></td>
+<td>Date or empty</td>
+<td>Last print date (empty = not yet printed)</td>
+</tr>
+<tr>
+<td><code>lastCommunication</code></td>
+<td>Date or empty</td>
+<td>Last BLE communication timestamp</td>
+</tr>
+</tbody></table>
+<p><strong>Example row:</strong></p>
+<pre><code class="hljs plaintext">1,1,12345678,AA:BB:CC:DD:EE:FF,2025-01-15,1234.5,567.8,45.2,12.3,220.5,240.0,,,</code></pre><hr>
+<h3>2. <code>printer.csv</code> — Printer Configuration</h3>
+<p>Stores the Woosim Bluetooth printer MAC address for auto-connect.</p>
+<hr>
+<h3>3. <code>rate.csv</code> — Billing Rate Table</h3>
+<p>Contains electricity rate values used to calculate billing charges. Must contain 23 rate entries in order (see <a href="#billing-calculation">Billing Calculation</a>).</p>
+<hr>
+<h3>4. <code>company.csv</code> — Receipt Branding (Optional)</h3>
+<p>Customizes the company information printed on receipts.</p>
+<p><strong>Format (Field, Value pairs):</strong></p>
+<pre><code class="hljs plaintext">Field,Value
+companyName, Electric Cooperative
+addressLine1,123 Main Street Barangay Name
+addressLine2,City Province ZIP Code
+phone,TEL:02-000-0000
+paymentNote,Please pay on or before DUE DATE to avoid disconnection.
+disclaimer,This is not an Official Receipt.</code></pre><blockquote>
+<p>This file is <strong>optional</strong>. If not uploaded, defaults or in-app edits are used.</p>
+</blockquote>
+<hr>
+<h2>Navigation</h2>
+<p>The <strong>Navigation Drawer</strong> is opened by tapping the ☰ menu icon in the top-left corner.</p>
+<table>
+<thead>
+<tr>
+<th>Menu Item</th>
+<th>Available To</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Home</td>
+<td>All users</td>
+<td>Dashboard overview</td>
+</tr>
+<tr>
+<td>Meter Reading</td>
+<td>All users</td>
+<td>View and filter all meters</td>
+</tr>
+<tr>
+<td>Upload Data</td>
+<td>All users</td>
+<td>Manage CSV file uploads</td>
+</tr>
+<tr>
+<td>Export Data</td>
+<td>Admin only</td>
+<td>Export and manage data files</td>
+</tr>
+<tr>
+<td>Receipt Template</td>
+<td>All users</td>
+<td>Preview receipts and manage rates</td>
+</tr>
+<tr>
+<td>Settings</td>
+<td>All users</td>
+<td>App configuration and preferences</td>
+</tr>
+</tbody></table>
+<p>The <strong>top bar</strong> shows:</p>
+<ul>
+<li>Current screen title</li>
+<li>Today's date</li>
+<li>Menu button (☰)</li>
+</ul>
+<hr>
+<h2>Screens &amp; Features</h2>
+<h3>Home Screen</h3>
+<p>The dashboard shows a quick overview of User's meter system.</p>
+<p><strong>Overview Cards (horizontal scroll):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Card</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Total Meters</td>
+<td>Number of meters loaded from <code>meter.csv</code></td>
+</tr>
+<tr>
+<td>Online Meters</td>
+<td>Number of meters detected via BLE right now</td>
+</tr>
+<tr>
+<td>CSV Status</td>
+<td>Shows "Loaded" or "No Data" based on file upload</td>
+</tr>
+</tbody></table>
+<p><strong>Bluetooth Printer Status</strong> (shown when printing is enabled):</p>
+<ul>
+<li>Connection state: Connected / Connecting / Disconnected / Error</li>
+<li>Paper status: OK / OUT</li>
+<li>Cover status: Closed / Open</li>
+<li>Action buttons: Connect, Disconnect, Test Print, Retry</li>
+</ul>
+<p><strong>Recent Readings</strong> — shows a preview of meters from list with their status.</p>
+<hr>
+<h3>Meter Reading Screen</h3>
+<p>Shows all registered meters with search and filtering.</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li><strong>Search bar</strong> — filter meters by serial number or any field</li>
+<li><strong>Statistics row</strong> — Total meters, currently showing, online count</li>
+<li><strong>Meter list</strong> — tap any meter to open Meter Detail</li>
+</ul>
+<p><strong>Meter Status Indicators:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Not Inspected</td>
+<td>No reading taken yet</td>
+</tr>
+<tr>
+<td>Inspected, Billing not Printed</td>
+<td>Read successfully, receipt not yet printed</td>
+</tr>
+<tr>
+<td>Inspected, Billing Printed</td>
+<td>Reading done and receipt printed</td>
+</tr>
+<tr>
+<td>Offline</td>
+<td>Meter not detected via BLE</td>
+</tr>
+<tr>
+<td>Error</td>
+<td>Communication error occurred</td>
+</tr>
+</tbody></table>
+<hr>
+<h3>Meter Detail Screen</h3>
+<p>The main screen for interacting with a specific meter.</p>
+<h4>Meter Information Card</h4>
+<p>Shows the meter's specifications: serial number, Bluetooth ID, billing date, energy readings, max demand, and voltage.</p>
+<h4>DLMS Functions</h4>
+<p>Tap the buttons to perform operations on the connected meter:</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Registration</strong></td>
+<td>Authenticate with the meter (establishes DLMS session)</td>
+</tr>
+<tr>
+<td><strong>Read Data</strong></td>
+<td>Read current energy, demand, and billing values</td>
+</tr>
+<tr>
+<td><strong>Load Profile</strong></td>
+<td>Download historical consumption data</td>
+</tr>
+<tr>
+<td><strong>Event Log</strong></td>
+<td>Download meter event history</td>
+</tr>
+<tr>
+<td><strong>Billing Data</strong></td>
+<td>Retrieve stored billing records from meter</td>
+</tr>
+<tr>
+<td><strong>Set Clock</strong></td>
+<td>Synchronize the meter's internal clock</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Note:</strong> Always do <strong>Registration</strong> first before any other DLMS operation. If <strong>DLMS Confirm Dialog</strong> is enabled in Settings, a confirmation dialog appears before each action.</p>
+</blockquote>
+<h4>DLMS Log</h4>
+<p>A scrollable log of all DLMS transactions and responses for the current session. Useful for diagnosing communication issues.</p>
+<h4>Saved Billing Data</h4>
+<p>Shows previously saved billing records for this meter (stored in <code>{serialNumber}_billing.csv</code>).</p>
+<h4>Print Receipt Button</h4>
+<p>Sends the latest billing data to the Woosim printer. The button is only active when:</p>
+<ul>
+<li>The printer is connected</li>
+<li>Billing data has been read</li>
+</ul>
+<hr>
+<h3>Receipt Screen</h3>
+<p>Preview how a receipt will look and manage billing rate data.</p>
+<p><strong>Sections:</strong></p>
+<ol>
+<li><p><strong>Upload Rate CSV</strong> — shows whether <code>rate.csv</code> is loaded. Tap <strong>View Rate Data</strong> to inspect the values. Tap <strong>Manage Rate Files</strong> to go to the Upload screen.</p>
+</li>
+<li><p><strong>Receipt Preview</strong> — shows a sample receipt rendered with User's company branding and the loaded rate data. This is exactly how it will print.</p>
+</li>
+<li><p><strong>Print Button</strong> — prints the sample receipt to the connected Woosim printer (printer must be connected).</p>
+</li>
+</ol>
+<hr>
+<h3>Import Data Screen</h3>
+<p>Manage all CSV file uploads.</p>
+<p><strong>File Status Colors:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Color / State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Orange border</td>
+<td>Pending — file not yet selected</td>
+</tr>
+<tr>
+<td>Purple border</td>
+<td>Selected — file chosen, ready to upload</td>
+</tr>
+<tr>
+<td>Blue border</td>
+<td>Uploading — transfer in progress</td>
+</tr>
+<tr>
+<td>Green border</td>
+<td>Uploaded — file stored successfully</td>
+</tr>
+<tr>
+<td>Red border</td>
+<td>Error — upload failed</td>
+</tr>
+</tbody></table>
+<p><strong>Actions per file:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Select File</td>
+<td>Open file picker to choose a CSV</td>
+</tr>
+<tr>
+<td>Upload File</td>
+<td>Upload the selected file to app storage</td>
+</tr>
+<tr>
+<td>Replace</td>
+<td>Select and upload a new file to replace the current one</td>
+</tr>
+<tr>
+<td>Remove</td>
+<td>Delete the uploaded file from app storage</td>
+</tr>
+</tbody></table>
+<p><strong>Status summary</strong> at the top shows <code>X of 3 required files uploaded</code>. All 3 required files must be uploaded before BLE scanning starts and the notification appears.</p>
+<blockquote>
+<p><strong>Note:</strong> Replacing <code>meter.csv</code> will clear the current meter list. The app will reload meters from the new file.</p>
+</blockquote>
+<hr>
+<h3>Export Data Screen</h3>
+<p><em>(Admin users only)</em></p>
+<p>View, select, and export billing data files that have been collected.</p>
+<p><strong>Features:</strong></p>
+<ul>
+<li>Search and filter exported files</li>
+<li>Select individual or all files</li>
+<li>Download files to external storage</li>
+<li>Delete selected files</li>
+</ul>
+<p><strong>Exported file types:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LP</td>
+<td>Load Profile — historical consumption</td>
+</tr>
+<tr>
+<td>EL</td>
+<td>Event Log — meter events</td>
+</tr>
+<tr>
+<td>BD</td>
+<td>Billing Data — calculated billing</td>
+</tr>
+</tbody></table>
+<hr>
+<h3>Settings Screen</h3>
+<p>Configure app behavior and manage accounts.</p>
+<h4>User Profile Section</h4>
+<p>Displays current username, role, and last login time.</p>
+<h4>Data Management</h4>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>JSON Saving</strong></td>
+<td>When enabled, billing data is also saved as a <code>.json</code> file after each read</td>
+</tr>
+<tr>
+<td><strong>Receipt Printing</strong></td>
+<td>When enabled, a print dialog appears after each meter read</td>
+</tr>
+<tr>
+<td><strong>Auto-share Export</strong></td>
+<td>When enabled (and JSON Saving is on), a share dialog opens after JSON export</td>
+</tr>
+</tbody></table>
+<h4>App Settings</h4>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Notification Position</strong></td>
+<td>Choose whether notifications appear at the top or bottom of the screen</td>
+</tr>
+<tr>
+<td><strong>DLMS Confirm Dialog</strong></td>
+<td>When enabled, a confirmation dialog appears before executing DLMS operations</td>
+</tr>
+</tbody></table>
+<h4>Bluetooth Settings</h4>
+<p>Opens the Android app settings page to grant or revoke Bluetooth permissions.</p>
+<h4>Admin Tools <em>(Admin only)</em></h4>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Export Registered Meters</strong></td>
+<td>Creates a <code>meter.csv</code> backup of all active meters with a billing date. The exported file has <code>readDate</code>, <code>billingPrintDate</code>, and <code>lastCommunication</code> cleared so Reader users can import it as a fresh list.</td>
+</tr>
+<tr>
+<td><strong>Receipt Branding</strong></td>
+<td>Edit the company information shown on printed receipts (company name, address, phone, payment note, disclaimer). Changes take effect immediately.</td>
+</tr>
+</tbody></table>
+<h4>Reset Options</h4>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Who</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Reset User Data</strong></td>
+<td>All users</td>
+<td>Clears User's personal settings and DLMS logs. Does NOT affect shared meter data or other users. stay logged in.</td>
+</tr>
+<tr>
+<td><strong>Hard Reset App</strong></td>
+<td>Admin only</td>
+<td>Deletes ALL data for ALL users: all CSVs, billing data, preferences, and logs. Irreversible.</td>
+</tr>
+</tbody></table>
+<h4>About Section</h4>
+<p>Shows the app name, version number, and build number.</p>
+<hr>
+<h2>Workflows</h2>
+<h3>Reading a Meter</h3>
+<pre><code class="hljs plaintext">1. Ensure meter.csv, printer.csv, and rate.csv are uploaded
+2. Navigate to Meter Reading
+3. Wait for the meter to appear as "Online" (BLE detected)
+4. Tap the meter to open Meter Detail
+5. Tap Registration  →  wait for "Session Established" in log
+6. Tap Read Data     →  wait for data to populate
+7. Billing data is calculated and saved automatically
+8. (Optional) Tap Print Receipt if printer is connected</code></pre><p><strong>After a successful read</strong>, the meter status changes to <strong>"Inspected, Billing not Printed"</strong> (or Printed if receipt is printed).</p>
+<hr>
+<h3>Printing a Receipt</h3>
+<p><strong>Prerequisites:</strong></p>
+<ul>
+<li>Woosim printer is powered on</li>
+<li><code>printer.csv</code> is uploaded with the correct MAC address</li>
+<li>Billing data has been read for the meter</li>
+</ul>
+<pre><code class="hljs plaintext">1. Open Meter Detail for the meter
+2. The Bluetooth Printer card shows "Connected"
+3. Tap Print Receipt
+4. The app sends the receipt to the printer
+5. Wait for the receipt to print (~15 seconds max)
+6. Meter status updates to "Inspected, Billing Printed"</code></pre><p>If the printer is <strong>not connected</strong>, tap <strong>Connect</strong> in the Home screen's Bluetooth Printer card, or check that the printer is on and the MAC address in <code>printer.csv</code> is correct.</p>
+<hr>
+<h3>Batch Printing</h3>
+<p>Batch printing automatically reads and prints receipts for multiple meters in sequence.</p>
+<p><strong>Starting a Batch:</strong></p>
+<pre><code class="hljs plaintext">1. Select batch print mode: ALL or NOT_PRINTED_ONLY
+   - ALL: print all meters that have billing data
+   - NOT_PRINTED_ONLY: skip meters already printed
+2. Review the Batch Preview:
+   - Total meters to process
+   - How many will print vs. be skipped
+   - Estimated duration (~7 seconds per meter)
+3. Confirm to start the batch</code></pre><p><strong>During the Batch:</strong></p>
+<p>For each meter, the app will:</p>
+<ol>
+<li>Check for existing billing data</li>
+<li>Wait for user confirmation (up to 60 seconds)</li>
+<li>Send the print job</li>
+<li>Wait for print completion (up to 15 seconds)</li>
+<li>Move to the next meter</li>
+</ol>
+<p><strong>Error Options</strong> (if a printer error occurs):</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Retry</strong></td>
+<td>Try printing the current meter again (up to 2 auto-retries with backoff)</td>
+</tr>
+<tr>
+<td><strong>Skip</strong></td>
+<td>Skip this meter and continue with the next one</td>
+</tr>
+<tr>
+<td><strong>Cancel Batch</strong></td>
+<td>Stop the entire batch immediately</td>
+</tr>
+</tbody></table>
+<p><strong>Resume After Interruption:</strong></p>
+<p>Progress is saved after every meter. If the app closes unexpectedly:</p>
+<ol>
+<li>Re-open the app</li>
+<li>If a saved batch is detected (within 24 hours), a <strong>Resume</strong> option appears</li>
+<li>Tap Resume to continue from where it left off</li>
+</ol>
+<p><strong>Batch Summary</strong> shows at the end:</p>
+<ul>
+<li>Total / Success / Failed / Skipped counts</li>
+<li>Total duration and average time per receipt</li>
+<li>Success rate</li>
+<li>Detailed list of any failures with reasons</li>
+</ul>
+<hr>
+<h3>Exporting Meters (Admin)</h3>
+<p>This workflow creates a clean <code>meter.csv</code> that Reader users can import.</p>
+<pre><code class="hljs plaintext">1. Navigate to Settings
+2. Tap Export Registered Meters (Admin Tools section)
+3. The app loads all active meters with a billing date assigned
+4. A preview dialog shows the list of meters to be exported
+5. Tap Export to save to Download/kenshinApp/
+   OR tap Share to send via any app (email, messaging, etc.)</code></pre><p><strong>What gets exported:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Exported value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>serialNumber, bluetoothId, uid, activate</td>
+<td>Unchanged</td>
+</tr>
+<tr>
+<td>fixedDate, impKWh, expKWh, demand specs</td>
+<td>Unchanged</td>
+</tr>
+<tr>
+<td>readDate</td>
+<td>Empty (cleared)</td>
+</tr>
+<tr>
+<td>billingPrintDate</td>
+<td>Empty (cleared)</td>
+</tr>
+<tr>
+<td>lastCommunication</td>
+<td>Empty (cleared)</td>
+</tr>
+</tbody></table>
+<p>Readers who import this file will see all meters as <strong>"Not Inspected"</strong> — ready for a new reading cycle.</p>
+<hr>
+<h2>Receipt Branding</h2>
+<p>Company information on printed receipts can be customized in three ways (highest priority wins):</p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Method</th>
+<th>How to Set</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1 (highest)</td>
+<td>In-app edits</td>
+<td>Settings → Admin Tools → Receipt Branding → Edit Branding</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>company.csv</code> file</td>
+<td>Upload via Import Data screen</td>
+</tr>
+<tr>
+<td>3 (default)</td>
+<td>Built-in defaults</td>
+<td>Used when nothing else is configured</td>
+</tr>
+</tbody></table>
+<p><strong>Editable Fields:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Company Name</td>
+<td>Name of the cooperative</td>
+<td><code>Cebu Electric Cooperative</code></td>
+</tr>
+<tr>
+<td>Address Line 1</td>
+<td>Street address</td>
+<td><code>123 Main Street, Barangay Centro</code></td>
+</tr>
+<tr>
+<td>Address Line 2</td>
+<td>City, province, ZIP</td>
+<td><code>Cebu City, Cebu 6000</code></td>
+</tr>
+<tr>
+<td>Phone</td>
+<td>Contact number</td>
+<td><code>TEL: 032-000-0000</code></td>
+</tr>
+<tr>
+<td>Payment Note</td>
+<td>Instructions printed at bottom</td>
+<td><code>Please pay on or before DUE DATE</code></td>
+</tr>
+<tr>
+<td>Disclaimer</td>
+<td>Legal text at bottom</td>
+<td><code>This is not an Official Receipt</code></td>
+</tr>
+</tbody></table>
+<p><strong>To reset</strong> branding back to CSV or defaults: Settings → Admin Tools → Receipt Branding → Reset.</p>
+<hr>
+<h2>Billing Calculation</h2>
+<p>The app calculates the total electricity bill using data from the meter and the rates in <code>rate.csv</code>.</p>
+<h3>Rate Table Structure (23 values in order)</h3>
+<table>
+<thead>
+<tr>
+<th>Index</th>
+<th>Charge</th>
+<th>Unit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>Generation System Charge</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>1</td>
+<td>Transmission Demand Charge</td>
+<td>/kW</td>
+</tr>
+<tr>
+<td>2</td>
+<td>System Loss Charge</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Distribution Demand Charge</td>
+<td>/kW</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Supply Fix Charge</td>
+<td>/customer</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Metering Fix Charge</td>
+<td>/customer</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Reinvestment Fund for CAPEX</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Member's CAPEX Contribution</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Lifeline Discount/Subsidy</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Senior Citizen Subsidy</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Missionary Elec (NPC-SPUG)</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Missionary Elec (RED)</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Environmental Charge</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Feed In Tariff Allowance</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>14</td>
+<td>NPC Stranded Contract</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>15</td>
+<td>NPC Stranded Debts</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Sustainable CAPEX VAT</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>17</td>
+<td>Transmission VAT</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>18</td>
+<td>Generation VAT</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>19</td>
+<td>System Loss VAT</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>20</td>
+<td>Universal Charges VAT</td>
+<td>/kWh</td>
+</tr>
+<tr>
+<td>21</td>
+<td>Distribution VAT</td>
+<td>%</td>
+</tr>
+<tr>
+<td>22</td>
+<td>Other VAT</td>
+<td>%</td>
+</tr>
+</tbody></table>
+<h3>Charge Categories Shown on Receipt</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>GEN/TRANS CHARGES</strong></td>
+<td>Generation + Transmission + System Loss</td>
+</tr>
+<tr>
+<td><strong>DISTRIBUTION CHARGES</strong></td>
+<td>Distribution Demand + Supply Fix + Metering Fix</td>
+</tr>
+<tr>
+<td><strong>REINVESTMENT FUND FOR SUSTAINABLE CAPEX</strong></td>
+<td>CAPEX fund + Member contribution</td>
+</tr>
+<tr>
+<td><strong>OTHER CHARGES</strong></td>
+<td>Lifeline discount + Senior citizen subsidy</td>
+</tr>
+<tr>
+<td><strong>UNIVERSAL CHARGES</strong></td>
+<td>Missionary + Environmental + FIT + NPC</td>
+</tr>
+<tr>
+<td><strong>VALUE ADDED TAX</strong></td>
+<td>VAT on all applicable categories</td>
+</tr>
+<tr>
+<td><strong>TOTAL AMOUNT</strong></td>
+<td>Sum of all categories</td>
+</tr>
+</tbody></table>
+<h3>Unit Conversion (from meter raw data)</h3>
+<table>
+<thead>
+<tr>
+<th>Raw data</th>
+<th>Conversion</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Energy (Wh)</td>
+<td>÷ 1000</td>
+<td>kWh</td>
+</tr>
+<tr>
+<td>Demand (W)</td>
+<td>÷ 1000</td>
+<td>kW</td>
+</tr>
+<tr>
+<td>Voltage (0.1 V units)</td>
+<td>÷ 100</td>
+<td>V</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Troubleshooting</h2>
+<h3>App doesn't show any meters</h3>
+<ul>
+<li><strong>Check:</strong> Is <code>meter.csv</code> uploaded? (Import Data → all 3 files must show green)</li>
+<li><strong>Check:</strong> Is Bluetooth enabled on the device?</li>
+<li><strong>Check:</strong> Are the meters powered on and within Bluetooth range?</li>
+<li><strong>Check:</strong> Does the <code>bluetoothId</code> column in <code>meter.csv</code> match the actual MAC address of the meter?</li>
+</ul>
+<hr>
+<h3>DLMS Registration fails</h3>
+<ul>
+<li>Ensure do <strong>Registration</strong> before any other DLMS operation.</li>
+<li>Check that the DLMS credentials (account, key, logical address) in <code>meter.csv</code> are correct for the target meter.</li>
+<li>Readers have rank 3 (limited access). Some operations require Admin rank 1.</li>
+</ul>
+<hr>
+<h3>Printer won't connect</h3>
+<ul>
+<li>Ensure the printer is powered on and in pairing mode.</li>
+<li>Verify the MAC address in <code>printer.csv</code> matches the printer's Bluetooth address.</li>
+<li>Go to Settings → Bluetooth Settings → Open App Settings and ensure Bluetooth permissions are granted.</li>
+<li>Tap <strong>Connect</strong> in the Bluetooth Printer Status card on the Home screen.</li>
+<li>If still failing, try turning Bluetooth off and on the device.</li>
+</ul>
+<hr>
+<h3>Receipt won't print (paper/cover errors)</h3>
+<ul>
+<li><strong>Paper: OUT</strong> — Replace the thermal paper roll in the printer.</li>
+<li><strong>Cover: Open</strong> — Close the paper cover on the printer completely until it clicks.</li>
+<li>After resolving the issue, tap <strong>Retry</strong> in the error dialog.</li>
+</ul>
+<hr>
+<h3>App data needs to be reset</h3>
+<ul>
+<li><strong>Current User data only:</strong> Settings → Reset User Data (all users see this)</li>
+<li><strong>Everything (all users):</strong> Settings → Hard Reset App (Admin only — irreversible)</li>
+</ul>
+<hr>
+<h3>App was interrupted during batch print — how to resume? (on Testing)</h3>
+<p>On the next app launch, the app will detect the interrupted batch and offer to <strong>Resume</strong> from where it stopped (valid for 24 hours after the interruption). Tap <strong>Resume</strong> in the dialog that appears.</p>
+<hr>
+
+  </article>
+</body>
+</html>

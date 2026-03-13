@@ -48,7 +48,7 @@ import com.example.meterkenshin.ui.viewmodel.SortOrder
  * Provides filtering and sorting controls for meter lists:
  * - Location filter (centered dropdown)
  * - Status filters (Not Inspected, Inspected, Billing states, Online/Offline)
- * - Sort options (Serial Number, Location, Last Maintenance)
+ * - Sort options (Serial Number, Location, Last Inspection)
  * - Sort order toggle (Ascending/Descending)
  */
 @SuppressLint("ConfigurationScreenWidthHeight")
@@ -310,7 +310,7 @@ fun FilterSortControlRow(
                         text = when (sortConfig.field) {
                             SortField.SERIAL_NUMBER -> "Serial Number"
                             SortField.LOCATION -> "Location"
-                            SortField.LAST_MAINTENANCE_DATE -> "Last Maintenance"
+                            SortField.LAST_INSPECTION_DATE -> "Last Inspection"
                         },
                         maxLines = 1
                     )
@@ -328,7 +328,7 @@ fun FilterSortControlRow(
                                     when (field) {
                                         SortField.SERIAL_NUMBER -> "Serial Number"
                                         SortField.LOCATION -> "Location"
-                                        SortField.LAST_MAINTENANCE_DATE -> "Last Maintenance"
+                                        SortField.LAST_INSPECTION_DATE -> "Last Inspection"
                                     }
                                 )
                             },

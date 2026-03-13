@@ -324,7 +324,8 @@ fun MeterKenshinApp(
                             sessionManager.logout()
                             isLoggedIn = false
                             currentScreen = "login"
-                        }
+                        },
+                        onNavigateToHome = { currentScreen = "home" }
                     )
                 }
 
