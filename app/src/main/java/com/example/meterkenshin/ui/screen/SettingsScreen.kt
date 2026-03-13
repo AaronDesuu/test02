@@ -610,24 +610,48 @@ fun SettingsItem(
 
 @Composable
 fun HelpDialog(onDismiss: () -> Unit) {
-    AlertDialog(
+    val context = LocalContext.current
+
+    androidx.compose.ui.window.Dialog(
         onDismissRequest = onDismiss,
-        icon = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Help,
-                contentDescription = null
-            )
-        },
-        title = { Text("Help & Support") },
-        text = {
-            Text("For assistance with MeterKenshin, please contact your system administrator or refer to the user manual.")
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("OK")
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Scaffold(
+            topBar = {
+                @OptIn(ExperimentalMaterial3Api::class)
+                TopAppBar(
+                    title = { Text("Help & Documentation") },
+                    navigationIcon = {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close"
+                            )
+                        }
+                    }
+                )
             }
+        ) { paddingValues ->
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx ->
+                    android.webkit.WebView(ctx).apply {
+                        settings.javaScriptEnabled = false
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                        settings.builtInZoomControls = true
+                        settings.displayZoomControls = false
+                        setBackgroundColor(android.graphics.Color.parseColor("#0d1117"))
+                        loadUrl("file:///android_asset/documentation.html")
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            )
         }
-    )
+    }
 }
 
 @Composable
