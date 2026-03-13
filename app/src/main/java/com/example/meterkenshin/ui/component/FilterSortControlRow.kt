@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.component
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.example.meterkenshin.ui.manager.AppPreferences
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.SortField
 import com.example.meterkenshin.ui.viewmodel.SortOrder
@@ -49,11 +51,14 @@ import com.example.meterkenshin.ui.viewmodel.SortOrder
  * - Sort options (Serial Number, Location, Last Maintenance)
  * - Sort order toggle (Ascending/Descending)
  */
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun FilterSortControlRow(
     meterReadingViewModel: MeterReadingViewModel,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val isPrintingEnabled = AppPreferences.isPrintingEnabled(context)
     val sortConfig by meterReadingViewModel.sortConfig.collectAsState()
     val uiState by meterReadingViewModel.uiState.collectAsState()
     var showSortMenu by remember { mutableStateOf(false) }
@@ -245,23 +250,25 @@ fun FilterSortControlRow(
                         }
                     )
 
-                    DropdownMenuItem(
-                        text = { Text("Billing Not Printed") },
-                        onClick = {
-                            selectedFilter = "Billing Not Printed"
-                            meterReadingViewModel.filterBillingNotPrinted()
-                            showFilterMenu = false
-                        }
-                    )
+                    if (isPrintingEnabled) {
+                        DropdownMenuItem(
+                            text = { Text("Billing Not Printed") },
+                            onClick = {
+                                selectedFilter = "Billing Not Printed"
+                                meterReadingViewModel.filterBillingNotPrinted()
+                                showFilterMenu = false
+                            }
+                        )
 
-                    DropdownMenuItem(
-                        text = { Text("Billing Printed") },
-                        onClick = {
-                            selectedFilter = "Billing Printed"
-                            meterReadingViewModel.filterBillingPrinted()
-                            showFilterMenu = false
-                        }
-                    )
+                        DropdownMenuItem(
+                            text = { Text("Billing Printed") },
+                            onClick = {
+                                selectedFilter = "Billing Printed"
+                                meterReadingViewModel.filterBillingPrinted()
+                                showFilterMenu = false
+                            }
+                        )
+                    }
 
                     androidx.compose.material3.HorizontalDivider(
                         modifier = Modifier.padding(vertical = 4.dp)

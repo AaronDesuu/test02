@@ -1223,18 +1223,8 @@ class DLMSViewModel : ViewModel() {
             appendLog("DLMS session established")
             delay(500)
 
-            // ===== BLOCK TRANSFER LOOP PATTERN =====
-
-
-            // First request - starts block transfer
-            appendLog("Requesting event records...")
-
-            // Initial access to Power Quality event log
-            if (!dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false)) {
-                appendLog("ERROR: Failed to access event records")
-                finishOperation()
-                return@launch
-            }
+            // ===== UNIFIED BLOCK TRANSFER =====
+            appendLog("Getting event log data (may take multiple requests)...")
 
             val allEventData = dlmsDataAccess.performBlockTransfer(
                 operationName = "Event Log",
@@ -1427,16 +1417,300 @@ class DLMSViewModel : ViewModel() {
         }
     }
 
+    // ========== PERIOD-BASED READ FUNCTIONS ==========
+
     /**
-     * Parse billing data entries: Clock, Imp, Exp, Abs, Net, MaxImp, MaxExp, MinVolt, Alert1, Alert2
-     * Each record = 10 consecutive entries
+     * Load Profile — retrieve records within a specific time range
+     */
+    fun loadProfileByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Load Profile already running")
+            return@launch
+        }
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+        try {
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
+                return@launch
+            }
+            startOperation("Load Profile (Period)")
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInit.mArrived = -1
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInit.mArrived == 0) { ready = true; break }
+            }
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Connected and ready")
+            delay(500)
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+            appendLog("Getting load profile data by period...")
+            val allData = dlmsDataAccess.performBlockTransfer(
+                operationName = "Load Profile (Period)",
+                initialRequest = { dlmsFunctions.performGetLoadProfileByPeriod(fromDate, toDate) },
+                blockRequest = { dlmsFunctions.performGetLoadProfileBlock() },
+                logCallback = { appendLog(it) }
+            )
+            if (allData == null) {
+                appendLog("ERROR: Failed to get load profile data")
+                finishOperation()
+                return@launch
+            }
+            closeSession()
+            if (allData.size > 5) {
+                val success = DLMSCSVWriter.saveToCSV(
+                    context = appContext,
+                    type = DLMSCSVWriter.CSVType.LOAD_PROFILE,
+                    serialNumber = meter.serialNumber,
+                    data = allData
+                )
+                if (success) {
+                    appendLog("Success to get and save ${allData.size} load profile records to file")
+                    appendLog("✅ Load Profile (Period) Complete")
+                    NotificationManager.showSuccess("Load profile completed successfully")
+                } else {
+                    appendLog("ERROR: Failed to save load profile to CSV")
+                }
+            } else {
+                appendLog("No load profile records found in the selected period")
+            }
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "Load Profile (Period) error", e)
+            NotificationManager.showError("Load profile failed: ${e.message}")
+        } finally {
+            dlmsInit.bluetoothLeService?.close()
+            appendLog("Connection closed")
+            finishOperation()
+        }
+    }
+
+    /**
+     * Event Log — retrieve records within a specific time range
+     */
+    fun eventLogByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Event Log already running")
+            return@launch
+        }
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+        try {
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
+                return@launch
+            }
+            startOperation("Event Log (Period)")
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInit.mArrived = -1
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInit.mArrived == 0) { ready = true; break }
+            }
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Connected and ready")
+            delay(500)
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+            appendLog("Getting event log data by period...")
+            val allData = dlmsDataAccess.performBlockTransfer(
+                operationName = "Event Log (Period)",
+                initialRequest = { dlmsFunctions.performGetEventLogByPeriod(fromDate, toDate) },
+                blockRequest = { dlmsFunctions.performGetEventLogBlock() },
+                logCallback = { appendLog(it) }
+            )
+            if (allData == null) {
+                appendLog("ERROR: Failed to get event log data")
+                finishOperation()
+                return@launch
+            }
+            closeSession()
+            if (allData.size > 3) {
+                val success = DLMSCSVWriter.saveToCSV(
+                    context = appContext,
+                    type = DLMSCSVWriter.CSVType.EVENT_LOG,
+                    serialNumber = meter.serialNumber,
+                    data = allData
+                )
+                if (success) {
+                    appendLog("Success to get and save ${allData.size} event records to file")
+                    appendLog("✅ Event Log (Period) Complete")
+                    NotificationManager.showSuccess("Event log completed successfully")
+                } else {
+                    appendLog("ERROR: Failed to save event log to CSV")
+                }
+            } else {
+                appendLog("Response size: ${allData.size}, content: ${allData.joinToString(", ")}")
+                appendLog("No event log records found in the selected period")
+            }
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "Event Log (Period) error", e)
+            NotificationManager.showError("Event log failed: ${e.message}")
+        } finally {
+            dlmsInit.bluetoothLeService?.close()
+            appendLog("Connection closed")
+            finishOperation()
+        }
+    }
+
+    /**
+     * Billing Data — retrieve records within a specific time range
+     */
+    fun billingDataByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date, rates: FloatArray, rateType: String = "LARGE") = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Billing Data already running")
+            return@launch
+        }
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
+            return@launch
+        }
+        try {
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
+                appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
+                return@launch
+            }
+            startOperation("Billing Data (Period)")
+            appendLog("Connecting to ${meter.bluetoothId}...")
+            dlmsInit.mArrived = -1
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                appendLog("ERROR: Failed to start connection")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Waiting for service discovery...")
+            var ready = false
+            for (i in 0..100) {
+                delay(100)
+                if (dlmsInit.mArrived == 0) { ready = true; break }
+            }
+            if (!ready) {
+                appendLog("ERROR: Services not discovered (timeout)")
+                finishOperation()
+                return@launch
+            }
+            appendLog("Connected and ready")
+            delay(500)
+            appendLog("Establishing DLMS session...")
+            if (!establishSession()) {
+                appendLog("ERROR: Failed to establish DLMS session")
+                finishOperation()
+                return@launch
+            }
+            appendLog("DLMS session established")
+            delay(500)
+            appendLog("Getting billing data by period...")
+            val allBillingData = dlmsDataAccess.performBlockTransfer(
+                operationName = "Billing Data (Period)",
+                initialRequest = { dlmsFunctions.performGetBillingDataByPeriod(fromDate, toDate) },
+                blockRequest = { dlmsFunctions.performGetBillingDataBlock() },
+                logCallback = { appendLog(it) }
+            )
+            if (allBillingData == null) {
+                appendLog("ERROR: Failed to get billing data")
+                finishOperation()
+                return@launch
+            }
+            closeSession()
+            if (allBillingData.size >= 10) {
+                if (allBillingData[0].contains("/")) allBillingData.removeAt(0)
+                val records = parseBillingRecords(allBillingData)
+                appendLog("Parsed ${records.size} billing records")
+                if (records.size > 1) {
+                    for (i in 1 until records.size) {
+                        val billing = Billing().apply {
+                            PresReading = records[i].imp
+                            PrevReading = records[i - 1].imp
+                            MaxDemand = records[i].maxImp
+                        }
+                        calculateBillingData(billing, rates)
+                        appendLog("Period: ${records[i].clock}")
+                        appendLog("  Total Use: %.3f kWh".format(billing.TotalUse))
+                        appendLog("  Total Amount: %.2f".format(billing.TotalAmount))
+                    }
+                }
+                val dataWithTimestamp = ArrayList<String>()
+                dataWithTimestamp.add(records.firstOrNull()?.clock ?: "")
+                dataWithTimestamp.addAll(allBillingData)
+                val success = DLMSCSVWriter.saveToCSV(
+                    context = appContext,
+                    type = DLMSCSVWriter.CSVType.BILLING,
+                    serialNumber = meter.serialNumber,
+                    data = dataWithTimestamp,
+                    additionalData = Pair(records, rates)
+                )
+                if (success) {
+                    appendLog("Success to get and save ${records.size} billing records to file")
+                    appendLog("✅ Billing Data (Period) Complete")
+                    NotificationManager.showSuccess("Billing data completed successfully")
+                } else {
+                    appendLog("ERROR: Failed to save billing data to CSV")
+                }
+            } else {
+                appendLog("No billing records found in the selected period")
+            }
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+            Log.e(TAG, "Billing Data (Period) error", e)
+            NotificationManager.showError("Billing data failed: ${e.message}")
+        } finally {
+            dlmsInit.bluetoothLeService?.close()
+            appendLog("Connection closed")
+            finishOperation()
+        }
+    }
+
+    /**
+     * Parse billing data entries: Clock, Imp, Exp, Abs, Net, MaxImp, MaxExp, MinVolt, Alert
+     * Each record = 9 consecutive entries (no Alert2 in raw meter data)
      * Values are raw integers: energy/demand divided by 1000, voltage divided by 100
      */
     private fun parseBillingRecords(data: ArrayList<String>): List<BillingRecord> {
         val records = mutableListOf<BillingRecord>()
 
         var i = 0
-        while (i + 9 < data.size) {
+        while (i + 8 < data.size) {
             records.add(
                 BillingRecord(
                     clock = data[i],
@@ -1450,12 +1724,63 @@ class DLMSViewModel : ViewModel() {
                     alert = data[i + 8]
                 )
             )
-            i += 10  // Still advance by 10 to skip alert2 in raw data
+            i += 9
         }
 
         return records
     }
 
+
+    /**
+     * DEBUG: Read capture_objects (attr 3) of event log and load profile to verify OBIS for range_descriptor
+     */
+    fun debugReadCaptureObjects(meter: Meter) = viewModelScope.launch {
+        if (_registrationState.value.isRunning) {
+            appendLog("Operation already running")
+            return@launch
+        }
+        if (!::dlmsDataAccess.isInitialized) {
+            appendLog("ERROR: DLMS not initialized")
+            return@launch
+        }
+        try {
+            if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) return@launch
+            startOperation("Debug CaptureObjects")
+            dlmsInit.mArrived = -1
+            if (dlmsInit.bluetoothLeService?.connect(meter.bluetoothId) != true) {
+                finishOperation(); return@launch
+            }
+            var ready = false
+            for (i in 0..100) { delay(100); if (dlmsInit.mArrived == 0) { ready = true; break } }
+            if (!ready) { finishOperation(); return@launch }
+            delay(500)
+            if (!establishSession()) { finishOperation(); return@launch }
+            delay(500)
+
+            appendLog("Reading Event Log capture_objects (attr 3)...")
+            if (dlmsFunctions.performGetEventLogCaptureObjects()) {
+                val data = dlmsDataAccess.getReceive()
+                appendLog("Event Log capture_objects: ${data?.joinToString(" | ")}")
+            } else {
+                appendLog("Failed to read Event Log capture_objects")
+            }
+            delay(300)
+            appendLog("Reading Load Profile capture_objects (attr 3)...")
+            if (dlmsFunctions.performGetLoadProfileCaptureObjects()) {
+                val data = dlmsDataAccess.getReceive()
+                appendLog("Load Profile capture_objects: ${data?.joinToString(" | ")}")
+            } else {
+                appendLog("Failed to read Load Profile capture_objects")
+            }
+            closeSession()
+        } catch (e: Exception) {
+            appendLog("ERROR: ${e.message}")
+        } finally {
+            dlmsInit.bluetoothLeService?.close()
+            appendLog("Connection closed")
+            finishOperation()
+        }
+    }
 
     /**
      * Set Clock on the meter

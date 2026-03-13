@@ -7,11 +7,11 @@ import com.example.meterkenshin.model.Meter
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.utils.UserFileManager
 import com.example.meterkenshin.utils.getCurrentYearMonth
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 /**
  * DLMS Functions - Extracted from DLMSViewModel
@@ -267,6 +267,103 @@ class DLMSFunctions(
      * Perform billing data block continuation request
      */
     suspend fun performGetBillingDataBlock(): Boolean {
+        return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
+    }
+
+    /**
+     * Build a DLMS range_descriptor parameter (selector = 1) for Profile Generic selective access.
+     * Restricts by clock object 0.0.1.0.0.255, attribute 2, returning all columns.
+     *
+     * Encoding:
+     *   02 04         - Structure(4): range_descriptor
+     *     02 04       - Structure(4): restricting_object
+     *       12 0008   - class_id = 8 (Clock), long-unsigned
+     *       09 06 00 00 01 00 01 FF  - logical_name 0.0.1.0.1.255 (RTC clock)
+     *       0F 02     - attribute_index = 2, integer (int8, type 0x0F)
+     *       12 0000   - data_index = 0, long-unsigned
+     *     09 0C [12]  - from_value: octet-string(12) date_time
+     *     09 0C [12]  - to_value:   octet-string(12) date_time
+     *   01 00         - selected_columns (empty = all)
+     *
+     * NOTE: attribute_index MUST use type 0x0F (integer/int8), NOT 0x11 (unsigned/uint8).
+     * Using 0x11 causes the meter to reject with "type unmatched (12)".
+     */
+    private fun buildRangeDescriptorParam(fromDate: Date, toDate: Date): String {
+        // DLMS octet_string (type 0x09), length 0x0C (12 bytes)
+        // Format: year(2) month(1) day(1) dayofweek=FF(1) hour(1) min(1) sec(1) hundredths=00(1) deviation=8000(2) status=00(1)
+        fun encodeDatetime(date: Date): String {
+            val cal = Calendar.getInstance(TimeZone.getDefault())
+            cal.time = date
+            return String.format(
+                "%04x%02x%02xff%02x%02x%02x00800000",
+                cal.get(Calendar.YEAR),
+                cal.get(Calendar.MONTH) + 1,
+                cal.get(Calendar.DAY_OF_MONTH),
+                cal.get(Calendar.HOUR_OF_DAY),
+                cal.get(Calendar.MINUTE),
+                cal.get(Calendar.SECOND)
+            )
+        }
+        val param = "0204" +
+               "0204" +
+               "120008" +
+               "09060000010001ff" +        // OBIS 0.0.1.0.1.255 = RTC clock (IST_DATETIME_RTC)
+               "0f02" +                    // attribute_index = 2 (int8, type 0x0F)
+               "120000" +
+               "090c${encodeDatetime(fromDate)}" +
+               "090c${encodeDatetime(toDate)}" +
+               "0100"
+        Log.i(TAG, "range_descriptor param: $param")
+        return param
+    }
+
+    /**
+     * Read capture_objects (attribute 3) of the event log — use for debugging range_descriptor OBIS
+     */
+    suspend fun performGetEventLogCaptureObjects(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setParameter("")
+        return dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 3, false)
+    }
+
+    /**
+     * Read capture_objects (attribute 3) of the load profile — use for debugging range_descriptor OBIS
+     */
+    suspend fun performGetLoadProfileCaptureObjects(): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(0)
+        dlmsDataAccess.setParameter("")
+        return dlmsDataAccess.accessData(0, DLMS.IST_LOAD_PROFILE, 3, false)
+    }
+
+    /**
+     * Perform initial load profile request — period-based (selector = 1, range_descriptor)
+     */
+    suspend fun performGetLoadProfileByPeriod(fromDate: Date, toDate: Date): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(1)
+        dlmsDataAccess.setParameter(buildRangeDescriptorParam(fromDate, toDate))
+        return dlmsDataAccess.accessData(0, DLMS.IST_LOAD_PROFILE, 2, false)
+    }
+
+    /**
+     * Perform initial event log request — period-based (selector = 1, range_descriptor)
+     */
+    suspend fun performGetEventLogByPeriod(fromDate: Date, toDate: Date): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(1)
+        dlmsDataAccess.setParameter(buildRangeDescriptorParam(fromDate, toDate))
+        return dlmsDataAccess.accessData(0, DLMS.IST_POWER_QUALITY, 2, false)
+    }
+
+    /**
+     * Perform initial billing data request — period-based (selector = 1, range_descriptor)
+     */
+    suspend fun performGetBillingDataByPeriod(fromDate: Date, toDate: Date): Boolean {
+        dlmsDataAccess.setDataIndex(0)
+        dlmsDataAccess.setSelector(1)
+        dlmsDataAccess.setParameter(buildRangeDescriptorParam(fromDate, toDate))
         return dlmsDataAccess.accessData(0, DLMS.IST_BILLING_PARAMS, 2, false)
     }
 

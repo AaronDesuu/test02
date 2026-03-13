@@ -75,8 +75,12 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
                         return false
                     }
 
+                    val rawHex = dlmsInitializer.mData.joinToString("") { "%02x".format(it.toInt() and 0xFF) }
+                        ?: "null"
+                    Log.i(TAG, "Raw response (${dlmsInitializer.mData.size ?: 0} bytes): $rawHex")
                     val res = IntArray(2)
                     mReceive = dlmsInitializer.dlms?.DataRes(res, dlmsInitializer.mData, modeling)
+                    Log.i(TAG, "DataRes result: res[0]=${res[0]}, res[1]=${res[1]}, mReceive size=${mReceive?.size}, content=${mReceive}")
 
                     if (mReceive?.isEmpty() != false) {
                         Log.e(TAG, "ERROR: mReceive is null or empty")

@@ -1,7 +1,6 @@
 package com.example.meterkenshin.ui.viewmodel
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
@@ -14,7 +13,6 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.meterkenshin.bluetooth.BluetoothLeService
 import com.example.meterkenshin.bluetooth.DeviceList
 import com.example.meterkenshin.data.BluetoothRepository
 import com.example.meterkenshin.dlms.DLMS
@@ -326,7 +324,7 @@ class MeterReadingViewModel : ViewModel() {
     private fun updateMeterNearbyStatus(bluetoothMac: String, rssi: Int) {
         val currentMeters = _uiState.value.allMeters.toMutableList()
         val index = currentMeters.indexOfFirst {
-            it.bluetoothId?.uppercase() == bluetoothMac.uppercase()
+            it.bluetoothId.equals(bluetoothMac, ignoreCase = true)
         }
 
         if (index != -1) {
@@ -496,6 +494,13 @@ class MeterReadingViewModel : ViewModel() {
 
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
+                                allMeters = result.meters,
+                                filteredMeters = result.meters,
+                                errorMessage = null
+                            )
+                        } else if (forceReload) {
+                            // Force reload: show all meters (clear filters) so new data is visible
+                            _uiState.value = _uiState.value.copy(
                                 allMeters = result.meters,
                                 filteredMeters = result.meters,
                                 errorMessage = null
@@ -917,6 +922,53 @@ class MeterReadingViewModel : ViewModel() {
 
     fun clearFilters() {
         _uiState.update { it.copy(filteredMeters = it.allMeters) }
+    }
+
+    /**
+     * Add a new meter to the current meter CSV file and reload.
+     * Appends a new row with the given serial number and Bluetooth MAC.
+     * The meter starts as unregistered (activate=0) with no readings.
+     */
+    fun addMeterToCSV(context: Context, serialNumber: String, bluetoothId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val sessionManager = SessionManager.getInstance(context)
+                val yearMonth = SimpleDateFormat("yyyyMM", Locale.getDefault()).format(Date())
+                val datedFilename = "${yearMonth}_meter.csv"
+                val datedFile = UserFileManager.getMeterFile(context, sessionManager, datedFilename)
+                val fallbackFile = UserFileManager.getMeterFile(context, sessionManager, "meter.csv")
+
+                // Use same file detection as reloadMeters
+                val meterFile = if (datedFile.exists()) datedFile else fallbackFile
+
+                if (!meterFile.exists()) {
+                    Log.e(TAG, "No meter file found")
+                    return@launch
+                }
+
+                val lines = meterFile.readLines()
+                // Determine next uid
+                val maxUid = lines.drop(1)
+                    .mapNotNull { it.split(",").firstOrNull()?.trim()?.toIntOrNull() }
+                    .maxOrNull() ?: 0
+                val nextUid = maxUid + 1
+
+                // Append new meter row: uid,activate,serialNumber,bluetoothId, then empty fields
+                val newRow = "$nextUid,0,$serialNumber,$bluetoothId,,,,,,,,,,"
+                meterFile.appendText("\n$newRow")
+
+                Log.i(TAG, "Added new meter: serial=$serialNumber, mac=$bluetoothId, uid=$nextUid")
+
+                // Force reload to pick up the new meter
+                withContext(Dispatchers.Main) {
+                    lastLoadedFileName = null
+                    lastLoadedFileTimestamp = 0
+                    reloadMeters(context, forceReload = true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error adding meter to CSV", e)
+            }
+        }
     }
 
     fun clearMeters() {

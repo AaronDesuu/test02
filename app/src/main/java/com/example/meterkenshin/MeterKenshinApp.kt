@@ -30,8 +30,31 @@ import com.example.meterkenshin.ui.screen.SettingsScreen
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
 import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import com.example.meterkenshin.model.UserRole
 import com.example.meterkenshin.ui.screen.ExportScreen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 @SuppressLint("MissingPermission")
 @Composable
@@ -47,6 +70,8 @@ fun MeterKenshinApp(
     var isLoggedIn by remember { mutableStateOf(sessionManager.isLoggedIn()) }
     var currentScreen by remember { mutableStateOf("home") }
     var selectedMeter by remember { mutableStateOf<Meter?>(null) }
+    var showAddMeterSheet by remember { mutableStateOf(false) }
+    val isAdmin = remember { sessionManager.getSession()?.role == UserRole.ADMIN }
 
     // Track current screen for drawer title
     val currentAppScreen = remember(currentScreen) {
@@ -163,8 +188,26 @@ fun MeterKenshinApp(
                 } catch (e: Exception) {
                     Log.e("MeterKenshinApp", "Error checking files after logout", e)
                 }
+            },
+            topBarActions = {
+                if (isAdmin && currentScreen == "meter_reading") {
+                    IconButton(onClick = { showAddMeterSheet = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Meter"
+                        )
+                    }
+                }
             }
         ) {
+            // Add Meter Bottom Sheet
+            if (showAddMeterSheet) {
+                AddMeterBottomSheet(
+                    meterReadingViewModel = meterReadingViewModel,
+                    onDismiss = { showAddMeterSheet = false }
+                )
+            }
+
             when {
                 !isLoggedIn || currentScreen == "login" -> {
                     LoginScreen(
@@ -289,6 +332,99 @@ fun MeterKenshinApp(
                     ExportScreen()
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddMeterBottomSheet(
+    meterReadingViewModel: MeterReadingViewModel,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val uiState by meterReadingViewModel.uiState.collectAsState()
+    val existingSerialNumbers = remember(uiState.allMeters) {
+        uiState.allMeters.map { it.serialNumber }.toSet()
+    }
+
+    var serialNumber by remember { mutableStateOf("") }
+    var bluetoothId by remember { mutableStateOf("") }
+
+    val serialTrimmed = serialNumber.trim()
+    val bluetoothTrimmed = bluetoothId.trim().uppercase()
+    val isDuplicateSerial = serialTrimmed in existingSerialNumbers
+    val isValidMac = bluetoothTrimmed.matches(
+        Regex("^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
+    )
+    val isValid = serialTrimmed.isNotEmpty() && bluetoothTrimmed.isNotEmpty() &&
+            !isDuplicateSerial && isValidMac
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ) {
+        Column(
+            modifier = androidx.compose.ui.Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Add New Meter",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Text(
+                text = "Add a new meter to the system",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OutlinedTextField(
+                value = serialNumber,
+                onValueChange = { serialNumber = it },
+                label = { Text("Serial Number") },
+                singleLine = true,
+                isError = isDuplicateSerial,
+                supportingText = if (isDuplicateSerial) {
+                    { Text("Serial number already exists", color = MaterialTheme.colorScheme.error) }
+                } else null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = bluetoothId,
+                onValueChange = { bluetoothId = it },
+                label = { Text("Bluetooth MAC Address") },
+                placeholder = { Text("AA:BB:CC:DD:EE:FF") },
+                singleLine = true,
+                isError = bluetoothTrimmed.isNotEmpty() && !isValidMac,
+                supportingText = if (bluetoothTrimmed.isNotEmpty() && !isValidMac) {
+                    { Text("Format: AA:BB:CC:DD:EE:FF", color = MaterialTheme.colorScheme.error) }
+                } else null,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Characters
+                ),
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = androidx.compose.ui.Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    meterReadingViewModel.addMeterToCSV(context, serialTrimmed, bluetoothTrimmed)
+                    NotificationManager.showSuccess("Meter $serialTrimmed added")
+                    onDismiss()
+                },
+                enabled = isValid,
+                modifier = androidx.compose.ui.Modifier.fillMaxWidth()
+            ) {
+                Text("Add Meter")
+            }
+
+            Spacer(modifier = androidx.compose.ui.Modifier.height(16.dp))
         }
     }
 }

@@ -79,7 +79,6 @@ enum class AppScreen(val titleRes: Int) {
     RECEIPT_TEMPLATE(R.string.receipt_template_title),
     METER_DETAIL(R.string.meter_detail_title),
     SETTINGS(R.string.settings_title),
-
 }
 
 @Suppress("unused")
@@ -90,6 +89,7 @@ fun AppWithDrawer(
     currentScreen: AppScreen = AppScreen.HOME,
     onNavigateToScreen: (AppScreen) -> Unit = {},
     onLogout: () -> Unit = {},
+    topBarActions: @Composable () -> Unit = {},
     content: @Composable () -> Unit
 ) {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -160,6 +160,7 @@ fun AppWithDrawer(
                                 )
                             }
                         },
+                        actions = { topBarActions() },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                             containerColor = MaterialTheme.colorScheme.surface,
                             titleContentColor = MaterialTheme.colorScheme.onSurface,

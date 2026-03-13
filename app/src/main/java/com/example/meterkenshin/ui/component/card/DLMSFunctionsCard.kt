@@ -17,7 +17,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.example.meterkenshin.model.UserRole
+import com.example.meterkenshin.ui.component.dialog.DataReadDialog
 import com.example.meterkenshin.ui.manager.AppPreferences
+import java.util.Date
 
 /**
  * DLMS Functions Card Component
@@ -35,8 +37,11 @@ fun DLMSFunctionsCard(
     onRegistration: () -> Unit,
     onReadData: () -> Unit,
     onLoadProfile: () -> Unit,
+    onLoadProfileByPeriod: (fromDate: Date, toDate: Date) -> Unit,
     onEventLog: () -> Unit,
+    onEventLogByPeriod: (fromDate: Date, toDate: Date) -> Unit,
     onBillingData: () -> Unit,
+    onBillingDataByPeriod: (fromDate: Date, toDate: Date) -> Unit,
     onSetClock: () -> Unit,
     isProcessing: Boolean = false,
 ) {
@@ -44,6 +49,14 @@ fun DLMSFunctionsCard(
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
     var dialogTitle by remember { mutableStateOf("") }
     var dialogMessage by remember { mutableStateOf("") }
+
+    // Data read dialog state — title + callbacks for the active button
+    data class DataReadDialogState(
+        val title: String,
+        val onConfirmAll: () -> Unit,
+        val onConfirmByPeriod: (Date, Date) -> Unit
+    )
+    var dataReadDialogState by remember { mutableStateOf<DataReadDialogState?>(null) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -109,14 +122,11 @@ fun DLMSFunctionsCard(
                     text = "Load profile",
                     icon = Icons.Default.Storage,
                     onClick = {
-                        if (AppPreferences.isDlmsConfirmEnabled(context)) {
-                            dialogTitle = "Load Profile"
-                            dialogMessage = "Load meter profile?"
-                            pendingAction = onLoadProfile
-                            showConfirmDialog = true
-                        } else {
-                            onLoadProfile()
-                        }
+                        dataReadDialogState = DataReadDialogState(
+                            title = "Load Profile",
+                            onConfirmAll = onLoadProfile,
+                            onConfirmByPeriod = onLoadProfileByPeriod
+                        )
                     },
                     enabled = !isProcessing && meterActivate != 0
                 )
@@ -126,14 +136,11 @@ fun DLMSFunctionsCard(
                     text = "Event log",
                     icon = Icons.Default.Event,
                     onClick = {
-                        if (AppPreferences.isDlmsConfirmEnabled(context)) {
-                            dialogTitle = "Event Log"
-                            dialogMessage = "Retrieve event log?"
-                            pendingAction = onEventLog
-                            showConfirmDialog = true
-                        } else {
-                            onEventLog()
-                        }
+                        dataReadDialogState = DataReadDialogState(
+                            title = "Event Log",
+                            onConfirmAll = onEventLog,
+                            onConfirmByPeriod = onEventLogByPeriod
+                        )
                     },
                     enabled = !isProcessing && meterActivate != 0
                 )
@@ -143,14 +150,11 @@ fun DLMSFunctionsCard(
                     text = "Billing data",
                     icon = Icons.Default.Payment,
                     onClick = {
-                        if (AppPreferences.isDlmsConfirmEnabled(context)) {
-                            dialogTitle = "Billing Data"
-                            dialogMessage = "Retrieve billing data?"
-                            pendingAction = onBillingData
-                            showConfirmDialog = true
-                        } else {
-                            onBillingData()
-                        }
+                        dataReadDialogState = DataReadDialogState(
+                            title = "Billing Data",
+                            onConfirmAll = onBillingData,
+                            onConfirmByPeriod = onBillingDataByPeriod
+                        )
                     },
                     enabled = !isProcessing && meterActivate != 0
                 )
@@ -174,7 +178,17 @@ fun DLMSFunctionsCard(
                 )
             }
 
-            // Confirmation Dialog
+            // Data Read Dialog (Load Profile / Event Log / Billing Data)
+            dataReadDialogState?.let { state ->
+                DataReadDialog(
+                    title = state.title,
+                    onConfirmAll = state.onConfirmAll,
+                    onConfirmByPeriod = state.onConfirmByPeriod,
+                    onDismiss = { dataReadDialogState = null }
+                )
+            }
+
+            // Confirmation Dialog (Read Data / Set Clock)
             if (showConfirmDialog) {
                 AlertDialog(
                     onDismissRequest = {

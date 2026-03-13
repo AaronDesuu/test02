@@ -715,6 +715,8 @@
     <string name="delete_billing_data_title">Delete Billing Data</string>
     <string name="delete_billing_data_message">Are you sure you want to delete the billing data?</string>
     <string name="nav_export_data">Data Export</string>
+    <string name="nav_add_meter">Add New Meter</string>
+    <string name="add_meter_title">Add New Meter</string>
     <string name="export_data_title">Data Export</string>
 
 </resources>

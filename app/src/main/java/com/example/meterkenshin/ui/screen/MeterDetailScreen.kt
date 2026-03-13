@@ -32,14 +32,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.meterkenshin.model.Meter
-import com.example.meterkenshin.ui.component.card.DLMSFunctionsCard
-import com.example.meterkenshin.ui.component.card.DLMSLogCard
 import com.example.meterkenshin.ui.component.MeterSpecificationsCard
 import com.example.meterkenshin.ui.component.MeterStatusCard
+import com.example.meterkenshin.ui.component.card.DLMSFunctionsCard
+import com.example.meterkenshin.ui.component.card.DLMSLogCard
+import com.example.meterkenshin.ui.component.card.SavedBillingDataCard
 import com.example.meterkenshin.ui.component.dialog.PrintReceiptDialog
 import com.example.meterkenshin.ui.component.dialog.PrinterStatusErrorDialog
 import com.example.meterkenshin.ui.component.dialog.SaveJSONDialog
-import com.example.meterkenshin.ui.component.card.SavedBillingDataCard
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.ui.viewmodel.DLMSViewModel
 import com.example.meterkenshin.ui.viewmodel.FileUploadViewModel
@@ -47,7 +47,6 @@ import com.example.meterkenshin.ui.viewmodel.MeterReadingViewModel
 import com.example.meterkenshin.ui.viewmodel.PrinterBluetoothViewModel
 import com.example.meterkenshin.utils.UserFileManager
 import com.example.meterkenshin.utils.loadMeterRates
-import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -226,24 +225,42 @@ fun MeterDetailScreen(
                     }
                 },
                 onLoadProfile = {
-                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                    if (isDlmsInitialized && activeMeter.activate == 1) {
                         registrationViewModel.loadProfile(meter)
                     }
                 },
+                onLoadProfileByPeriod = { fromDate, toDate ->
+                    if (isDlmsInitialized && activeMeter.activate == 1) {
+                        registrationViewModel.loadProfileByPeriod(meter, fromDate, toDate)
+                    }
+                },
                 onEventLog = {
-                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                    if (isDlmsInitialized && activeMeter.activate == 1) {
                         registrationViewModel.eventLog(meter)
                     }
                 },
+                onEventLogByPeriod = { fromDate, toDate ->
+                    if (isDlmsInitialized && activeMeter.activate == 1) {
+                        registrationViewModel.eventLogByPeriod(meter, fromDate, toDate)
+                    }
+                },
                 onBillingData = {
-                    if (isDlmsInitialized && activeMeter.activate == 1) {  // Changed
+                    if (isDlmsInitialized && activeMeter.activate == 1) {
                         val rateData = loadMeterRates(context, fileUploadViewModel)
                         registrationViewModel.billingData(meter, rateData.rates, rateData.rateType)
                     }
                 },
+                onBillingDataByPeriod = { fromDate, toDate ->
+                    if (isDlmsInitialized && activeMeter.activate == 1) {
+                        val rateData = loadMeterRates(context, fileUploadViewModel)
+                        registrationViewModel.billingDataByPeriod(meter, fromDate, toDate, rateData.rates, rateData.rateType)
+                    }
+                },
                 onSetClock = {
                     if (isDlmsInitialized) {
-                        registrationViewModel.setClock(meter)
+                        // DEBUG: temporarily reads capture_objects to identify correct clock OBIS
+                        registrationViewModel.debugReadCaptureObjects(meter)
+                        // registrationViewModel.setClock(meter)
                     }
                 },
                 // Disable buttons until initialized
