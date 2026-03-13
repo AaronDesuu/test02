@@ -46,6 +46,12 @@ object FilterUtils {
         return meters.filter { it.location.equals(location, ignoreCase = true) }
     }
 
+    // Filter by multiple locations
+    fun filterByLocations(meters: List<Meter>, locations: Set<String>): List<Meter> {
+        val lowerLocations = locations.map { it.lowercase() }.toSet()
+        return meters.filter { it.location.lowercase() in lowerLocations }
+    }
+
     // Get all unique locations from meters
     fun getAllLocations(meters: List<Meter>): List<String> {
         return meters.map { it.location }.distinct().sorted()

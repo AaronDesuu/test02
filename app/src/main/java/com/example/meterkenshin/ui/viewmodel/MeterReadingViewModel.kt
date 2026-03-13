@@ -916,11 +916,20 @@ class MeterReadingViewModel : ViewModel() {
         _uiState.update { it.copy(filteredMeters = filtered) }
     }
 
+    fun filterByLocations(locations: Set<String>) {
+        val filtered = FilterUtils.filterByLocations(_uiState.value.allMeters, locations)
+        _uiState.update { it.copy(filteredMeters = filtered) }
+    }
+
     fun getAllLocations(): List<String> {
         return FilterUtils.getAllLocations(_uiState.value.allMeters)
     }
 
     fun clearFilters() {
+        _uiState.update { it.copy(filteredMeters = it.allMeters) }
+    }
+
+    fun clearLocationFilter() {
         _uiState.update { it.copy(filteredMeters = it.allMeters) }
     }
 
