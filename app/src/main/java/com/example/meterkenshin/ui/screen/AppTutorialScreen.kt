@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -351,6 +353,7 @@ private fun TutorialPage(step: TutorialStep) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -360,7 +363,7 @@ private fun TutorialPage(step: TutorialStep) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .height(200.dp),
             contentAlignment = Alignment.Center
         ) {
             when (step.demoType) {

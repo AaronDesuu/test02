@@ -138,11 +138,13 @@ fun DataReadDialog(
                             onClick = { selectedMode = ReadMode.ALL }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
+                        // TODO: "Get by Period" is disabled — data retrieval by period not yet working (ongoing)
                         ReadModeOption(
-                            label = "Get by Period",
-                            description = "Filter records by date range",
-                            selected = selectedMode == ReadMode.BY_PERIOD,
-                            onClick = { selectedMode = ReadMode.BY_PERIOD }
+                            label = "Get by Period (Coming soon)",
+                            description = "Filter records by date range — not yet available",
+                            selected = false,
+                            onClick = { /* disabled — ongoing */ },
+                            enabled = false
                         )
                     }
                 }
@@ -219,23 +221,30 @@ private fun ReadModeOption(
     label: String,
     description: String,
     selected: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    enabled: Boolean = true
 ) {
+    val contentAlpha = if (enabled) 1f else 0.38f
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .selectable(selected = selected, enabled = enabled, onClick = onClick, role = Role.RadioButton)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        RadioButton(selected = selected, onClick = null)
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text(text = label, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = contentAlpha)
+            )
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = contentAlpha)
             )
         }
     }

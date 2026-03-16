@@ -6,15 +6,12 @@ New Features:
 
 Add New Meter
 - Users can now add new meters directly from the app
-- Date picker support for Load Profile (LP), Event Data (ED), and Billing Data (BD)
 
 App Tutorial
 - Interactive step-by-step tutorial accessible from Settings → Help & Support
-- Animated walkthrough using HorizontalPager with page indicators
-- "Get Started" action navigates directly to the home screen
 
 Help & Documentation
-- In-app documentation viewer via WebView with responsive CSS styling
+- In-app documentation viewer via WebView
 - Dark-themed HTML documentation embedded in app assets
 
 Bug Fixes:
@@ -25,7 +22,7 @@ Bug Fixes:
 
 Improvements:
 
-- Enforced portrait-only orientation for consistent layout
+- Added Landscape design to the app
 - MeterCard now shows "Last Inspection" label instead of previous wording
 - Receipt branding configuration moved from Settings to the Receipt screen for better discoverability
 - Refined Receipt screen layout and presentation
