@@ -26,7 +26,9 @@ import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.manager.SessionManager
 import com.example.meterkenshin.utils.*
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -95,6 +97,21 @@ class DLMSViewModel : ViewModel() {
     // ✅ NEW: Track pending CSV updates for batch processing
     private val _pendingCsvUpdates = MutableStateFlow(0)
     val pendingCsvUpdates: StateFlow<Int> = _pendingCsvUpdates.asStateFlow()
+
+    // Job tracking for cancellable DLMS operations
+    private var dlmsOperationJob: Job? = null
+
+    /**
+     * Cancel the current DLMS operation (LP, EL, BD, etc.)
+     */
+    fun cancelOperation() {
+        val job = dlmsOperationJob
+        if (job != null && job.isActive) {
+            Log.i(TAG, "Cancelling DLMS operation")
+            appendLog("Cancelling operation...")
+            job.cancel()
+        }
+    }
 
     fun updateCurrentMeter(updatedMeter: Meter) {
         meter = updatedMeter
@@ -451,7 +468,7 @@ class DLMSViewModel : ViewModel() {
      * Start a DLMS operation
      */
     private fun startOperation(operationName: String) {
-        _registrationState.value = _registrationState.value.copy(isRunning = true)
+        _registrationState.value = _registrationState.value.copy(isRunning = true, currentOperation = operationName)
         appendLog("=== $operationName Started ===")
     }
 
@@ -461,7 +478,8 @@ class DLMSViewModel : ViewModel() {
     private fun finishOperation() {
         _registrationState.value = RegistrationState(
             isRunning = false,
-            isComplete = false  // ✅ Reset completion state
+            isComplete = false,
+            currentOperation = null
         )
     }
 
@@ -599,7 +617,7 @@ class DLMSViewModel : ViewModel() {
                     return@launch
                 }
 
-                _registrationState.value = RegistrationState(isRunning = true)
+                _registrationState.value = RegistrationState(isRunning = true, currentOperation = "Registration")
                 _dlmsLog.value = ""
 
                 appendLog("Connecting to ${meter.bluetoothId}...")
@@ -1055,11 +1073,12 @@ class DLMSViewModel : ViewModel() {
     /**
      * Load Profile - Retrieves ALL load profile data using block transfer
      */
-    fun loadProfile(meter: Meter) = viewModelScope.launch {
+    fun loadProfile(meter: Meter) {
         if (_registrationState.value.isRunning) {
             appendLog("Load Profile already running")
-            return@launch
+            return
         }
+        dlmsOperationJob = viewModelScope.launch {
 
         if (!::dlmsDataAccess.isInitialized) {
             appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
@@ -1148,26 +1167,30 @@ class DLMSViewModel : ViewModel() {
                 }
             }
 
+        } catch (e: CancellationException) {
+            appendLog("Load Profile cancelled by user")
+            NotificationManager.showWarning("Load profile cancelled")
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Load Profile error", e)
             NotificationManager.showError("Load profile failed: ${e.message}")
         } finally {
-            // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
+        }
         }
     }
 
     /**
      * eventLog - Retrieve ALL power quality event records from meter using block transfer
      */
-    fun eventLog(meter: Meter) = viewModelScope.launch {
+    fun eventLog(meter: Meter) {
         if (_registrationState.value.isRunning) {
             appendLog("Event Log already running")
-            return@launch
+            return
         }
+        dlmsOperationJob = viewModelScope.launch {
 
         // Check if DLMS is initialized
         if (!::dlmsDataAccess.isInitialized) {
@@ -1254,26 +1277,30 @@ class DLMSViewModel : ViewModel() {
                 }
             }
 
+        } catch (e: CancellationException) {
+            appendLog("Event Log cancelled by user")
+            NotificationManager.showWarning("Event log cancelled")
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Event Log error", e)
             NotificationManager.showError("Event log failed: ${e.message}")
         } finally {
-            // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
+        }
         }
     }
 
     /**
      * Billing Data - Retrieves ALL billing records using block transfer and calculates charges
      */
-    fun billingData(meter: Meter, rates: FloatArray, rateType: String = "LARGE") = viewModelScope.launch {
+    fun billingData(meter: Meter, rates: FloatArray, rateType: String = "LARGE") {
         if (_registrationState.value.isRunning) {
             appendLog("Billing Data already running")
-            return@launch
+            return
         }
+        dlmsOperationJob = viewModelScope.launch {
 
         // Check if DLMS is initialized
         if (!::dlmsDataAccess.isInitialized) {
@@ -1405,15 +1432,18 @@ class DLMSViewModel : ViewModel() {
                 appendLog("ERROR: Insufficient billing data (received ${allBillingData.size} entries)")
             }
 
+        } catch (e: CancellationException) {
+            appendLog("Billing Data cancelled by user")
+            NotificationManager.showWarning("Billing data cancelled")
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Billing Data error", e)
             NotificationManager.showError("Billing data failed: ${e.message}")
         } finally {
-            // ALWAYS close connection, success or failure
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
+        }
         }
     }
 
@@ -1422,15 +1452,10 @@ class DLMSViewModel : ViewModel() {
     /**
      * Load Profile — retrieve records within a specific time range
      */
-    fun loadProfileByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date) = viewModelScope.launch {
-        if (_registrationState.value.isRunning) {
-            appendLog("Load Profile already running")
-            return@launch
-        }
-        if (!::dlmsDataAccess.isInitialized) {
-            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
-            return@launch
-        }
+    fun loadProfileByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date) {
+        if (_registrationState.value.isRunning) { appendLog("Load Profile already running"); return }
+        if (!::dlmsDataAccess.isInitialized) { appendLog("ERROR: DLMS not initialized"); return }
+        dlmsOperationJob = viewModelScope.launch {
         try {
             if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
                 appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
@@ -1497,6 +1522,9 @@ class DLMSViewModel : ViewModel() {
             } else {
                 appendLog("No load profile records found in the selected period")
             }
+        } catch (e: CancellationException) {
+            appendLog("Load Profile (Period) cancelled by user")
+            NotificationManager.showWarning("Load profile cancelled")
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Load Profile (Period) error", e)
@@ -1506,20 +1534,16 @@ class DLMSViewModel : ViewModel() {
             appendLog("Connection closed")
             finishOperation()
         }
+        }
     }
 
     /**
      * Event Log — retrieve records within a specific time range
      */
-    fun eventLogByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date) = viewModelScope.launch {
-        if (_registrationState.value.isRunning) {
-            appendLog("Event Log already running")
-            return@launch
-        }
-        if (!::dlmsDataAccess.isInitialized) {
-            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
-            return@launch
-        }
+    fun eventLogByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date) {
+        if (_registrationState.value.isRunning) { appendLog("Event Log already running"); return }
+        if (!::dlmsDataAccess.isInitialized) { appendLog("ERROR: DLMS not initialized"); return }
+        dlmsOperationJob = viewModelScope.launch {
         try {
             if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
                 appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
@@ -1587,6 +1611,9 @@ class DLMSViewModel : ViewModel() {
                 appendLog("Response size: ${allData.size}, content: ${allData.joinToString(", ")}")
                 appendLog("No event log records found in the selected period")
             }
+        } catch (e: CancellationException) {
+            appendLog("Event Log (Period) cancelled by user")
+            NotificationManager.showWarning("Event log cancelled")
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Event Log (Period) error", e)
@@ -1596,20 +1623,16 @@ class DLMSViewModel : ViewModel() {
             appendLog("Connection closed")
             finishOperation()
         }
+        }
     }
 
     /**
      * Billing Data — retrieve records within a specific time range
      */
-    fun billingDataByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date, rates: FloatArray, rateType: String = "LARGE") = viewModelScope.launch {
-        if (_registrationState.value.isRunning) {
-            appendLog("Billing Data already running")
-            return@launch
-        }
-        if (!::dlmsDataAccess.isInitialized) {
-            appendLog("ERROR: DLMS not initialized - call initializeDLMS first")
-            return@launch
-        }
+    fun billingDataByPeriod(meter: Meter, fromDate: java.util.Date, toDate: java.util.Date, rates: FloatArray, rateType: String = "LARGE") {
+        if (_registrationState.value.isRunning) { appendLog("Billing Data already running"); return }
+        if (!::dlmsDataAccess.isInitialized) { appendLog("ERROR: DLMS not initialized"); return }
+        dlmsOperationJob = viewModelScope.launch {
         try {
             if (!dlmsInit.isReady() || meter.bluetoothId.isNullOrEmpty()) {
                 appendLog("ERROR: Not ready (bound: ${dlmsInit.isServiceBound}, active: ${dlmsInit.isServiceActive})")
@@ -1696,6 +1719,9 @@ class DLMSViewModel : ViewModel() {
             } else {
                 appendLog("No billing records found in the selected period")
             }
+        } catch (e: CancellationException) {
+            appendLog("Billing Data (Period) cancelled by user")
+            NotificationManager.showWarning("Billing data cancelled")
         } catch (e: Exception) {
             appendLog("ERROR: ${e.message}")
             Log.e(TAG, "Billing Data (Period) error", e)
@@ -1704,6 +1730,7 @@ class DLMSViewModel : ViewModel() {
             dlmsInit.bluetoothLeService?.close()
             appendLog("Connection closed")
             finishOperation()
+        }
         }
     }
 
@@ -1740,7 +1767,7 @@ class DLMSViewModel : ViewModel() {
     /**
      * DEBUG: Read capture_objects (attr 3) of event log and load profile to verify OBIS for range_descriptor
      */
-    fun debugReadCaptureObjects(meter: Meter) = viewModelScope.launch {
+    fun debugReadCaptureObjects(meter: Meter) { dlmsOperationJob = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Operation already running")
             return@launch
@@ -1786,12 +1813,12 @@ class DLMSViewModel : ViewModel() {
             appendLog("Connection closed")
             finishOperation()
         }
-    }
+    } }
 
     /**
      * Set Clock on the meter
      */
-    fun setClock(meter: Meter) = viewModelScope.launch {
+    fun setClock(meter: Meter) { dlmsOperationJob = viewModelScope.launch {
         if (_registrationState.value.isRunning) {
             appendLog("Set Clock already running")
         }
@@ -1878,7 +1905,7 @@ class DLMSViewModel : ViewModel() {
             appendLog("Connection closed")
             finishOperation()
         }
-    }
+    } }
 
     /**
      * Update meter CSV with billingPrintDate after successful print

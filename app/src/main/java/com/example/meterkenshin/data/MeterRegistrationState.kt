@@ -6,5 +6,6 @@ data class RegistrationState(
     val currentStage: Int = 0,
     val message: String = "",
     val isComplete: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val currentOperation: String? = null
 )

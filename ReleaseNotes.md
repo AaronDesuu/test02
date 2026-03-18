@@ -1,5 +1,45 @@
 MeterKenshin — Release Notes
 
+Version 1.02.0 — March 18, 2026
+
+New Features:
+
+Get by Period (Selective Access)
+- Load Profile, Event Log, and Billing Data now support date-range filtering
+- Choose "Get All Data" or "Get by Period" with a date picker dialog
+- Date picker constrained to 12 months back with cross-linked From/To validation
+- Files saved by period include the date range in the filename
+
+Export Screen Filters & Sort
+- Filter by file type (Load Profile, Event Log, Billing Data)
+- Filter by retrieval mode (All Data, By Period)
+- Sort by date ascending/descending
+- Category group headers with file count badges
+- Data period display for all files (extracted from CSV content)
+
+Meter Reading Screen Redesign
+- Modern filter/sort controls with dropdown menus
+- Multi-select location filter with search
+- Blue dot indicators on active filters
+
+Bug Fixes:
+
+- Fixed: Event Log by Period had broken structure from leftover guard code
+- Fixed: CancellationException catch ordering in Event Log and Billing Data period functions
+- Fixed: Set Clock button was accidentally calling debug capture objects instead of set clock
+- Fixed: DLMS operations now properly track Job for cancellation support
+
+Improvements:
+
+- Modernized DLMS Log card with terminal icon, status chip, and animated progress bar
+- Clear and Stop buttons hidden during Read Data and Registration to prevent confusion
+- Receipt Template "Connect" button now navigates to Home and auto-connects the printer
+- Removed duplicate "File Upload" title from Import Data screen
+- Removed duplicate "Export Files" header from Export Data screen
+- All 8 DLMS operations now store Job and are cancellable
+
+---
+
 Version 1.01.0 — March 13, 2026
 
 New Features:

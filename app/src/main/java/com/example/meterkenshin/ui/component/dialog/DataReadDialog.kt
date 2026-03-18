@@ -24,7 +24,9 @@ private enum class Step { MODE_SELECT, DATE_PICK }
 /**
  * Two-step dialog for DLMS data reads:
  *   Step 1 — choose "Get All Data" or "Get by Period"
- *   Step 2 — (if By Period) pick From / To dates
+ *   Step 2 — (if By Period) pick From / To dates with range constraints
+ *
+ * Date range: 12 months back to today (meter stores ~3-9 months of data)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,7 +41,23 @@ fun DataReadDialog(
     var step by remember { mutableStateOf(Step.MODE_SELECT) }
     var selectedMode by remember { mutableStateOf(ReadMode.ALL) }
 
-    // Default: from = start of current month, to = today (both at UTC midnight for DatePicker)
+    // Absolute bounds: 12 months ago → today
+    val todayEndMillis = remember {
+        Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
+        }.timeInMillis
+    }
+    val minDateMillis = remember {
+        Calendar.getInstance().apply {
+            add(Calendar.MONTH, -12)
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+
+    // Default: from = start of current month, to = today
     val defaultFrom = remember {
         Calendar.getInstance().apply {
             set(Calendar.DAY_OF_MONTH, 1)
@@ -47,12 +65,7 @@ fun DataReadDialog(
             set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
         }.timeInMillis
     }
-    val defaultTo = remember {
-        Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)
-            set(Calendar.SECOND, 59); set(Calendar.MILLISECOND, 999)
-        }.timeInMillis
-    }
+    val defaultTo = remember { todayEndMillis }
 
     var fromMillis by remember { mutableStateOf(defaultFrom) }
     var toMillis by remember { mutableStateOf(defaultTo) }
@@ -60,9 +73,43 @@ fun DataReadDialog(
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
 
-    // Date picker states
-    val fromPickerState = rememberDatePickerState(initialSelectedDateMillis = fromMillis)
-    val toPickerState = rememberDatePickerState(initialSelectedDateMillis = toMillis)
+    // Selectable dates: From picker — from minDate to toMillis (can't pick after "To")
+    val fromSelectableDates = remember(toMillis) {
+        object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis in minDateMillis..toMillis
+            }
+            override fun isSelectableYear(year: Int): Boolean {
+                val minYear = Calendar.getInstance().apply { timeInMillis = minDateMillis }.get(Calendar.YEAR)
+                val maxYear = Calendar.getInstance().apply { timeInMillis = toMillis }.get(Calendar.YEAR)
+                return year in minYear..maxYear
+            }
+        }
+    }
+
+    // Selectable dates: To picker — from fromMillis to today (can't pick before "From")
+    val toSelectableDates = remember(fromMillis) {
+        object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                return utcTimeMillis in fromMillis..todayEndMillis
+            }
+            override fun isSelectableYear(year: Int): Boolean {
+                val minYear = Calendar.getInstance().apply { timeInMillis = fromMillis }.get(Calendar.YEAR)
+                val maxYear = Calendar.getInstance().apply { timeInMillis = todayEndMillis }.get(Calendar.YEAR)
+                return year in minYear..maxYear
+            }
+        }
+    }
+
+    // Date picker states with selectable date constraints
+    val fromPickerState = rememberDatePickerState(
+        initialSelectedDateMillis = fromMillis,
+        selectableDates = fromSelectableDates
+    )
+    val toPickerState = rememberDatePickerState(
+        initialSelectedDateMillis = toMillis,
+        selectableDates = toSelectableDates
+    )
 
     // From date picker dialog
     if (showFromPicker) {
@@ -71,7 +118,6 @@ fun DataReadDialog(
             confirmButton = {
                 TextButton(onClick = {
                     fromPickerState.selectedDateMillis?.let { millis ->
-                        // Set to start of day
                         val cal = Calendar.getInstance().apply {
                             timeInMillis = millis
                             set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
@@ -97,7 +143,6 @@ fun DataReadDialog(
             confirmButton = {
                 TextButton(onClick = {
                     toPickerState.selectedDateMillis?.let { millis ->
-                        // Set to end of day
                         val cal = Calendar.getInstance().apply {
                             timeInMillis = millis
                             set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59)

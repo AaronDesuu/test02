@@ -69,7 +69,8 @@ import com.example.meterkenshin.utils.loadMeterRates
 fun ReceiptScreen(
     fileUploadViewModel: FileUploadViewModel = viewModel(),
     printerBluetoothViewModel: PrinterBluetoothViewModel = viewModel(),
-    onNavigateToFileUpload: () -> Unit = {}
+    onNavigateToFileUpload: () -> Unit = {},
+    onNavigateToHome: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -301,6 +302,10 @@ fun ReceiptScreen(
                         printerBluetoothViewModel = printerBluetoothViewModel,
                         bluetoothConnectionState = bluetoothConnectionState,
                         isBluetoothEnabled = isBluetoothEnabled,
+                        onNavigateToHome = {
+                            printerBluetoothViewModel.startAutoConnect()
+                            onNavigateToHome()
+                        },
                         rates = rateData?.rates,
                         companyInfo = companyInfo
                     )

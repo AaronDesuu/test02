@@ -258,9 +258,7 @@ fun MeterDetailScreen(
                 },
                 onSetClock = {
                     if (isDlmsInitialized) {
-                        // DEBUG: temporarily reads capture_objects to identify correct clock OBIS
-                        registrationViewModel.debugReadCaptureObjects(meter)
-                        // registrationViewModel.setClock(meter)
+                        registrationViewModel.setClock(meter)
                     }
                 },
                 // Disable buttons until initialized
@@ -268,10 +266,13 @@ fun MeterDetailScreen(
             )
 
             // 3. DLMS Log output - NOW IN SEPARATE FILE
+            val isReadData = registrationState.currentOperation in listOf("Read Data", "Registration")
             DLMSLogCard(
                 logText = dlmsLog,
                 onClearLog = { registrationViewModel.clearLog() },
-                isProcessing = registrationState.isRunning
+                isProcessing = registrationState.isRunning,
+                onCancelOperation = if (isReadData) null else {{ registrationViewModel.cancelOperation() }},
+                showClear = !isReadData
             )
 
 

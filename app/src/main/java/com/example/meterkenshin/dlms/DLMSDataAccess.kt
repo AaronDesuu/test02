@@ -2,7 +2,9 @@ package com.example.meterkenshin.dlms
 
 import android.annotation.SuppressLint
 import android.util.Log
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 
 /**
  * DLMS Data Access Handler
@@ -196,8 +198,13 @@ class DLMSDataAccess(private val dlmsInitializer: DLMSInit) {
         // Continue block transfer
         var continueTransfer = shouldContinueBlockTransfer()
 
-        while (continueTransfer && blockCount < 200) {
+        while (continueTransfer && blockCount < 200 && currentCoroutineContext().isActive) {
             delay(200)
+
+            if (!currentCoroutineContext().isActive) {
+                logCallback("$operationName cancelled")
+                break
+            }
 
             if (!blockRequest()) {
                 logCallback("ERROR: Failed to get $operationName block")

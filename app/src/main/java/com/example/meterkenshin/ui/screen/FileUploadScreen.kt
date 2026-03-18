@@ -539,21 +539,6 @@ fun FileUploadCard(
 @Composable
 private fun FileUploadHeader(uploadState: FileUploadState) {
     Column {
-        // Header
-        Text(
-            text = stringResource(R.string.file_upload_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        Text(
-            text = stringResource(R.string.upload_instructions),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-
         // Upload status summary
         Card(
             modifier = Modifier

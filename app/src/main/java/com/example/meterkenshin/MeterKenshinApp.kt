@@ -287,7 +287,8 @@ fun MeterKenshinApp(
                     ReceiptScreen(
                         fileUploadViewModel = fileUploadViewModel,
                         printerBluetoothViewModel = printerBluetoothViewModel,
-                        onNavigateToFileUpload = { currentScreen = "file_upload" }
+                        onNavigateToFileUpload = { currentScreen = "file_upload" },
+                        onNavigateToHome = { currentScreen = "home" }
                     )
                 }
 

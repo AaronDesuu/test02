@@ -211,7 +211,7 @@
   <article class="markdown-body">
       <h1>MeterKenshin — User Documentation</h1>
 <blockquote>
-<p><strong>Version:</strong> 1.01.0 | <strong>Platform:</strong> Android 11.0+ | <strong>Last Updated:</strong> 2026-03-18</p>
+<p><strong>Version:</strong> 1.02.0 | <strong>Platform:</strong> Android 11.0+ | <strong>Last Updated:</strong> 2026-03-18</p>
 </blockquote>
 <hr>
 <h2>Table of Contents</h2>
@@ -548,6 +548,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <p><strong>Features:</strong></p>
 <ul>
 <li><strong>Search bar</strong> — filter meters by serial number or any field</li>
+<li><strong>Filter controls</strong> — filter by status, location (multi-select with search), and sort order</li>
 <li><strong>Statistics row</strong> — Total meters, currently showing, online count</li>
 <li><strong>Meter list</strong> — tap any meter to open Meter Detail</li>
 </ul>
@@ -637,13 +638,13 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <td>Retrieves only records within a selected date range (From / To)</td>
 </tr>
 </tbody></table>
-<p>When <strong>Get by Period</strong> is selected, pick the start and end dates using the date picker. The app sends a DLMS selective access request with a range descriptor to filter records on the meter side, reducing transfer time.</p>
+<p>When <strong>Get by Period</strong> is selected, pick the start and end dates using the date picker. The calendar is constrained to the last 12 months, and the "From" date cannot exceed the "To" date (and vice versa). The app sends a DLMS selective access request with a range descriptor to filter records on the meter side, reducing transfer time.</p>
 <p>Files saved from a period-based read include the date range in the filename (e.g., <code>1286_LP_20260318_134707_from20260301_to20260318.csv</code>).</p>
 <blockquote>
 <p><strong>Note:</strong> Always do <strong>Registration</strong> first before any other DLMS operation. If <strong>DLMS Confirm Dialog</strong> is enabled in Settings, a confirmation dialog appears before each action.</p>
 </blockquote>
 <h4>DLMS Log</h4>
-<p>A scrollable log of all DLMS transactions and responses for the current session. Useful for diagnosing communication issues.</p>
+<p>A scrollable log of all DLMS transactions and responses for the current session. Shows a status chip (Idle / Running / line count), an animated progress bar during operations, and Clear/Stop action buttons. Clear and Stop buttons are hidden during Registration and Read Data operations to prevent confusion.</p>
 <h4>Saved Billing Data</h4>
 <p>Shows previously saved billing records for this meter (stored in <code>{serialNumber}_billing.csv</code>).</p>
 <h4>Print Receipt Button</h4>
@@ -661,7 +662,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </li>
 <li><p><strong>Receipt Preview</strong> — shows a sample receipt rendered with User's company branding and the loaded rate data. This is exactly how it will print.</p>
 </li>
-<li><p><strong>Print Button</strong> — prints the sample receipt to the connected Woosim printer (printer must be connected).</p>
+<li><p><strong>Print Button</strong> — prints the sample receipt to the connected Woosim printer. If the printer is not connected, the button shows "Connect" and tapping it navigates to the Home screen and automatically starts printer auto-connect.</p>
 </li>
 </ol>
 <hr>
@@ -721,7 +722,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <td>Delete the uploaded file from app storage</td>
 </tr>
 </tbody></table>
-<p><strong>Status summary</strong> at the top shows <code>X of 3 required files uploaded</code>. All 3 required files must be uploaded before BLE scanning starts and the notification appears.</p>
+<p><strong>Status summary card</strong> at the top shows upload progress and whether all required files are ready. All 3 required files must be uploaded before BLE scanning starts and the notification appears.</p>
 <blockquote>
 <p><strong>Note:</strong> Replacing <code>meter.csv</code> will clear the current meter list. The app will reload meters from the new file.</p>
 </blockquote>
@@ -731,13 +732,16 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <p>View, select, and export billing data files that have been collected.</p>
 <p><strong>Features:</strong></p>
 <ul>
-<li>Search and filter exported files</li>
-<li>Select individual or all files</li>
-<li>Download files to external storage</li>
-<li>Delete selected files</li>
+<li>Search files by name</li>
+<li>Filter by type: Load Profile (LP), Event Log (EL), Billing Data (BD)</li>
+<li>Filter by retrieval mode: All Data or By Period</li>
+<li>Sort by date ascending or descending</li>
+<li>Files grouped by category (Load Profile, Event Log, Billing Data) with count badges</li>
+<li>Data period shown for all files (extracted from CSV content)</li>
+<li>Select individual or all files for export/delete</li>
 </ul>
 <p><strong>File Item Tags:</strong></p>
-<p>Each file card displays color-coded tags for quick identification:</p>
+<p>Each file card displays the retrieval mode and data period:</p>
 <table>
 <thead>
 <tr>

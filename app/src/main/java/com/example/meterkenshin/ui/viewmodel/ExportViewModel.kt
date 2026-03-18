@@ -7,11 +7,25 @@ import com.example.meterkenshin.ui.manager.ExportManager
 import com.example.meterkenshin.ui.manager.FileGroup
 import com.example.meterkenshin.ui.manager.NotificationManager
 import com.example.meterkenshin.ui.manager.AppPreferences
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.BufferedReader
 import java.io.File
+import java.io.FileReader
+
+/** Filter by file type */
+enum class FileTypeFilter { ALL, LP, EL, BD }
+
+/** Filter by retrieval mode */
+enum class RetrievalModeFilter { ALL, ALL_DATA, BY_PERIOD }
+
+/** Sort field — kept for potential future use */
+enum class FileSortField { DATE, NAME, SIZE }
 
 class ExportViewModel(application: Application) : AndroidViewModel(application) {
     private val exportManager = ExportManager(application)
@@ -26,53 +40,131 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
     private val _isExporting = MutableStateFlow(false)
     val isExporting: StateFlow<Boolean> = _isExporting.asStateFlow()
 
-    private val _fileGroups = MutableStateFlow<List<FileGroup>>(emptyList())
-
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val _filteredGroups = MutableStateFlow<List<FileGroup>>(emptyList())
-    val filteredGroups: StateFlow<List<FileGroup>> = _filteredGroups.asStateFlow()
+    // Filter & sort state
+    private val _typeFilter = MutableStateFlow(FileTypeFilter.ALL)
+    val typeFilter: StateFlow<FileTypeFilter> = _typeFilter.asStateFlow()
+
+    private val _modeFilter = MutableStateFlow(RetrievalModeFilter.ALL)
+    val modeFilter: StateFlow<RetrievalModeFilter> = _modeFilter.asStateFlow()
+
+    private val _sortAscending = MutableStateFlow(false) // default newest first
+    val sortAscending: StateFlow<Boolean> = _sortAscending.asStateFlow()
+
+    /** Flat filtered + sorted file list (replaces group-based display) */
+    private val _displayFiles = MutableStateFlow<List<File>>(emptyList())
+    val displayFiles: StateFlow<List<File>> = _displayFiles.asStateFlow()
+
+    /** Maps filename → (firstTimestamp, lastTimestamp) extracted from CSV content */
+    private val _fileDataPeriods = MutableStateFlow<Map<String, Pair<String, String>>>(emptyMap())
+    val fileDataPeriods: StateFlow<Map<String, Pair<String, String>>> = _fileDataPeriods.asStateFlow()
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
-        filterFiles()
+        applyFilters()
     }
 
-    private fun filterFiles() {
+    fun setTypeFilter(filter: FileTypeFilter) {
+        _typeFilter.value = filter
+        applyFilters()
+    }
+
+    fun setModeFilter(filter: RetrievalModeFilter) {
+        _modeFilter.value = filter
+        applyFilters()
+    }
+
+    fun toggleSortOrder() {
+        _sortAscending.value = !_sortAscending.value
+        applyFilters()
+    }
+
+    private fun applyFilters() {
+        var result = _files.value.toList()
+
+        // Search filter
         val query = _searchQuery.value.lowercase()
-        _filteredGroups.value = if (query.isEmpty()) {
-            _fileGroups.value
-        } else {
-            _fileGroups.value.map { group ->
-                FileGroup(
-                    name = group.name,
-                    files = group.files.filter { it.name.lowercase().contains(query) }
-                )
-            }.filter { it.files.isNotEmpty() }
+        if (query.isNotEmpty()) {
+            result = result.filter { it.name.lowercase().contains(query) }
         }
+
+        // Type filter
+        when (_typeFilter.value) {
+            FileTypeFilter.LP -> result = result.filter { it.name.contains("_LP_") }
+            FileTypeFilter.EL -> result = result.filter { it.name.contains("_EL_") }
+            FileTypeFilter.BD -> result = result.filter { it.name.contains("_BD_") }
+            FileTypeFilter.ALL -> { /* no filter */ }
+        }
+
+        // Mode filter
+        when (_modeFilter.value) {
+            RetrievalModeFilter.ALL_DATA -> result = result.filter { !it.name.contains("_from") }
+            RetrievalModeFilter.BY_PERIOD -> result = result.filter { it.name.contains("_from") }
+            RetrievalModeFilter.ALL -> { /* no filter */ }
+        }
+
+        // Sort by date
+        result = if (_sortAscending.value) result.sortedBy { it.lastModified() }
+                 else result.sortedByDescending { it.lastModified() }
+
+        _displayFiles.value = result
     }
 
     fun loadFiles() {
         viewModelScope.launch {
-            _fileGroups.value = exportManager.getGroupedFiles()
             _files.value = exportManager.getAvailableFiles()
-            filterFiles()
+            applyFilters()
+            extractFileDataPeriods(_files.value)
         }
+    }
+
+    /**
+     * Extract first and last Clock timestamps from each CSV file.
+     * Clock is always the first column; row 0 is the header.
+     */
+    private suspend fun extractFileDataPeriods(files: List<File>) = withContext(Dispatchers.IO) {
+        val periods = mutableMapOf<String, Pair<String, String>>()
+        for (file in files) {
+            try {
+                if (!file.name.endsWith(".csv")) continue
+                BufferedReader(FileReader(file)).use { reader ->
+                    reader.readLine() // skip header
+                    val firstLine = reader.readLine() ?: return@use
+                    val firstClock = firstLine.split(",").firstOrNull()?.trim() ?: return@use
+                    var lastLine = firstLine
+                    var line = reader.readLine()
+                    while (line != null) {
+                        if (line.isNotBlank()) lastLine = line
+                        line = reader.readLine()
+                    }
+                    val lastClock = lastLine.split(",").firstOrNull()?.trim() ?: return@use
+                    if (firstClock.isNotEmpty() && lastClock.isNotEmpty()) {
+                        periods[file.name] = extractDateOnly(firstClock) to extractDateOnly(lastClock)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("ExportViewModel", "Failed to extract period from ${file.name}: ${e.message}")
+            }
+        }
+        _fileDataPeriods.value = periods
+    }
+
+    /** Extract date-only portion from clock strings like "2026/03/18 13:42:33" → "2026-03-18" */
+    private fun extractDateOnly(clock: String): String {
+        val datePart = clock.split(" ").firstOrNull() ?: clock
+        return datePart.replace("/", "-")
     }
 
     fun toggleFileSelection(fileName: String, isSelected: Boolean) {
         val current = _selectedFiles.value.toMutableSet()
-        if (isSelected) {
-            current.add(fileName)
-        } else {
-            current.remove(fileName)
-        }
+        if (isSelected) current.add(fileName) else current.remove(fileName)
         _selectedFiles.value = current
     }
 
     fun selectAll() {
-        _selectedFiles.value = _files.value.map { it.name }.toSet()
+        _selectedFiles.value = _displayFiles.value.map { it.name }.toSet()
     }
 
     fun selectNone() {
@@ -100,7 +192,6 @@ class ExportViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     _selectedFiles.value = emptySet()
 
-                    // Check preference before showing share dialog
                     if (result.exportedFiles.isNotEmpty() &&
                         AppPreferences.isAutoShareExportEnabled(context)) {
                         exportManager.shareFiles(result.exportedFiles)
