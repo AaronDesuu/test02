@@ -138,13 +138,11 @@ fun DataReadDialog(
                             onClick = { selectedMode = ReadMode.ALL }
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        // TODO: "Get by Period" is disabled — data retrieval by period not yet working (ongoing)
                         ReadModeOption(
-                            label = "Get by Period (Coming soon)",
-                            description = "Filter records by date range — not yet available",
-                            selected = false,
-                            onClick = { /* disabled — ongoing */ },
-                            enabled = false
+                            label = "Get by Period",
+                            description = "Filter records by date range",
+                            selected = selectedMode == ReadMode.BY_PERIOD,
+                            onClick = { selectedMode = ReadMode.BY_PERIOD }
                         )
                     }
                 }

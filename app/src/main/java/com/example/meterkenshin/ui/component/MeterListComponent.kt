@@ -1,6 +1,7 @@
 package com.example.meterkenshin.ui.component
 
 import android.annotation.SuppressLint
+import android.content.res.Configuration
 import android.os.Build
 import android.util.Log
 import androidx.activity.compose.BackHandler
@@ -37,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -185,6 +187,12 @@ fun MeterListComponent(
         }
     }
 
+    // On phone landscape, make search/stats/filter scroll with the list.
+    // On tablet (smallestScreenWidthDp >= 600), keep them fixed.
+    val configuration = LocalConfiguration.current
+    val scrollFixedParts = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            && configuration.smallestScreenWidthDp < 600
+
     Column(
         modifier = modifier.fillMaxSize()
     ) {
@@ -226,7 +234,8 @@ fun MeterListComponent(
             // Success state with meters
             else -> {
                 // Search bar (without scan button - scanning is automatic)
-                if (showSearch) {
+                // On phone landscape, these are rendered inside LazyColumn instead
+                if (showSearch && !scrollFixedParts) {
                     // When in selection mode, replace search bar with selection toolbar
                     if (selectionMode) {
                         SelectionModeCard(
@@ -252,87 +261,45 @@ fun MeterListComponent(
                             isProcessing = isProcessing
                         )
                     } else {
-                        // Normal mode - search bar with print dropdown
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Search field
-                            OutlinedTextField(
-                                value = searchQuery,
-                                onValueChange = meterReadingViewModel::updateSearchQuery,
-                                label = { Text("Search meters...") },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search"
-                                    )
-                                },
-                                trailingIcon = {
-                                    IconButton(onClick = {
-                                        // Refresh both BLE scanning and meter list
-                                        meterReadingViewModel.startBLEScanning()
-                                        meterReadingViewModel.reloadMeters(context, forceReload = true)
-                                        NotificationManager.showInfo("Refreshing meters and BLE")
-                                    }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Refresh,
-                                            contentDescription = "Refresh meters and BLE scan"
-                                        )
+                        SearchBarRow(
+                            searchQuery = searchQuery,
+                            onSearchChange = meterReadingViewModel::updateSearchQuery,
+                            onRefresh = {
+                                meterReadingViewModel.startBLEScanning()
+                                meterReadingViewModel.reloadMeters(context, forceReload = true)
+                                NotificationManager.showInfo("Refreshing meters and BLE")
+                            },
+                            onBatchReading = {
+                                val notInspectedOnlineMeters =
+                                    uiState.allMeters.filter { meter ->
+                                        meter.activate == 1 &&
+                                                getInspectionStatus(meter) == InspectionStatus.NOT_INSPECTED &&
+                                                meterReadingViewModel.isMeterNearby(meter.bluetoothId)
                                     }
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
-                            // Print Actions Dropdown
-
-                            PrintActionsDropdown(
-                                onBatchReading = {
-
-                                    val notInspectedOnlineMeters =
-                                        uiState.allMeters.filter { meter ->
-                                            // Must be registered (activate == 1)
-                                            meter.activate == 1 &&
-                                                    // Must be NOT_INSPECTED (using same logic as MeterCardComponent)
-                                                    getInspectionStatus(meter) == InspectionStatus.NOT_INSPECTED &&
-                                                    // Must be online (nearby via BLE)
-                                                    meterReadingViewModel.isMeterNearby(meter.bluetoothId)
-                                        }
-
-                                    if (notInspectedOnlineMeters.isEmpty()) {
-                                        NotificationManager.showWarning("No uninspected online meters found")
-                                    } else {
-                                        NotificationManager.showInfo("Starting batch reading for ${notInspectedOnlineMeters.size} online meters")
-
-                                        // Start batch processing with NOT_INSPECTED online registered meters only
-                                        batchProcessor.processBatch(
-                                            meters = notInspectedOnlineMeters,
-                                            rates = rateData.rates,
-                                            onComplete = { success, failedMeters ->
-                                                if (success) {
-                                                    NotificationManager.showSuccess("All ${notInspectedOnlineMeters.size} meters processed!")
-                                                } else {
-                                                    NotificationManager.showWarning("Processed with ${failedMeters.size} failures")
-                                                }
+                                if (notInspectedOnlineMeters.isEmpty()) {
+                                    NotificationManager.showWarning("No uninspected online meters found")
+                                } else {
+                                    NotificationManager.showInfo("Starting batch reading for ${notInspectedOnlineMeters.size} online meters")
+                                    batchProcessor.processBatch(
+                                        meters = notInspectedOnlineMeters,
+                                        rates = rateData.rates,
+                                        onComplete = { success, failedMeters ->
+                                            if (success) {
+                                                NotificationManager.showSuccess("All ${notInspectedOnlineMeters.size} meters processed!")
+                                            } else {
+                                                NotificationManager.showWarning("Processed with ${failedMeters.size} failures")
                                             }
-                                        )
-                                    }
-                                },
-                                onBatchPrinting = {
-                                    showBatchPrintDialog = true // ADD THIS
-                                },
-                                onSelectAndPrint = {
-                                    // Enter selection mode
-                                    meterReadingViewModel.toggleSelectionMode()
-                                    NotificationManager.showInfo("Select meters to process")
-                                },
-                                isPrintingEnabled = AppPreferences.isPrintingEnabled(context),
-                            )
-                        }
+                                        }
+                                    )
+                                }
+                            },
+                            onBatchPrinting = { showBatchPrintDialog = true },
+                            onSelectAndPrint = {
+                                meterReadingViewModel.toggleSelectionMode()
+                                NotificationManager.showInfo("Select meters to process")
+                            },
+                            isPrintingEnabled = AppPreferences.isPrintingEnabled(context)
+                        )
                     }
                 }
 
@@ -478,22 +445,24 @@ fun MeterListComponent(
                     )
                 }
 
-                // Statistics
-                if (showStatistics) {
-                    MeterStatisticsRow(
-                        totalMeters = uiState.allMeters.size,
-                        showingMeters = uiState.filteredMeters.size,
-                        nearbyMeters = nearbyMeterCount,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 4.dp)
+                // Statistics & filter - fixed on tablet/portrait, scrollable on phone landscape
+                if (!scrollFixedParts) {
+                    if (showStatistics) {
+                        MeterStatisticsRow(
+                            totalMeters = uiState.allMeters.size,
+                            showingMeters = uiState.filteredMeters.size,
+                            nearbyMeters = nearbyMeterCount,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp)
+                        )
+                    }
+
+                    FilterSortControlRow(
+                        meterReadingViewModel = meterReadingViewModel,
+                        modifier = Modifier.padding(bottom = 2.dp)
                     )
                 }
-
-                FilterSortControlRow(
-                    meterReadingViewModel = meterReadingViewModel,
-                    modifier = Modifier.padding(bottom = 2.dp)
-                )
 
                 // Meter list
                 val metersToShow = if (maxItemsToShow != null) {
@@ -507,6 +476,96 @@ fun MeterListComponent(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                        // On phone landscape, render search/stats/filter as scrollable items
+                        if (scrollFixedParts && showSearch) {
+                            item(key = "search_bar") {
+                                if (selectionMode) {
+                                    SelectionModeCard(
+                                        selectedCount = selectedMeters.size,
+                                        filteredMeters = uiState.filteredMeters,
+                                        selectedMeters = selectedMeters,
+                                        onSelectAll = { meterReadingViewModel.selectAllMeters() },
+                                        onCancel = { meterReadingViewModel.clearSelection() },
+                                        onBatchRead = { selectedMeterList ->
+                                            batchProcessor.processBatch(
+                                                meters = selectedMeterList,
+                                                rates = rateData.rates,
+                                                onComplete = { success, failedMeters ->
+                                                    meterReadingViewModel.clearSelection()
+                                                    if (success) {
+                                                        NotificationManager.showSuccess("All ${selectedMeterList.size} meters processed!")
+                                                    } else {
+                                                        NotificationManager.showWarning("${selectedMeterList.size - failedMeters.size}/${selectedMeterList.size} completed")
+                                                    }
+                                                }
+                                            )
+                                        },
+                                        isProcessing = isProcessing
+                                    )
+                                } else {
+                                    SearchBarRow(
+                                        searchQuery = searchQuery,
+                                        onSearchChange = meterReadingViewModel::updateSearchQuery,
+                                        onRefresh = {
+                                            meterReadingViewModel.startBLEScanning()
+                                            meterReadingViewModel.reloadMeters(context, forceReload = true)
+                                            NotificationManager.showInfo("Refreshing meters and BLE")
+                                        },
+                                        onBatchReading = {
+                                            val notInspectedOnlineMeters =
+                                                uiState.allMeters.filter { meter ->
+                                                    meter.activate == 1 &&
+                                                            getInspectionStatus(meter) == InspectionStatus.NOT_INSPECTED &&
+                                                            meterReadingViewModel.isMeterNearby(meter.bluetoothId)
+                                                }
+                                            if (notInspectedOnlineMeters.isEmpty()) {
+                                                NotificationManager.showWarning("No uninspected online meters found")
+                                            } else {
+                                                NotificationManager.showInfo("Starting batch reading for ${notInspectedOnlineMeters.size} online meters")
+                                                batchProcessor.processBatch(
+                                                    meters = notInspectedOnlineMeters,
+                                                    rates = rateData.rates,
+                                                    onComplete = { success, failedMeters ->
+                                                        if (success) {
+                                                            NotificationManager.showSuccess("All ${notInspectedOnlineMeters.size} meters processed!")
+                                                        } else {
+                                                            NotificationManager.showWarning("Processed with ${failedMeters.size} failures")
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        },
+                                        onBatchPrinting = { showBatchPrintDialog = true },
+                                        onSelectAndPrint = {
+                                            meterReadingViewModel.toggleSelectionMode()
+                                            NotificationManager.showInfo("Select meters to process")
+                                        },
+                                        isPrintingEnabled = AppPreferences.isPrintingEnabled(context)
+                                    )
+                                }
+                            }
+                        }
+                        if (scrollFixedParts && showStatistics) {
+                            item(key = "statistics") {
+                                MeterStatisticsRow(
+                                    totalMeters = uiState.allMeters.size,
+                                    showingMeters = uiState.filteredMeters.size,
+                                    nearbyMeters = nearbyMeterCount,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 4.dp)
+                                )
+                            }
+                        }
+                        if (scrollFixedParts) {
+                            item(key = "filter_sort") {
+                                FilterSortControlRow(
+                                    meterReadingViewModel = meterReadingViewModel,
+                                    modifier = Modifier.padding(bottom = 2.dp)
+                                )
+                            }
+                        }
+
                         items(metersToShow) { meter ->
                             // Check if meter is nearby
                             val isNearby = meterReadingViewModel.isMeterNearby(meter.bluetoothId)
@@ -579,5 +638,57 @@ fun MeterListComponent(
                 }
             }
         }
+    }
+}
+
+/**
+ * Extracted search bar row to avoid duplicating UI code between
+ * fixed (portrait/tablet) and scrollable (phone landscape) layouts.
+ */
+@Composable
+private fun SearchBarRow(
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    onRefresh: () -> Unit,
+    onBatchReading: () -> Unit,
+    onBatchPrinting: () -> Unit,
+    onSelectAndPrint: () -> Unit,
+    isPrintingEnabled: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchChange,
+            label = { Text("Search meters...") },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search"
+                )
+            },
+            trailingIcon = {
+                IconButton(onClick = onRefresh) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Refresh meters and BLE scan"
+                    )
+                }
+            },
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(12.dp)
+        )
+
+        PrintActionsDropdown(
+            onBatchReading = onBatchReading,
+            onBatchPrinting = onBatchPrinting,
+            onSelectAndPrint = onSelectAndPrint,
+            isPrintingEnabled = isPrintingEnabled,
+        )
     }
 }

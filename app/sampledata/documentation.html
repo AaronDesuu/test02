@@ -3,35 +3,215 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Markdown Export</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.3.0/github-markdown-dark.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <title>MeterKenshin Documentation</title>
   <style>
+      /* ── Reset & Base ── */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      html {
+          font-size: 15px;
+          scroll-behavior: smooth;
+          -webkit-text-size-adjust: 100%;
+      }
+
       body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
           background-color: #0d1117;
           color: #c9d1d9;
+          line-height: 1.65;
+          overflow-x: hidden;
+          -webkit-font-smoothing: antialiased;
       }
+
+      /* ── Article Container ── */
       .markdown-body {
-          box-sizing: border-box;
-          min-width: 200px;
-          max-width: 980px;
+          max-width: 860px;
           margin: 0 auto;
-          padding: 45px;
-          background-color: #0d1117;
+          padding: 24px 20px 48px;
+      }
+
+      /* ── Typography ── */
+      h1 {
+          font-size: 1.8rem;
+          font-weight: 700;
+          color: #ffffff;
+          border-bottom: 2px solid #30363d;
+          padding-bottom: 12px;
+          margin-bottom: 16px;
+      }
+      h2 {
+          font-size: 1.45rem;
+          font-weight: 700;
+          color: #e6edf3;
+          margin-top: 32px;
+          margin-bottom: 12px;
+          padding-bottom: 8px;
+          border-bottom: 1px solid #21262d;
+          scroll-margin-top: 16px;
+      }
+      h3 {
+          font-size: 1.15rem;
+          font-weight: 600;
+          color: #e6edf3;
+          margin-top: 24px;
+          margin-bottom: 10px;
+          scroll-margin-top: 16px;
+      }
+      h4 {
+          font-size: 1rem;
+          font-weight: 600;
           color: #c9d1d9;
+          margin-top: 20px;
+          margin-bottom: 8px;
       }
-      @media (max-width: 767px) {
-          .markdown-body {
-              padding: 15px;
-          }
+      p {
+          margin-bottom: 12px;
       }
+
+      /* ── Links ── */
+      a {
+          color: #58a6ff;
+          text-decoration: none;
+      }
+      a:active {
+          color: #79c0ff;
+      }
+
+      /* ── Lists ── */
+      ol, ul {
+          padding-left: 24px;
+          margin-bottom: 12px;
+      }
+      li {
+          margin-bottom: 4px;
+      }
+      li > ul, li > ol {
+          margin-top: 4px;
+          margin-bottom: 4px;
+      }
+
+      /* ── Blockquote ── */
+      blockquote {
+          border-left: 4px solid #3b82f6;
+          padding: 10px 16px;
+          margin: 12px 0;
+          background: #161b22;
+          border-radius: 0 8px 8px 0;
+          color: #8b949e;
+      }
+      blockquote p { margin-bottom: 0; }
+
+      /* ── Horizontal Rule ── */
+      hr {
+          border: none;
+          border-top: 1px solid #21262d;
+          margin: 24px 0;
+      }
+
+      /* ── Code ── */
+      code {
+          font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+          background: #161b22;
+          color: #e6edf3;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 0.88em;
+      }
+      pre {
+          background: #161b22;
+          border: 1px solid #30363d;
+          border-radius: 8px;
+          padding: 14px 16px;
+          overflow-x: auto;
+          margin: 12px 0;
+          -webkit-overflow-scrolling: touch;
+      }
+      pre code {
+          background: transparent;
+          padding: 0;
+          font-size: 0.85rem;
+          line-height: 1.55;
+          white-space: pre;
+      }
+
+      /* ── Tables ── */
+      table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 12px 0;
+          display: block;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+      }
+      thead { background: #161b22; }
+      th {
+          font-weight: 600;
+          color: #e6edf3;
+          text-align: left;
+          padding: 10px 12px;
+          border-bottom: 2px solid #30363d;
+          white-space: nowrap;
+          font-size: 0.9rem;
+      }
+      td {
+          padding: 8px 12px;
+          border-bottom: 1px solid #21262d;
+          font-size: 0.9rem;
+          vertical-align: top;
+      }
+      tr:nth-child(even) { background: rgba(22, 27, 34, 0.5); }
+
+      /* ── ToC Styling ── */
+      h2 + ol {
+          background: #161b22;
+          border: 1px solid #30363d;
+          border-radius: 10px;
+          padding: 16px 16px 16px 36px;
+          margin: 0 0 16px;
+      }
+      h2 + ol a {
+          display: inline-block;
+          padding: 3px 0;
+      }
+
+      /* ── Portrait mode (narrow screens) ── */
+      @media screen and (max-width: 480px) {
+          html { font-size: 14px; }
+          .markdown-body { padding: 16px 14px 40px; }
+          h1 { font-size: 1.55rem; }
+          h2 { font-size: 1.3rem; margin-top: 26px; }
+          h3 { font-size: 1.08rem; }
+          th, td { padding: 7px 8px; font-size: 0.84rem; }
+          pre { padding: 10px 12px; }
+          pre code { font-size: 0.8rem; }
+          blockquote { padding: 8px 12px; }
+      }
+
+      /* ── Landscape mode (short & wide) ── */
+      @media screen and (orientation: landscape) and (max-height: 500px) {
+          .markdown-body { padding: 14px 24px 32px; max-width: 100%; }
+          h1 { font-size: 1.5rem; padding-bottom: 8px; margin-bottom: 12px; }
+          h2 { font-size: 1.25rem; margin-top: 20px; margin-bottom: 8px; }
+          h3 { font-size: 1.05rem; margin-top: 16px; }
+          hr { margin: 16px 0; }
+          table { font-size: 0.88rem; }
+      }
+
+      /* ── Wide landscape (tablets / large phones) ── */
+      @media screen and (orientation: landscape) and (min-width: 700px) {
+          .markdown-body { max-width: 90%; padding: 20px 32px 40px; }
+      }
+
+      /* ── Strong / Emphasis ── */
+      strong { color: #e6edf3; font-weight: 600; }
+      em { color: #8b949e; }
   </style>
 </head>
 <body>
   <article class="markdown-body">
       <h1>MeterKenshin — User Documentation</h1>
 <blockquote>
-<p><strong>Version:</strong> 1.00.0 | <strong>Platform:</strong> Android 11.0+ | <strong>Last Updated:</strong> 2026-02-25</p>
+<p><strong>Version:</strong> 1.01.0 | <strong>Platform:</strong> Android 11.0+ | <strong>Last Updated:</strong> 2026-03-18</p>
 </blockquote>
 <hr>
 <h2>Table of Contents</h2>
@@ -63,7 +243,7 @@
 <li><a href="#troubleshooting">Troubleshooting</a></li>
 </ol>
 <hr>
-<h2>Overview</h2>
+<h2 id="overview">Overview</h2>
 <p><strong>MeterKenshin</strong> is an Android application for reading and managing electricity meters via Bluetooth Low Energy (BLE). It communicates with meters using the <strong>DLMS/COSEM protocol</strong>, generates billing receipts, and supports printing via <strong>Woosim Bluetooth printers</strong>.</p>
 <h3>Key Capabilities</h3>
 <table>
@@ -103,7 +283,7 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>Getting Started</h2>
+<h2 id="getting-started">Getting Started</h2>
 <h3>Step 1 — Install &amp; Launch</h3>
 <p>Install the MeterKenshin APK on Android device and open the app.</p>
 <h3>Step 2 — Log In</h3>
@@ -116,7 +296,7 @@
 <h3>Step 5 — Start Reading Meters</h3>
 <p>Navigate to <strong>Meter Reading</strong>, select a nearby meter, and tap <strong>Read Data</strong> in the Meter Detail screen.</p>
 <hr>
-<h2>User Roles</h2>
+<h2 id="user-roles">User Roles</h2>
 <p>MeterKenshin supports two user roles. User role is shown in the navigation drawer under username.</p>
 <h3>Admin</h3>
 <table>
@@ -177,7 +357,7 @@
 </tr>
 </tbody></table>
 <hr>
-<h2>Required Files</h2>
+<h2 id="required-files">Required Files</h2>
 <p>Three CSV files must be uploaded before the app can read meters. Upload them via <strong>Navigation → Upload Data</strong>.</p>
 <h3>1. <code>meter.csv</code> — Meter Registry</h3>
 <p>Defines all meters in the system. The app matches Bluetooth-discovered devices against this file.</p>
@@ -282,7 +462,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <p>This file is <strong>optional</strong>. If not uploaded, defaults or in-app edits are used.</p>
 </blockquote>
 <hr>
-<h2>Navigation</h2>
+<h2 id="navigation">Navigation</h2>
 <p>The <strong>Navigation Drawer</strong> is opened by tapping the ☰ menu icon in the top-left corner.</p>
 <table>
 <thead>
@@ -330,8 +510,8 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <li>Menu button (☰)</li>
 </ul>
 <hr>
-<h2>Screens &amp; Features</h2>
-<h3>Home Screen</h3>
+<h2 id="screens--features">Screens &amp; Features</h2>
+<h3 id="home-screen">Home Screen</h3>
 <p>The dashboard shows a quick overview of User's meter system.</p>
 <p><strong>Overview Cards (horizontal scroll):</strong></p>
 <table>
@@ -363,7 +543,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </ul>
 <p><strong>Recent Readings</strong> — shows a preview of meters from list with their status.</p>
 <hr>
-<h3>Meter Reading Screen</h3>
+<h3 id="meter-reading-screen">Meter Reading Screen</h3>
 <p>Shows all registered meters with search and filtering.</p>
 <p><strong>Features:</strong></p>
 <ul>
@@ -401,7 +581,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </tr>
 </tbody></table>
 <hr>
-<h3>Meter Detail Screen</h3>
+<h3 id="meter-detail-screen">Meter Detail Screen</h3>
 <p>The main screen for interacting with a specific meter.</p>
 <h4>Meter Information Card</h4>
 <p>Shows the meter's specifications: serial number, Bluetooth ID, billing date, energy readings, max demand, and voltage.</p>
@@ -424,21 +604,41 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </tr>
 <tr>
 <td><strong>Load Profile</strong></td>
-<td>Download historical consumption data</td>
+<td>Download historical consumption data (supports Get All or Get by Period)</td>
 </tr>
 <tr>
 <td><strong>Event Log</strong></td>
-<td>Download meter event history</td>
+<td>Download meter event history (supports Get All or Get by Period)</td>
 </tr>
 <tr>
 <td><strong>Billing Data</strong></td>
-<td>Retrieve stored billing records from meter</td>
+<td>Retrieve stored billing records from meter (supports Get All or Get by Period)</td>
 </tr>
 <tr>
 <td><strong>Set Clock</strong></td>
 <td>Synchronize the meter's internal clock</td>
 </tr>
 </tbody></table>
+<h4>Get by Period (Selective Access)</h4>
+<p>When tapping <strong>Load Profile</strong>, <strong>Event Log</strong>, or <strong>Billing Data</strong>, a dialog appears with two options:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Get All Data</strong></td>
+<td>Retrieves all available records stored in the meter</td>
+</tr>
+<tr>
+<td><strong>Get by Period</strong></td>
+<td>Retrieves only records within a selected date range (From / To)</td>
+</tr>
+</tbody></table>
+<p>When <strong>Get by Period</strong> is selected, pick the start and end dates using the date picker. The app sends a DLMS selective access request with a range descriptor to filter records on the meter side, reducing transfer time.</p>
+<p>Files saved from a period-based read include the date range in the filename (e.g., <code>1286_LP_20260318_134707_from20260301_to20260318.csv</code>).</p>
 <blockquote>
 <p><strong>Note:</strong> Always do <strong>Registration</strong> first before any other DLMS operation. If <strong>DLMS Confirm Dialog</strong> is enabled in Settings, a confirmation dialog appears before each action.</p>
 </blockquote>
@@ -453,7 +653,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <li>Billing data has been read</li>
 </ul>
 <hr>
-<h3>Receipt Screen</h3>
+<h3 id="receipt-screen">Receipt Screen</h3>
 <p>Preview how a receipt will look and manage billing rate data.</p>
 <p><strong>Sections:</strong></p>
 <ol>
@@ -465,7 +665,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </li>
 </ol>
 <hr>
-<h3>Import Data Screen</h3>
+<h3 id="import-data-screen">Import Data Screen</h3>
 <p>Manage all CSV file uploads.</p>
 <p><strong>File Status Colors:</strong></p>
 <table>
@@ -526,7 +726,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <p><strong>Note:</strong> Replacing <code>meter.csv</code> will clear the current meter list. The app will reload meters from the new file.</p>
 </blockquote>
 <hr>
-<h3>Export Data Screen</h3>
+<h3 id="export-data-screen">Export Data Screen</h3>
 <p><em>(Admin users only)</em></p>
 <p>View, select, and export billing data files that have been collected.</p>
 <p><strong>Features:</strong></p>
@@ -536,29 +736,39 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <li>Download files to external storage</li>
 <li>Delete selected files</li>
 </ul>
-<p><strong>Exported file types:</strong></p>
+<p><strong>File Item Tags:</strong></p>
+<p>Each file card displays color-coded tags for quick identification:</p>
 <table>
 <thead>
 <tr>
-<th>Type</th>
+<th>Tag</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>LP</td>
-<td>Load Profile — historical consumption</td>
+<td><strong>Load Profile</strong></td>
+<td>LP — historical consumption data</td>
 </tr>
 <tr>
-<td>EL</td>
-<td>Event Log — meter events</td>
+<td><strong>Event Log</strong></td>
+<td>EL — meter event history</td>
 </tr>
 <tr>
-<td>BD</td>
-<td>Billing Data — calculated billing</td>
+<td><strong>Billing Data</strong></td>
+<td>BD — calculated billing records</td>
+</tr>
+<tr>
+<td><strong>All Data</strong></td>
+<td>File was retrieved using "Get All Data" mode</td>
+</tr>
+<tr>
+<td><strong>By Period</strong></td>
+<td>File was retrieved using "Get by Period" mode — the date range is shown below the tags</td>
 </tr>
 </tbody></table>
+<p>Files retrieved by period display the date range (e.g., <code>2026-03-01 ~ 2026-03-18</code>) with a calendar icon below the tags.</p>
 <hr>
-<h3>Settings Screen</h3>
+<h3 id="settings-screen">Settings Screen</h3>
 <p>Configure app behavior and manage accounts.</p>
 <h4>User Profile Section</h4>
 <p>Displays current username, role, and last login time.</p>
@@ -642,8 +852,8 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <h4>About Section</h4>
 <p>Shows the app name, version number, and build number.</p>
 <hr>
-<h2>Workflows</h2>
-<h3>Reading a Meter</h3>
+<h2 id="workflows">Workflows</h2>
+<h3 id="reading-a-meter">Reading a Meter</h3>
 <pre><code class="hljs plaintext">1. Ensure meter.csv, printer.csv, and rate.csv are uploaded
 2. Navigate to Meter Reading
 3. Wait for the meter to appear as "Online" (BLE detected)
@@ -653,7 +863,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 7. Billing data is calculated and saved automatically
 8. (Optional) Tap Print Receipt if printer is connected</code></pre><p><strong>After a successful read</strong>, the meter status changes to <strong>"Inspected, Billing not Printed"</strong> (or Printed if receipt is printed).</p>
 <hr>
-<h3>Printing a Receipt</h3>
+<h3 id="printing-a-receipt">Printing a Receipt</h3>
 <p><strong>Prerequisites:</strong></p>
 <ul>
 <li>Woosim printer is powered on</li>
@@ -667,7 +877,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 5. Wait for the receipt to print (~15 seconds max)
 6. Meter status updates to "Inspected, Billing Printed"</code></pre><p>If the printer is <strong>not connected</strong>, tap <strong>Connect</strong> in the Home screen's Bluetooth Printer card, or check that the printer is on and the MAC address in <code>printer.csv</code> is correct.</p>
 <hr>
-<h3>Batch Printing</h3>
+<h3 id="batch-printing">Batch Printing</h3>
 <p>Batch printing automatically reads and prints receipts for multiple meters in sequence.</p>
 <p><strong>Starting a Batch:</strong></p>
 <pre><code class="hljs plaintext">1. Select batch print mode: ALL or NOT_PRINTED_ONLY
@@ -722,7 +932,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <li>Detailed list of any failures with reasons</li>
 </ul>
 <hr>
-<h3>Exporting Meters (Admin)</h3>
+<h3 id="exporting-meters-admin">Exporting Meters (Admin)</h3>
 <p>This workflow creates a clean <code>meter.csv</code> that Reader users can import.</p>
 <pre><code class="hljs plaintext">1. Navigate to Settings
 2. Tap Export Registered Meters (Admin Tools section)
@@ -760,7 +970,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </tbody></table>
 <p>Readers who import this file will see all meters as <strong>"Not Inspected"</strong> — ready for a new reading cycle.</p>
 <hr>
-<h2>Receipt Branding</h2>
+<h2 id="receipt-branding">Receipt Branding</h2>
 <p>Company information on printed receipts can be customized in three ways (highest priority wins):</p>
 <table>
 <thead>
@@ -828,7 +1038,7 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </tbody></table>
 <p><strong>To reset</strong> branding back to CSV or defaults: Settings → Admin Tools → Receipt Branding → Reset.</p>
 <hr>
-<h2>Billing Calculation</h2>
+<h2 id="billing-calculation">Billing Calculation</h2>
 <p>The app calculates the total electricity bill using data from the meter and the rates in <code>rate.csv</code>.</p>
 <h3>Rate Table Structure (23 values in order)</h3>
 <table>
@@ -1012,13 +1222,13 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <td>kW</td>
 </tr>
 <tr>
-<td>Voltage (0.1 V units)</td>
+<td>Voltage (centi-volts)</td>
 <td>÷ 100</td>
-<td>V</td>
+<td>V (e.g., 10387 → 103.87 V)</td>
 </tr>
 </tbody></table>
 <hr>
-<h2>Troubleshooting</h2>
+<h2 id="troubleshooting">Troubleshooting</h2>
 <h3>App doesn't show any meters</h3>
 <ul>
 <li><strong>Check:</strong> Is <code>meter.csv</code> uploaded? (Import Data → all 3 files must show green)</li>
@@ -1055,9 +1265,6 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <li><strong>Current User data only:</strong> Settings → Reset User Data (all users see this)</li>
 <li><strong>Everything (all users):</strong> Settings → Hard Reset App (Admin only — irreversible)</li>
 </ul>
-<hr>
-<h3>App was interrupted during batch print — how to resume? (on Testing)</h3>
-<p>On the next app launch, the app will detect the interrupted batch and offer to <strong>Resume</strong> from where it stopped (valid for 24 hours after the interruption). Tap <strong>Resume</strong> in the dialog that appears.</p>
 <hr>
 
   </article>

@@ -211,7 +211,7 @@
   <article class="markdown-body">
       <h1>MeterKenshin — User Documentation</h1>
 <blockquote>
-<p><strong>Version:</strong> 1.00.0 | <strong>Platform:</strong> Android 11.0+ | <strong>Last Updated:</strong> 2026-02-25</p>
+<p><strong>Version:</strong> 1.01.0 | <strong>Platform:</strong> Android 11.0+ | <strong>Last Updated:</strong> 2026-03-18</p>
 </blockquote>
 <hr>
 <h2>Table of Contents</h2>
@@ -604,21 +604,41 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 </tr>
 <tr>
 <td><strong>Load Profile</strong></td>
-<td>Download historical consumption data</td>
+<td>Download historical consumption data (supports Get All or Get by Period)</td>
 </tr>
 <tr>
 <td><strong>Event Log</strong></td>
-<td>Download meter event history</td>
+<td>Download meter event history (supports Get All or Get by Period)</td>
 </tr>
 <tr>
 <td><strong>Billing Data</strong></td>
-<td>Retrieve stored billing records from meter</td>
+<td>Retrieve stored billing records from meter (supports Get All or Get by Period)</td>
 </tr>
 <tr>
 <td><strong>Set Clock</strong></td>
 <td>Synchronize the meter's internal clock</td>
 </tr>
 </tbody></table>
+<h4>Get by Period (Selective Access)</h4>
+<p>When tapping <strong>Load Profile</strong>, <strong>Event Log</strong>, or <strong>Billing Data</strong>, a dialog appears with two options:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Get All Data</strong></td>
+<td>Retrieves all available records stored in the meter</td>
+</tr>
+<tr>
+<td><strong>Get by Period</strong></td>
+<td>Retrieves only records within a selected date range (From / To)</td>
+</tr>
+</tbody></table>
+<p>When <strong>Get by Period</strong> is selected, pick the start and end dates using the date picker. The app sends a DLMS selective access request with a range descriptor to filter records on the meter side, reducing transfer time.</p>
+<p>Files saved from a period-based read include the date range in the filename (e.g., <code>1286_LP_20260318_134707_from20260301_to20260318.csv</code>).</p>
 <blockquote>
 <p><strong>Note:</strong> Always do <strong>Registration</strong> first before any other DLMS operation. If <strong>DLMS Confirm Dialog</strong> is enabled in Settings, a confirmation dialog appears before each action.</p>
 </blockquote>
@@ -716,27 +736,37 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <li>Download files to external storage</li>
 <li>Delete selected files</li>
 </ul>
-<p><strong>Exported file types:</strong></p>
+<p><strong>File Item Tags:</strong></p>
+<p>Each file card displays color-coded tags for quick identification:</p>
 <table>
 <thead>
 <tr>
-<th>Type</th>
+<th>Tag</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody><tr>
-<td>LP</td>
-<td>Load Profile — historical consumption</td>
+<td><strong>Load Profile</strong></td>
+<td>LP — historical consumption data</td>
 </tr>
 <tr>
-<td>EL</td>
-<td>Event Log — meter events</td>
+<td><strong>Event Log</strong></td>
+<td>EL — meter event history</td>
 </tr>
 <tr>
-<td>BD</td>
-<td>Billing Data — calculated billing</td>
+<td><strong>Billing Data</strong></td>
+<td>BD — calculated billing records</td>
+</tr>
+<tr>
+<td><strong>All Data</strong></td>
+<td>File was retrieved using "Get All Data" mode</td>
+</tr>
+<tr>
+<td><strong>By Period</strong></td>
+<td>File was retrieved using "Get by Period" mode — the date range is shown below the tags</td>
 </tr>
 </tbody></table>
+<p>Files retrieved by period display the date range (e.g., <code>2026-03-01 ~ 2026-03-18</code>) with a calendar icon below the tags.</p>
 <hr>
 <h3 id="settings-screen">Settings Screen</h3>
 <p>Configure app behavior and manage accounts.</p>
@@ -1192,9 +1222,9 @@ disclaimer,This is not an Official Receipt.</code></pre><blockquote>
 <td>kW</td>
 </tr>
 <tr>
-<td>Voltage (0.1 V units)</td>
+<td>Voltage (centi-volts)</td>
 <td>÷ 100</td>
-<td>V</td>
+<td>V (e.g., 10387 → 103.87 V)</td>
 </tr>
 </tbody></table>
 <hr>

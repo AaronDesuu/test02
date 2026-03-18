@@ -26,7 +26,9 @@ object DLMSCSVWriter {
         type: CSVType,
         serialNumber: String?,
         data: ArrayList<String>,
-        additionalData: Any? = null
+        additionalData: Any? = null,
+        fromDate: Date? = null,
+        toDate: Date? = null
     ): Boolean {
         return try {
             if (serialNumber.isNullOrEmpty()) {
@@ -50,7 +52,12 @@ object DLMSCSVWriter {
                 CSVType.LOAD_PROFILE -> "LP"
                 CSVType.EVENT_LOG -> "EL"
             }
-            val filename = "${serialNumber}_${filePrefix}_${timestamp}.csv"
+            // Append period suffix if from/to dates are provided
+            val periodSuffix = if (fromDate != null && toDate != null) {
+                val dateFmt = SimpleDateFormat("yyyyMMdd", Locale.getDefault())
+                "_from${dateFmt.format(fromDate)}_to${dateFmt.format(toDate)}"
+            } else ""
+            val filename = "${serialNumber}_${filePrefix}_${timestamp}${periodSuffix}.csv"
             val file = File(externalDir, filename)
 
             // Generate CSV content based on type
@@ -154,9 +161,10 @@ object DLMSCSVWriter {
         while (i + 2 < eventData.size) {
             csvContent.append("${eventData[i]},")      // Clock
             csvContent.append("${eventData[i+1]},")    // Event
-            // Format Volt to 2 decimal places (e.g., 100.00)
-            val voltValue = eventData[i+2].toFloatOrNull() ?: 0f
-            csvContent.append("${String.format("%.2f", voltValue)}\n")   // Volt
+            // Format Volt: raw value is centi-volts, divide by 100 (e.g., 10387 -> 103.87)
+            val rawVolt = eventData[i+2].trim().toIntOrNull()
+            val volt = if (rawVolt != null) String.format("%.2f", rawVolt / 100.0) else eventData[i+2]
+            csvContent.append("$volt\n")   // Volt
             i += 3
         }
 

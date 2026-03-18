@@ -1,5 +1,6 @@
 package com.example.meterkenshin.ui.screen
 
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -72,6 +74,11 @@ fun FileUploadScreen(
     var showReplaceDialog by remember { mutableStateOf<RequiredFile.FileType?>(null) }
     var showDeleteDialog by remember { mutableStateOf<RequiredFile.FileType?>(null) }
 
+    // On phone landscape, make header/status scroll with the list
+    val configuration = LocalConfiguration.current
+    val scrollFixedParts = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+            && configuration.smallestScreenWidthDp < 600
+
     // Check for existing files when screen loads
     LaunchedEffect(Unit) {
         viewModel.checkExistingFiles(context)
@@ -84,88 +91,36 @@ fun FileUploadScreen(
         uri?.let { viewModel.selectFile(it, context) }
     }
 
+    // Required file list
+    val requiredFiles = uploadState.requiredFiles.filter {
+        it.type != RequiredFile.FileType.COMPANY
+    }
+    val optionalFiles = uploadState.requiredFiles.filter {
+        it.type == RequiredFile.FileType.COMPANY
+    }
+
     Column(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            // Header
-            Text(
-                text = stringResource(R.string.file_upload_title),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Text(
-                text = stringResource(R.string.upload_instructions),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            // Upload status summary
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (uploadState.allFilesUploaded)
-                        Color(0xFF4CAF50).copy(alpha = 0.12f)
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (uploadState.allFilesUploaded) Icons.Default.CheckCircle else Icons.Default.Upload,
-                            contentDescription = null,
-                            tint = if (uploadState.allFilesUploaded)
-                                Color(0xFF4CAF50)
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-
-                        Text(
-                            text = if (uploadState.allFilesUploaded)
-                                stringResource(R.string.file_upload_complete)
-                            else
-                                stringResource(R.string.file_upload_incomplete),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-                    val requiredCount = uploadState.requiredFiles.count { it.type != RequiredFile.FileType.COMPANY }
-                    val requiredUploadedCount = uploadState.requiredFiles.count { it.type != RequiredFile.FileType.COMPANY && it.isUploaded }
-                    Text(
-                        text = "$requiredUploadedCount of $requiredCount required files uploaded",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-            }
-
-            // Required file list
-            val requiredFiles = uploadState.requiredFiles.filter {
-                it.type != RequiredFile.FileType.COMPANY
-            }
-            val optionalFiles = uploadState.requiredFiles.filter {
-                it.type == RequiredFile.FileType.COMPANY
+            // Header & status card - fixed on tablet/portrait
+            if (!scrollFixedParts) {
+                FileUploadHeader(uploadState)
             }
 
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Header & status card - scrollable on phone landscape
+                if (scrollFixedParts) {
+                    item(key = "header") {
+                        FileUploadHeader(uploadState)
+                    }
+                }
+
                 items(requiredFiles) { file ->
                     FileUploadCard(
                         file = file,
@@ -572,6 +527,79 @@ fun FileUploadCard(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Extracted header + status summary so it can be placed either
+ * fixed above the LazyColumn or inside it as a scrollable item.
+ */
+@Composable
+private fun FileUploadHeader(uploadState: FileUploadState) {
+    Column {
+        // Header
+        Text(
+            text = stringResource(R.string.file_upload_title),
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Text(
+            text = stringResource(R.string.upload_instructions),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        // Upload status summary
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (uploadState.allFilesUploaded)
+                    Color(0xFF4CAF50).copy(alpha = 0.12f)
+                else
+                    MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (uploadState.allFilesUploaded) Icons.Default.CheckCircle else Icons.Default.Upload,
+                        contentDescription = null,
+                        tint = if (uploadState.allFilesUploaded)
+                            Color(0xFF4CAF50)
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+
+                    Text(
+                        text = if (uploadState.allFilesUploaded)
+                            stringResource(R.string.file_upload_complete)
+                        else
+                            stringResource(R.string.file_upload_incomplete),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                val requiredCount = uploadState.requiredFiles.count { it.type != RequiredFile.FileType.COMPANY }
+                val requiredUploadedCount = uploadState.requiredFiles.count { it.type != RequiredFile.FileType.COMPANY && it.isUploaded }
+                Text(
+                    text = "$requiredUploadedCount of $requiredCount required files uploaded",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }

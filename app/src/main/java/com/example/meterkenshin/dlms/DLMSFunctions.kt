@@ -278,7 +278,7 @@ class DLMSFunctions(
      *   02 04         - Structure(4): range_descriptor
      *     02 04       - Structure(4): restricting_object
      *       12 0008   - class_id = 8 (Clock), long-unsigned
-     *       09 06 00 00 01 00 01 FF  - logical_name 0.0.1.0.1.255 (RTC clock)
+     *       09 06 00 00 01 00 00 FF  - logical_name 0.0.1.0.0.255 (DateTime clock)
      *       0F 02     - attribute_index = 2, integer (int8, type 0x0F)
      *       12 0000   - data_index = 0, long-unsigned
      *     09 0C [12]  - from_value: octet-string(12) date_time
@@ -307,7 +307,7 @@ class DLMSFunctions(
         val param = "0204" +
                "0204" +
                "120008" +
-               "09060000010001ff" +        // OBIS 0.0.1.0.1.255 = RTC clock (IST_DATETIME_RTC)
+               "09060000010000ff" +        // OBIS 0.0.1.0.0.255 = DateTime clock (IST_DATETIME_NOW)
                "0f02" +                    // attribute_index = 2 (int8, type 0x0F)
                "120000" +
                "090c${encodeDatetime(fromDate)}" +

@@ -1483,7 +1483,9 @@ class DLMSViewModel : ViewModel() {
                     context = appContext,
                     type = DLMSCSVWriter.CSVType.LOAD_PROFILE,
                     serialNumber = meter.serialNumber,
-                    data = allData
+                    data = allData,
+                    fromDate = fromDate,
+                    toDate = toDate
                 )
                 if (success) {
                     appendLog("Success to get and save ${allData.size} load profile records to file")
@@ -1570,7 +1572,9 @@ class DLMSViewModel : ViewModel() {
                     context = appContext,
                     type = DLMSCSVWriter.CSVType.EVENT_LOG,
                     serialNumber = meter.serialNumber,
-                    data = allData
+                    data = allData,
+                    fromDate = fromDate,
+                    toDate = toDate
                 )
                 if (success) {
                     appendLog("Success to get and save ${allData.size} event records to file")
@@ -1678,7 +1682,9 @@ class DLMSViewModel : ViewModel() {
                     type = DLMSCSVWriter.CSVType.BILLING,
                     serialNumber = meter.serialNumber,
                     data = dataWithTimestamp,
-                    additionalData = Pair(records, rates)
+                    additionalData = Pair(records, rates),
+                    fromDate = fromDate,
+                    toDate = toDate
                 )
                 if (success) {
                     appendLog("Success to get and save ${records.size} billing records to file")
