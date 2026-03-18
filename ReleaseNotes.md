@@ -1,13 +1,13 @@
 MeterKenshin — Release Notes
 
-Version 1.02.0 — March 18, 2026
+Version 1.00.2 — March 18, 2026
 
 New Features:
 
-Get by Period (Selective Access)
-- Load Profile, Event Log, and Billing Data now support date-range filtering
+Get by Period
+- Load Profile, Event Log, and Billing Data now can GET Period specific data
 - Choose "Get All Data" or "Get by Period" with a date picker dialog
-- Date picker constrained to 12 months back with cross-linked From/To validation
+- Date picker constrained up to 12 months back because of the Meter's capability
 - Files saved by period include the date range in the filename
 
 Export Screen Filters & Sort
@@ -24,23 +24,22 @@ Meter Reading Screen Redesign
 
 Bug Fixes:
 
-- Fixed: Event Log by Period had broken structure from leftover guard code
 - Fixed: CancellationException catch ordering in Event Log and Billing Data period functions
-- Fixed: Set Clock button was accidentally calling debug capture objects instead of set clock
 - Fixed: DLMS operations now properly track Job for cancellation support
 
 Improvements:
 
-- Modernized DLMS Log card with terminal icon, status chip, and animated progress bar
-- Clear and Stop buttons hidden during Read Data and Registration to prevent confusion
+- Redesigned Meter Reading screen
+- Redesigned Export screen
+- Redesigned DLMS Log card inside Meter Detail screen
+- Redesigned header in Import Data screen
+- Redesigned header in Export Data screen
 - Receipt Template "Connect" button now navigates to Home and auto-connects the printer
-- Removed duplicate "File Upload" title from Import Data screen
-- Removed duplicate "Export Files" header from Export Data screen
-- All 8 DLMS operations now store Job and are cancellable
+- All 8 DLMS operations now are cancellable
 
 ---
 
-Version 1.01.0 — March 13, 2026
+Version 1.00.1 — March 13, 2026
 
 New Features:
 
